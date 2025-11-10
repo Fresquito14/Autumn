@@ -1,9 +1,12 @@
+import { ArrowLeft } from 'lucide-react'
 import { useProject } from './hooks/useProject'
 import { ProjectSetupDialog } from './components/features/ProjectSetup/ProjectSetupDialog'
 import { ProjectList } from './components/features/ProjectSetup/ProjectList'
+import { WBSTree } from './components/features/WBS/WBSTree'
+import { Button } from './components/ui/button'
 
 function App() {
-  const { currentProject } = useProject()
+  const { currentProject, setCurrentProject } = useProject()
 
   return (
     <div className="min-h-screen bg-background">
@@ -20,7 +23,19 @@ function App() {
                 </>
               )}
             </div>
-            <ProjectSetupDialog />
+            <div className="flex items-center gap-2">
+              {currentProject && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentProject(null)}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Volver a Proyectos
+                </Button>
+              )}
+              <ProjectSetupDialog />
+            </div>
           </div>
         </div>
       </header>
@@ -37,13 +52,8 @@ function App() {
             <ProjectList />
           </div>
         ) : (
-          <div className="bg-card rounded-lg shadow-sm border p-8">
-            <h2 className="text-xl font-semibold mb-4">
-              Proyecto: {currentProject.name}
-            </h2>
-            <p className="text-muted-foreground">
-              Vista de proyecto en desarrollo... (Fase 2)
-            </p>
+          <div className="space-y-6">
+            <WBSTree />
           </div>
         )}
       </main>
