@@ -3,6 +3,7 @@ import { useProject } from './hooks/useProject'
 import { ProjectSetupDialog } from './components/features/ProjectSetup/ProjectSetupDialog'
 import { ProjectList } from './components/features/ProjectSetup/ProjectList'
 import { WBSTree } from './components/features/WBS/WBSTree'
+import { GanttChart } from './components/features/GanttChart/GanttChart'
 import { Button } from './components/ui/button'
 
 function App() {
@@ -54,6 +55,7 @@ function App() {
         ) : (
           <div className="space-y-6">
             <WBSTree />
+            <GanttChart />
           </div>
         )}
       </main>
