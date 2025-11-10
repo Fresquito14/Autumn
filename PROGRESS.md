@@ -62,136 +62,191 @@
 - [x] Tests de códigos WBS (5 tests)
 - [x] **Total: 10 tests passing**
 
-**Cobertura de tests**:
-- ✅ Detección de dependencias circulares
-- ✅ Validación de grafos complejos
-- ✅ Generación de códigos WBS
-- ✅ Sorting numérico de WBS codes
-- ✅ Cálculo de niveles jerárquicos
+---
 
-### Tecnologías Implementadas
+## 🚀 Fase 2: Visualización Básica - COMPLETADA
 
-**Core**:
-- React 18.3.1
-- TypeScript 5.6.2
-- Vite 6.0.5
+**Fecha de completación**: 2025-11-10
 
-**Styling**:
-- Tailwind CSS 3.4.17
-- shadcn/ui components
-- class-variance-authority
-- tailwind-merge
+### Logros Principales
 
-**State & Data**:
-- Zustand 5.0.8
-- Dexie.js 4.2.1
-- date-fns 4.1.0
+#### 1. Sistema de Gestión de Proyectos ✅
+- [x] **ProjectSetupDialog**: Formulario completo de creación
+  - Nombre, descripción, fecha de inicio
+  - Configuración de días laborables (checkboxes)
+  - Configuración de horas por día
+  - Validación con react-hook-form
 
-**Forms & Validation**:
-- React Hook Form 7.66.0
-- Zod 4.1.12
+- [x] **ProjectList**: Vista de lista de proyectos
+  - Tarjetas con información resumida
+  - Fecha de inicio formateada
+  - Acciones: Abrir y Eliminar
+  - Estado vacío con call-to-action
 
-**Testing**:
-- Vitest 4.0.8
-- Testing Library 16.3.0
-- jsdom 27.1.0
+**Ubicación**: `src/components/features/ProjectSetup/`
 
-**Otros**:
-- @dnd-kit/core 6.3.1
-- lucide-react 0.553.0
+#### 2. Componentes UI Adicionales ✅
+- [x] **Input**: Campo de entrada estilizado
+- [x] **Label**: Etiquetas accesibles con Radix UI
+- [x] **Dialog**: Modales con overlay y animaciones
+- [x] **Card**: Contenedores con header, content, footer
 
-### Métricas
+**Ubicación**: `src/components/ui/`
 
-- **Archivos creados**: 38
-- **Líneas de código**: ~8,969
-- **Tests**: 10/10 passing
-- **Build time**: ~2s
-- **Bundle size**: 144.62 kB (gzip: 46.50 kB)
+#### 3. Sistema WBS (Work Breakdown Structure) ✅
+- [x] **WBSTree**: Vista principal del árbol
+  - Visualización jerárquica con indentación
+  - Expand/collapse de subtareas
+  - Header con columnas organizadas
+  - Contador de tareas
+  - Estado vacío con call-to-action
 
-### Comandos Disponibles
+- [x] **TaskRow**: Componente de fila
+  - Indicadores visuales de nivel
+  - Botones de expand/collapse
+  - Código WBS en formato mono
+  - Información de duración y fechas
+  - Acciones hover: Editar, Crear subtarea, Eliminar
 
-```bash
-# Desarrollo
-npm run dev
+- [x] **TaskFormDialog**: Formulario CRUD
+  - Modo crear/editar/crear-subtarea
+  - Validación completa
+  - Generación automática de códigos WBS
+  - Cálculo automático de fechas de fin
+  - Vista de tarea padre
 
-# Build producción
-npm run build
+**Ubicación**: `src/components/features/WBS/`
 
-# Tests
-npm test
-npm run test:ui
-npm run test:coverage
+#### 4. Utilidades WBS ✅
+- [x] `generateWbsCode`: Genera códigos jerárquicos (1, 1.1, 1.1.1)
+- [x] `getParentWbsCode`: Extrae código padre
+- [x] `getWbsLevel`: Calcula nivel de jerarquía
+- [x] `compareWbsCodes`: Ordenamiento numérico correcto
+- [x] `isDescendantOf`: Verificación de relaciones
+- [x] `getChildrenCodes`: Obtiene hijos directos
 
-# Linting
-npm run lint
+**Ubicación**: `src/lib/calculations/wbs.ts`
 
-# Preview
-npm run preview
-```
+#### 5. Diagrama de Gantt ✅
+- [x] **GanttChart**: Componente principal
+  - Panel izquierdo fijo con nombres
+  - Panel derecho scrolleable con timeline
+  - Responsive y adaptable
+  - Sincronización automática con tareas
 
-## 🎯 Próximos Pasos - Fase 2: Visualización Básica
+- [x] **GanttTimeline**: Encabezado temporal
+  - Escala semanal numerada
+  - Grid visual de referencia
+  - Sticky header
 
-### Objetivos
+- [x] **GanttTaskBar**: Barra de tarea
+  - Posicionamiento dinámico por fechas
+  - Color primary con hover
+  - Tooltip informativo
+  - Nombre visible en barras anchas
 
-1. **WBS Tree Component**
-   - [ ] Vista jerárquica de tareas
-   - [ ] Expansión/colapso de niveles
-   - [ ] Indicadores visuales de nivel
+**Ubicación**: `src/components/features/GanttChart/`
 
-2. **CRUD de Tareas**
-   - [ ] Formulario de creación de tareas
-   - [ ] Edición inline
-   - [ ] Eliminación con confirmación
-   - [ ] Validación de formularios
+#### 6. Utilidades de Fechas ✅
+- [x] `calculateBusinessDays`: Días laborables entre fechas
+- [x] `addBusinessDays`: Sumar días laborables
+- [x] `getTimelineBounds`: Límites del timeline
+- [x] `calculateTaskBarPosition`: Posición y ancho de barras
+- [x] `generateTimelineScale`: Escala temporal (día/semana/mes)
+- [x] `isWorkingDay`: Verificar día laboral
 
-3. **Gantt Chart Básico**
-   - [ ] Timeline con grid temporal
-   - [ ] Barras de tareas estáticas
-   - [ ] Escala de semanas/meses
-   - [ ] Sincronización con WBS
+**Ubicación**: `src/lib/calculations/dates.ts`
 
-4. **Schedule Calculator**
-   - [ ] Algoritmo de cálculo de fechas
-   - [ ] Consideración de días laborables
-   - [ ] Festivos y vacaciones
-   - [ ] Recálculo automático
+### Funcionalidades Implementadas
 
-### Estimación
+✅ Crear proyectos con configuración personalizada
+✅ Listar y gestionar proyectos
+✅ Crear tareas raíz y subtareas multinivel
+✅ Editar tareas existentes
+✅ Eliminar tareas con confirmación
+✅ Jerarquía visual con expand/collapse
+✅ Generación automática de códigos WBS
+✅ Ordenamiento correcto de tareas
+✅ Diagrama de Gantt con timeline semanal
+✅ Barras proporcionales a duración
+✅ Tooltips informativos
+✅ Persistencia automática en IndexedDB
 
-**Tiempo estimado**: 2-3 semanas
-**Complejidad**: Media
+---
 
-## 📝 Notas Técnicas
+## 📈 Métricas Actuales
 
-### Decisiones Arquitectónicas
+- **Commits**: 4
+- **Componentes creados**: 15
+- **Tests pasando**: 10/10
+- **Líneas de código**: ~10,000+
+- **Bundle size**: 379 kB (gzip: 122 kB)
+- **Funcionalidades core**: 100% (Fase 2)
 
-1. **IndexedDB desde el inicio**: Proyectos pueden ser grandes (100+ tareas)
-2. **Zustand sobre Redux**: Más simple para este caso de uso
-3. **shadcn/ui**: Componentes accesibles y customizables
-4. **Vitest**: Más rápido que Jest, mejor integración con Vite
+---
 
-### Problemas Resueltos
+## 🎯 Estado Actual
 
-1. **TypeScript config**: Configuración de tipos para Vitest
-2. **Path aliases**: `@/*` funcionando correctamente
-3. **CSS imports**: noUncheckedSideEffectImports ajustado
-4. **Git line endings**: Warnings de CRLF (Windows normal)
+### ¿Qué funciona?
 
-### Performance Targets
+✅ **Gestión completa de proyectos**
+✅ **Sistema WBS jerárquico**
+✅ **Diagrama de Gantt funcional**
+✅ **Persistencia de datos**
+✅ **Interfaz profesional y responsive**
 
-- ✅ Build < 3s
-- ✅ Bundle size < 150 kB
-- 🎯 First Paint < 2s (por verificar en Fase 2)
-- 🎯 Time to Interactive < 3.5s (por verificar en Fase 2)
+### ¿Qué falta?
 
-## 🔗 Referencias
+Para el MVP completo (según PROJECT.md):
+- [ ] Algoritmo de Critical Path (CPM)
+- [ ] Gestión de dependencias entre tareas
+- [ ] Gestión de recursos y asignaciones
+- [ ] Milestones con offset
+- [ ] Baseline (snapshot)
+- [ ] Export/Import JSON
 
-- [Documentación Completa](docs/PROJECT.md)
-- [Convenciones](docs/_conventions.md)
-- [Secciones Comunes](docs/_secciones-comunes.md)
+---
+
+## 🚦 Próximos Pasos - Fase 3: Algoritmos
+
+### Fase 3: El Cerebro - Critical Path
+
+1. **Gestión de Dependencias**
+   - [ ] UI para crear dependencias Finish-to-Start
+   - [ ] Líneas visuales en Gantt
+   - [ ] Validación de dependencias circulares
+
+2. **Algoritmo CPM**
+   - [ ] Cálculo de ES, EF, LS, LF
+   - [ ] Cálculo de Float/Slack
+   - [ ] Identificación de camino crítico
+   - [ ] Resaltado visual en rojo
+
+3. **Recálculo Automático**
+   - [ ] Schedule recalculado al cambiar dependencias
+   - [ ] Propagación de cambios
+   - [ ] Actualización de Gantt
+
+---
+
+## 📝 Notas de Desarrollo
+
+### Decisiones Técnicas
+
+1. **date-fns para fechas**: Más ligero y tree-shakeable que moment.js
+2. **Gantt con div absolutos**: Más simple que SVG o Canvas para MVP
+3. **Timeline semanal**: Balance entre detalle y rendimiento
+4. **Panel fijo + scrolleable**: Mejor UX que scroll completo
+
+### Aprendizajes
+
+- React Hook Form simplifica enormemente los formularios
+- Zustand es muy intuitivo para state management
+- IndexedDB funciona perfectamente para persistencia local
+- shadcn/ui components son muy customizables
 
 ---
 
 **Última actualización**: 2025-11-10
-**Versión**: 0.1.0 (Fase 1)
-**Estado**: ✅ Fundación Completa
+**Versión**: 0.2.0 (Fase 2 completada)
+**Estado**: ✅ Visualización Básica Completa
