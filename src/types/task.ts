@@ -30,10 +30,10 @@ export interface Task {
   assignedTo: string[]   // Resource IDs
 
   // Tracking (Phase 2)
-  percentComplete?: number
-  actualStart?: Date
-  actualFinish?: Date
-  actualDuration?: number
+  percentComplete?: number  // Calculated automatically based on children's actualDuration
+  actualStartDate?: Date
+  actualEndDate?: Date
+  actualDuration?: number   // When set, marks leaf task as completed (100%)
 
   // Metadata
   notes?: string

@@ -176,12 +176,12 @@
 
 ## 📈 Métricas Actuales
 
-- **Commits**: 4
-- **Componentes creados**: 15
+- **Commits**: 6+
+- **Componentes creados**: 19
 - **Tests pasando**: 10/10
-- **Líneas de código**: ~10,000+
-- **Bundle size**: 379 kB (gzip: 122 kB)
-- **Funcionalidades core**: 100% (Fase 2)
+- **Líneas de código**: ~12,000+
+- **Bundle size**: ~390 kB (gzip: ~125 kB)
+- **Funcionalidades core**: 100% (Fase 3 - CPM implementado)
 
 ---
 
@@ -194,38 +194,319 @@
 ✅ **Diagrama de Gantt funcional**
 ✅ **Persistencia de datos**
 ✅ **Interfaz profesional y responsive**
+✅ **Gestión de dependencias entre tareas** (NEW)
+✅ **Algoritmo de Critical Path (CPM)** (NEW)
+✅ **Visualización del camino crítico** (NEW)
 
 ### ¿Qué falta?
 
 Para el MVP completo (según PROJECT.md):
-- [ ] Algoritmo de Critical Path (CPM)
-- [ ] Gestión de dependencias entre tareas
-- [ ] Gestión de recursos y asignaciones
-- [ ] Milestones con offset
-- [ ] Baseline (snapshot)
-- [ ] Export/Import JSON
+- [x] Líneas visuales de dependencias en Gantt ✅
+- [x] Milestones con offset ✅
+- [x] Export/Import JSON ✅
+- [x] Baseline (snapshot) ✅
+- [ ] Gestión de recursos y asignaciones (opcional)
 
 ---
 
-## 🚦 Próximos Pasos - Fase 3: Algoritmos
+## 🔥 Fase 3: Algoritmos y Camino Crítico - COMPLETADA
 
-### Fase 3: El Cerebro - Critical Path
+**Fecha de completación**: 2025-11-10
 
-1. **Gestión de Dependencias**
-   - [ ] UI para crear dependencias Finish-to-Start
-   - [ ] Líneas visuales en Gantt
-   - [ ] Validación de dependencias circulares
+### Logros Principales
 
-2. **Algoritmo CPM**
-   - [ ] Cálculo de ES, EF, LS, LF
-   - [ ] Cálculo de Float/Slack
-   - [ ] Identificación de camino crítico
-   - [ ] Resaltado visual en rojo
+#### 1. Gestión de Dependencias ✅
+- [x] **DependencyDialog**: Formulario para crear dependencias
+  - Tipo Finish-to-Start (FS) implementado
+  - Validación de dependencias circulares en tiempo real
+  - Selectores dinámicos de predecesora/sucesora
+  - Campo de lag (retraso) en días
+  - Mensajes de error descriptivos
 
-3. **Recálculo Automático**
-   - [ ] Schedule recalculado al cambiar dependencias
-   - [ ] Propagación de cambios
-   - [ ] Actualización de Gantt
+- [x] **DependencyList**: Vista de lista de dependencias
+  - Visualización clara con flechas (→)
+  - Muestra lag cuando existe (+Xd)
+  - Acciones: Crear y Eliminar
+  - Contador de dependencias
+  - Estado vacío con explicación
+
+**Ubicación**: `src/components/features/WBS/`
+
+#### 2. Algoritmo CPM (Critical Path Method) ✅
+- [x] **Implementación completa del algoritmo**
+  - Forward Pass: Cálculo de ES (Early Start) y EF (Early Finish)
+  - Backward Pass: Cálculo de LS (Late Start) y LF (Late Finish)
+  - Cálculo de Total Float/Slack (LS - ES)
+  - Identificación automática de tareas críticas (float = 0)
+  - Soporte para dependencias con lag
+  - Ordenamiento topológico para procesamiento correcto
+
+**Ubicación**: `src/lib/algorithms/critical-path.ts`
+
+**Interfaz TaskWithCPM:**
+```typescript
+interface TaskWithCPM extends Task {
+  earlyStart: number    // ES
+  earlyFinish: number   // EF
+  lateStart: number     // LS
+  lateFinish: number    // LF
+  totalFloat: number    // Holgura/Slack
+  isCritical: boolean   // ¿Está en camino crítico?
+}
+```
+
+#### 3. Hook useCriticalPath ✅
+- [x] **Gestión del camino crítico**
+  - Integración con Zustand para tasks y dependencies
+  - Cálculo automático con cada cambio
+  - Funciones helper: `isTaskCritical`, `getTaskCPM`
+  - Recálculo eficiente con useEffect
+
+**Ubicación**: `src/hooks/useCriticalPath.ts`
+
+#### 4. Visualización del Camino Crítico ✅
+- [x] **TaskRow (WBS Tree)**
+  - Borde rojo izquierdo (4px) para tareas críticas
+  - Fondo rojo tenue (bg-destructive/5)
+  - Icono Zap (⚡) de advertencia
+  - Código WBS en rojo y negrita
+  - Nombre de tarea en rojo
+  - Muestra holgura en tiempo real
+
+- [x] **GanttTaskBar (Gantt Chart)**
+  - Barras rojas para tareas críticas
+  - Icono Zap (⚡) dentro de la barra
+  - Borde más grueso (2px)
+  - Tooltip con etiqueta "(CRÍTICO)"
+  - Muestra valor de holgura en tooltip
+
+**Ubicación**:
+- `src/components/features/WBS/TaskRow.tsx`
+- `src/components/features/GanttChart/GanttTaskBar.tsx`
+
+#### 5. Recálculo Automático de Fechas ✅
+- [x] **Hook useSchedule**: Recalculo automático de fechas
+  - Detecta cambios en dependencias
+  - Recalcula fechas de tareas sucesoras
+  - Respeta días laborables del proyecto
+  - Aplica lag de dependencias
+  - Previene bucles infinitos de actualización
+  - Actualización en lote para mejor rendimiento
+
+- [x] **Función recalculateTaskDates**
+  - Ordenamiento topológico de tareas
+  - Propagación de fechas a través de dependencias
+  - Ajuste automático a días laborables
+  - Mantiene duración original de tareas
+
+**Ubicación**:
+- `src/hooks/useSchedule.ts`
+- `src/lib/calculations/dates.ts` (función recalculateTaskDates)
+
+### Funcionalidades Implementadas
+
+✅ Crear dependencias Finish-to-Start entre tareas
+✅ Validación en tiempo real de ciclos circulares
+✅ Cálculo automático del camino crítico (CPM)
+✅ Visualización destacada de tareas críticas (rojo)
+✅ Indicadores visuales con icono Zap (⚡)
+✅ Mostrar holgura/slack de cada tarea
+✅ Sincronización en WBS y Gantt
+✅ Tooltips informativos con detalles CPM
+✅ Eliminar dependencias con confirmación
+✅ **Recálculo automático de fechas al crear/eliminar dependencias** (NEW)
+✅ **Propagación de cambios de fechas a tareas dependientes** (NEW)
+
+---
+
+## 🎨 Fase 4: Mejoras Visuales y Features Adicionales - COMPLETADA
+
+**Fecha de completación**: 2025-11-10
+
+### Logros Principales
+
+#### 1. Líneas de Dependencias en Gantt ✅
+- [x] **GanttDependencyLines**: Componente SVG para líneas
+  - Overlay SVG sobre el Gantt chart
+  - Líneas conectando tareas predecesoras con sucesoras
+  - Color diferenciado: rojo para camino crítico, gris para dependencias normales
+  - Flechas direccionales en los extremos
+  - Cálculo dinámico de posiciones basado en tareas visibles
+  - Z-index apropiado (sobre weekends, bajo milestones)
+
+**Ubicación**: `src/components/features/GanttChart/GanttDependencyLines.tsx`
+
+#### 2. Sistema de Milestones (Hitos) ✅
+- [x] **useMilestones**: Hook de gestión con Zustand
+  - CRUD completo de milestones
+  - Sincronización con IndexedDB
+  - DevTools integrados
+
+- [x] **MilestoneFormDialog**: Formulario de creación/edición
+  - Modo manual: fecha fija
+  - Modo vinculado: fecha calculada desde tarea + offset
+  - Offset en días laborables
+  - Solo permite vincular a tareas hoja
+  - Campo de fecha bloqueado cuando hay vinculación
+
+- [x] **MilestoneList**: Panel de gestión
+  - Vista de lista con información completa
+  - Muestra tarea vinculada y offset
+  - Doble clic para editar
+  - Eliminación con confirmación
+
+- [x] **GanttMilestone**: Visualización en Gantt
+  - Marcador de diamante azul
+  - Línea vertical discontinua
+  - Etiqueta con nombre del hito
+  - Tooltip con información completa
+  - Posicionamiento dinámico por fecha
+
+**Ubicación**:
+- `src/hooks/useMilestones.ts`
+- `src/components/features/Milestones/`
+- `src/components/features/GanttChart/GanttMilestone.tsx`
+
+#### 3. Export/Import de Proyectos ✅
+- [x] **Exportación a JSON**
+  - Función `exportProject`: extrae proyecto completo
+  - Función `downloadProjectAsJSON`: descarga automática
+  - Incluye: project, tasks, dependencies, resources, milestones, baselines
+  - Formato JSON versionado (v1.0.0)
+  - Nombre de archivo con fecha: `proyecto-nombre-2024-11-10.json`
+
+- [x] **Importación desde JSON**
+  - Función `readProjectFile`: lee y valida archivo
+  - Función `validateProjectImport`: validación de estructura
+  - Función `importProject`: importa con remapeo de IDs
+  - Prevención de colisiones de IDs (genera nuevos UUIDs)
+  - Transacción atómica para importación
+  - Confirmación antes de importar con resumen de datos
+
+- [x] **UI de Export/Import**
+  - Botón "Exportar" en header (cuando hay proyecto abierto)
+  - Botón "Importar" en pantalla de proyectos
+  - File input oculto con accept=".json"
+  - Mensajes de éxito/error con emojis
+  - Estado de carga durante importación
+
+**Ubicación**:
+- `src/lib/export/json.ts`
+- `src/types/export.ts`
+- Botones en `src/App.tsx`
+
+#### 4. Mejoras Visuales del Layout ✅
+- [x] **Layout de tres columnas**
+  - WBS Tree | Dependencies | Milestones
+  - Grid responsive (1 columna en móvil, 3 en desktop)
+  - Gantt Chart abajo ocupando ancho completo
+
+- [x] **Optimización de tamaños de fuente**
+  - CardTitle reducido a `text-base` en todos los paneles
+  - Mejor aprovechamiento del espacio
+
+- [x] **Simplificación de acciones**
+  - Botón de subtarea: solo icono "+" (sin texto "Subtarea")
+  - Mejor visibilidad en espacios reducidos
+
+**Ubicación**: `src/App.tsx`, componentes de Cards
+
+### Funcionalidades Implementadas
+
+✅ Líneas visuales de dependencias con distinción de camino crítico
+✅ Sistema completo de milestones con cálculo automático
+✅ Exportación de proyectos a JSON
+✅ Importación de proyectos desde JSON con validación
+✅ Layout optimizado de tres columnas
+✅ Mejoras visuales de UI
+
+---
+
+## 🎯 Fase 5: Baseline y Gestión Avanzada - COMPLETADA
+
+**Fecha de completación**: 2025-11-10
+
+### Logros Principales
+
+#### 1. Sistema de Baselines (Snapshots) ✅
+- [x] **useBaselines**: Hook de gestión con Zustand
+  - CRUD completo de baselines
+  - Sincronización con IndexedDB
+  - Ordenamiento por fecha (más reciente primero)
+  - DevTools integrados
+
+- [x] **BaselineFormDialog**: Creación de snapshots
+  - Formulario para nombrar el baseline
+  - Captura automática de todas las tareas y dependencias
+  - Preview de lo que se guardará (número de tareas, dependencias)
+  - Deep copy para evitar referencias compartidas
+
+- [x] **BaselineList**: Gestión de baselines
+  - Lista de todos los baselines del proyecto
+  - Muestra fecha y hora de creación
+  - Contador de tareas en cada baseline
+  - Botones: Comparar y Eliminar
+  - Estado vacío con explicación
+
+- [x] **BaselineComparison**: Análisis de variaciones
+  - Comparación detallada tarea por tarea
+  - Cálculo de variaciones (variance):
+    - Variación de inicio (startVariance)
+    - Variación de fin (endVariance)
+    - Variación de duración (durationVariance)
+  - Estadísticas resumidas:
+    - Tareas en plazo
+    - Tareas con variaciones
+    - Variación media
+  - Tabla detallada con código de colores:
+    - Verde: adelantado
+    - Gris: sin cambios
+    - Rojo: retrasado
+  - Iconos visuales (TrendingUp, TrendingDown, Minus)
+  - Botón "Volver" para regresar a la lista
+
+**Ubicación**:
+- `src/hooks/useBaselines.ts`
+- `src/components/features/Baselines/BaselineFormDialog.tsx`
+- `src/components/features/Baselines/BaselineList.tsx`
+- `src/components/features/Baselines/BaselineComparison.tsx`
+
+#### 2. Layout de 4 Columnas ✅
+- [x] **Actualización del layout principal**
+  - Grid responsive: 1 columna (móvil) → 2 columnas (tablet) → 4 columnas (desktop)
+  - Distribución: WBS | Dependencies | Milestones | Baselines
+  - Gantt Chart mantiene ancho completo abajo
+
+**Ubicación**: `src/App.tsx`
+
+### Funcionalidades Implementadas
+
+✅ Crear baselines (snapshots) del proyecto en cualquier momento
+✅ Guardar estado completo de tareas y dependencias
+✅ Listar todos los baselines con metadata
+✅ Comparar baseline vs. estado actual
+✅ Visualización de variaciones con código de colores
+✅ Estadísticas de variaciones (media, tareas en plazo)
+✅ Eliminar baselines obsoletos
+✅ Layout optimizado de 4 columnas
+
+---
+
+## 🚦 Próximos Pasos - Fase 6: Recursos y Mejoras Finales
+
+### Tareas Pendientes
+
+1. **Gestión de Recursos** (MVP)
+   - [ ] UI para crear/editar recursos
+   - [ ] Asignación de recursos a tareas
+   - [ ] Visualización de carga de trabajo
+   - [ ] Detección de sobreasignación
+
+2. **Mejoras Adicionales** (Opcional)
+   - [ ] Exportar a CSV/Excel
+   - [ ] Drag & drop en Gantt para mover tareas
+   - [ ] Zoom in/out del timeline
+   - [ ] Marcador de "hoy" en Gantt
 
 ---
 
@@ -248,5 +529,5 @@ Para el MVP completo (según PROJECT.md):
 ---
 
 **Última actualización**: 2025-11-10
-**Versión**: 0.2.0 (Fase 2 completada)
-**Estado**: ✅ Visualización Básica Completa
+**Versión**: 0.5.0 (Fase 5 completada)
+**Estado**: ✅ Sistema de Baselines Implementado - MVP Core Completo

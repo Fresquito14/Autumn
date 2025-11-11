@@ -38,12 +38,19 @@ export function ProjectSetupDialog() {
   })
 
   const onSubmit = async (data: ProjectFormData) => {
+    // Convert workingDays from strings to numbers (HTML checkboxes return strings)
+    const workingDays = Array.isArray(data.workingDays)
+      ? data.workingDays.map(day => typeof day === 'string' ? parseInt(day, 10) : day)
+      : [1, 2, 3, 4, 5]
+
     const config: ProjectConfig = {
-      workingDays: data.workingDays,
+      workingDays,
       hoursPerDay: data.hoursPerDay,
       holidays: [],
       defaultDuration: 1,
     }
+
+    console.log('💾 Guardando proyecto con workingDays:', workingDays, typeof workingDays[0])
 
     try {
       await createProject({

@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react'
-import { List } from 'lucide-react'
+import { List, ChevronsDown, ChevronsUp } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { TaskRow } from './TaskRow'
 import { TaskFormDialog } from './TaskFormDialog'
+import { LevelFilter } from './LevelFilter'
 import { useTasks } from '@/hooks/useTasks'
+import { useLevelFilter } from '@/hooks/useLevelFilter'
 import { useProject } from '@/hooks/useProject'
 import type { Task } from '@/types'
 
 export function WBSTree() {
   const { tasks, loadTasks, isLoading } = useTasks()
   const { currentProject } = useProject()
+  const { maxDisplayLevel, setMaxDisplayLevel } = useLevelFilter()
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -39,9 +43,9 @@ export function WBSTree() {
   }
 
   const renderTask = (task: Task): React.ReactNode => {
-    const children = getChildTasks(task.id)
+    const children = getFilteredChildTasks(task.id)
     const isExpanded = expandedTasks.has(task.id)
-    const taskHasChildren = hasChildren(task.id)
+    const taskHasChildren = children.length > 0
 
     return (
       <div key={task.id}>
@@ -63,6 +67,34 @@ export function WBSTree() {
 
   const rootTasks = getChildTasks(undefined)
 
+  // Calculate max level in tasks
+  const maxLevel = Math.max(...tasks.map(t => t.level), 0)
+
+  // Filter tasks based on maxDisplayLevel
+  const shouldShowTask = (task: Task): boolean => {
+    if (maxDisplayLevel === 0) return true
+    return task.level <= maxDisplayLevel
+  }
+
+  const getFilteredChildTasks = (parentId: string | undefined): Task[] => {
+    return tasks.filter((task) => task.parentId === parentId && shouldShowTask(task))
+  }
+
+  const filteredRootTasks = getFilteredChildTasks(undefined)
+
+  // Get all task IDs for expand/collapse all functionality
+  const allTaskIds = tasks.map(t => t.id)
+  const hasAnyExpanded = expandedTasks.size > 0
+  const allTasksWithChildren = tasks.filter(t => hasChildren(t.id)).map(t => t.id)
+
+  const handleExpandAll = () => {
+    setExpandedTasks(new Set(allTasksWithChildren))
+  }
+
+  const handleCollapseAll = () => {
+    setExpandedTasks(new Set())
+  }
+
   if (isLoading) {
     return (
       <Card>
@@ -80,17 +112,44 @@ export function WBSTree() {
           <div className="flex items-center gap-2">
             <List className="h-5 w-5" />
             <div>
-              <CardTitle>Estructura de Tareas (WBS)</CardTitle>
+              <CardTitle className="text-base">Estructura de Tareas (WBS)</CardTitle>
               <CardDescription>
                 {tasks.length} {tasks.length === 1 ? 'tarea' : 'tareas'}
               </CardDescription>
             </div>
           </div>
-          <TaskFormDialog />
+          <div className="flex items-center gap-2">
+            <LevelFilter
+              maxLevel={maxLevel}
+              currentMaxLevel={maxDisplayLevel}
+              onLevelChange={setMaxDisplayLevel}
+            />
+            {allTasksWithChildren.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={hasAnyExpanded ? handleCollapseAll : handleExpandAll}
+                title={hasAnyExpanded ? "Colapsar todos los niveles" : "Expandir todos los niveles"}
+              >
+                {hasAnyExpanded ? (
+                  <>
+                    <ChevronsUp className="h-4 w-4 mr-1" />
+                    <span className="text-xs">Colapsar</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronsDown className="h-4 w-4 mr-1" />
+                    <span className="text-xs">Expandir</span>
+                  </>
+                )}
+              </Button>
+            )}
+            <TaskFormDialog />
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        {rootTasks.length === 0 ? (
+        {filteredRootTasks.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <p className="mb-4">No hay tareas creadas</p>
             <TaskFormDialog />
@@ -98,19 +157,19 @@ export function WBSTree() {
         ) : (
           <div>
             {/* Header */}
-            <div className="flex items-center py-2 px-4 bg-muted/50 border-b font-medium text-sm text-muted-foreground">
-              <div className="w-6" /> {/* Expand button space */}
-              <div className="w-6" /> {/* Indent space */}
-              <div className="w-24">WBS</div>
+            <div className="flex items-center py-1.5 px-3 bg-muted/50 border-b font-medium text-xs text-muted-foreground">
+              <div className="w-5" /> {/* Expand button space */}
+              <div className="w-5" /> {/* Critical path indicator */}
+              <div className="w-20">WBS</div>
               <div className="flex-1">Tarea</div>
-              <div className="w-20 text-center">Duración</div>
-              <div className="w-48">Fechas</div>
-              <div className="w-32">Acciones</div>
+              <div className="w-16 text-center">Duración</div>
+              <div className="w-40">Fechas</div>
+              <div className="w-28">Acciones</div>
             </div>
 
-            {/* Tasks */}
-            <div>
-              {rootTasks.map((task) => renderTask(task))}
+            {/* Tasks - scrollable container */}
+            <div className="overflow-y-auto scrollbar-hide max-h-[40vh]">
+              {filteredRootTasks.map((task) => renderTask(task))}
             </div>
           </div>
         )}

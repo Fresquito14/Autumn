@@ -1,0 +1,163 @@
+{
+  "$schema": "./theme-colors.schema.json",
+  "description": "Paleta de colores otoñales para Autumn - Gestión de proyectos",
+  "version": "1.0.0",
+  "colors": {
+    "critical": {
+      "description": "Color para tareas del camino crítico - Marrón oscuro rojizo que evoca urgencia",
+      "light": {
+        "value": "#3D0C02",
+        "hsl": "9 55% 14%",
+        "usage": "Tareas críticas, bordes de alerta, iconos de advertencia"
+      },
+      "dark": {
+        "value": "#8B1E0A",
+        "hsl": "9 87% 29%",
+        "usage": "Versión más saturada para modo oscuro manteniendo legibilidad"
+      }
+    },
+    "progress": {
+      "description": "Color para progreso completado - Verde bosque que transmite logro",
+      "light": {
+        "value": "#013220",
+        "hsl": "158 95% 15%",
+        "usage": "Barras de progreso, fondos de tareas completadas, indicadores de éxito"
+      },
+      "dark": {
+        "value": "#22C55E",
+        "hsl": "158 95% 15%",
+        "usage": "Versión más brillante para contraste en modo oscuro"
+      }
+    },
+    "primary": {
+      "description": "Color primario - Naranja calabaza para acciones principales",
+      "light": {
+        "value": "#EA580C",
+        "hsl": "20 91% 48%",
+        "usage": "Botones primarios, enlaces, elementos interactivos principales"
+      },
+      "dark": {
+        "value": "#FB923C",
+        "hsl": "24 95% 61%",
+        "usage": "Versión más saturada y clara para modo oscuro"
+      }
+    },
+    "accent": {
+      "description": "Color de acento - Amarillo otoñal para highlights y énfasis",
+      "light": {
+        "value": "#F59E0B",
+        "hsl": "38 92% 50%",
+        "usage": "Estados hover, badges, elementos destacados"
+      },
+      "dark": {
+        "value": "#FCD34D",
+        "hsl": "48 96% 65%",
+        "usage": "Versión más brillante para contraste en fondos oscuros"
+      }
+    },
+    "background": {
+      "description": "Color de fondo principal",
+      "light": {
+        "value": "#FFFFFF",
+        "hsl": "0 0% 100%",
+        "usage": "Fondo principal de la aplicación"
+      },
+      "dark": {
+        "value": "#0F0F0F",
+        "hsl": "0 0% 6%",
+        "usage": "Fondo oscuro profundo"
+      }
+    },
+    "surface": {
+      "description": "Color de superficies elevadas (cards, panels)",
+      "light": {
+        "value": "#FAFAF9",
+        "hsl": "60 9% 98%",
+        "usage": "Cards, paneles, elementos elevados"
+      },
+      "dark": {
+        "value": "#1C1C1C",
+        "hsl": "0 0% 11%",
+        "usage": "Cards y paneles en modo oscuro"
+      }
+    },
+    "border": {
+      "description": "Color de bordes y líneas divisorias",
+      "light": {
+        "value": "#E7E5E4",
+        "hsl": "20 6% 90%",
+        "usage": "Bordes, líneas divisorias, separadores"
+      },
+      "dark": {
+        "value": "#2A2A2A",
+        "hsl": "0 0% 16%",
+        "usage": "Bordes sutiles en modo oscuro"
+      }
+    },
+    "text": {
+      "description": "Colores de texto principal y secundario",
+      "light": {
+        "primary": {
+          "value": "#1C1917",
+          "hsl": "30 4% 10%",
+          "usage": "Texto principal"
+        },
+        "secondary": {
+          "value": "#78716C",
+          "hsl": "30 3% 46%",
+          "usage": "Texto secundario, descripciones"
+        },
+        "muted": {
+          "value": "#A8A29E",
+          "hsl": "30 4% 64%",
+          "usage": "Texto deshabilitado, placeholders"
+        }
+      },
+      "dark": {
+        "primary": {
+          "value": "#FAFAF9",
+          "hsl": "60 9% 98%",
+          "usage": "Texto principal en modo oscuro"
+        },
+        "secondary": {
+          "value": "#A8A29E",
+          "hsl": "30 4% 64%",
+          "usage": "Texto secundario en modo oscuro"
+        },
+        "muted": {
+          "value": "#78716C",
+          "hsl": "30 3% 46%",
+          "usage": "Texto muted en modo oscuro"
+        }
+      }
+    },
+    "semantic": {
+      "description": "Colores semánticos adicionales",
+      "warning": {
+        "light": "#F59E0B",
+        "dark": "#FCD34D",
+        "description": "Advertencias, estados de atención"
+      },
+      "error": {
+        "light": "#DC2626",
+        "dark": "#EF4444",
+        "description": "Errores, estados destructivos"
+      },
+      "info": {
+        "light": "#0284C7",
+        "dark": "#38BDF8",
+        "description": "Información, estados informativos"
+      },
+      "success": {
+        "light": "#16A34A",
+        "dark": "#4ADE80",
+        "description": "Éxito, estados positivos"
+      }
+    }
+  },
+  "notes": {
+    "howToEdit": "Puedes editar los valores 'value' (formato HEX) o 'hsl' (sin 'hsl()' wrapper). El sistema usará los valores HSL en el CSS final.",
+    "contrast": "Todos los colores han sido seleccionados para cumplir con WCAG AA en contraste",
+    "theme": "Los colores otoñales evocan las hojas caídas, los bosques y la calidez de la estación"
+  }
+}

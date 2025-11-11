@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link2, AlertCircle } from 'lucide-react'
 import {
@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { useDependencies } from '@/hooks/useDependencies'
 import { useTasks } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProject'
-import type { Task } from '@/types'
+import type { Task, Dependency } from '@/types'
 
 interface DependencyFormData {
   predecessorId: string
@@ -25,22 +25,42 @@ interface DependencyFormData {
 
 interface DependencyDialogProps {
   task?: Task
+  dependency?: Dependency
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function DependencyDialog({ task }: DependencyDialogProps) {
-  const [open, setOpen] = useState(false)
+export function DependencyDialog({ task, dependency, open: controlledOpen, onOpenChange }: DependencyDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { createDependency, validateDependency } = useDependencies()
+  const { createDependency, updateDependency, validateDependency } = useDependencies()
   const { tasks } = useTasks()
   const { currentProject } = useProject()
 
+  // Use controlled state if provided, otherwise use internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen
+  const setOpen = onOpenChange || setInternalOpen
+
+  const isEditing = !!dependency
+
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<DependencyFormData>({
     defaultValues: {
-      predecessorId: '',
-      successorId: task?.id || '',
-      lag: 0,
+      predecessorId: dependency?.predecessorId || '',
+      successorId: dependency?.successorId || task?.id || '',
+      lag: dependency?.lag || 0,
     }
   })
+
+  // Reset form when dependency changes
+  useEffect(() => {
+    if (dependency) {
+      reset({
+        predecessorId: dependency.predecessorId,
+        successorId: dependency.successorId,
+        lag: dependency.lag || 0,
+      })
+    }
+  }, [dependency, reset])
 
   const successorId = watch('successorId')
   const predecessorId = watch('predecessorId')
@@ -49,27 +69,49 @@ export function DependencyDialog({ task }: DependencyDialogProps) {
     if (!currentProject) return
     setError(null)
 
-    // Validate dependency
-    const isValid = validateDependency(data.predecessorId, data.successorId)
+    // Check if tasks are parent tasks (have children)
+    const predecessorHasChildren = tasks.some(t => t.parentId === data.predecessorId)
+    const successorHasChildren = tasks.some(t => t.parentId === data.successorId)
 
-    if (!isValid) {
-      setError('Esta dependencia crearía un ciclo circular. No es posible crear una dependencia donde una tarea depende indirectamente de sí misma.')
+    if (predecessorHasChildren || successorHasChildren) {
+      const taskType = predecessorHasChildren && successorHasChildren ? 'ambas tareas son' :
+                       predecessorHasChildren ? 'la tarea predecesora es' : 'la tarea sucesora es'
+      setError(`No se pueden crear dependencias en tareas padre: ${taskType} una tarea padre. Por favor, crea la dependencia en las subtareas de nivel más bajo.`)
       return
     }
 
-    if (data.predecessorId === data.successorId) {
-      setError('Una tarea no puede depender de sí misma')
-      return
+    // Validate dependency (skip validation if editing and tasks haven't changed)
+    const tasksChanged = isEditing && (dependency!.predecessorId !== data.predecessorId || dependency!.successorId !== data.successorId)
+    if (!isEditing || tasksChanged) {
+      const isValid = validateDependency(data.predecessorId, data.successorId)
+
+      if (!isValid) {
+        setError('Esta dependencia crearía un ciclo circular. No es posible crear una dependencia donde una tarea depende indirectamente de sí misma.')
+        return
+      }
+
+      if (data.predecessorId === data.successorId) {
+        setError('Una tarea no puede depender de sí misma')
+        return
+      }
     }
 
     try {
-      await createDependency({
-        projectId: currentProject.id,
-        predecessorId: data.predecessorId,
-        successorId: data.successorId,
-        type: 'FS',
-        lag: data.lag,
-      })
+      if (isEditing) {
+        await updateDependency(dependency!.id, {
+          predecessorId: data.predecessorId,
+          successorId: data.successorId,
+          lag: data.lag,
+        })
+      } else {
+        await createDependency({
+          projectId: currentProject.id,
+          predecessorId: data.predecessorId,
+          successorId: data.successorId,
+          type: 'FS',
+          lag: data.lag,
+        })
+      }
 
       setOpen(false)
       reset()
@@ -79,13 +121,18 @@ export function DependencyDialog({ task }: DependencyDialogProps) {
     }
   }
 
-  // Filter tasks to show only valid options
+  // Helper function to check if a task is a parent (has children)
+  const isParentTask = (taskId: string) => {
+    return tasks.some(t => t.parentId === taskId)
+  }
+
+  // Filter tasks to show only valid options (exclude parent tasks and self)
   const availablePredecessors = tasks.filter(t =>
-    task ? t.id !== task.id : t.id !== successorId
+    !isParentTask(t.id) && (task ? t.id !== task.id : t.id !== successorId)
   )
 
   const availableSuccessors = tasks.filter(t =>
-    task ? t.id === task.id : t.id !== predecessorId
+    !isParentTask(t.id) && (task ? t.id === task.id : t.id !== predecessorId)
   )
 
   return (
@@ -101,10 +148,12 @@ export function DependencyDialog({ task }: DependencyDialogProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Link2 className="h-5 w-5" />
-              Crear Dependencia
+              {isEditing ? 'Editar Dependencia' : 'Crear Dependencia'}
             </DialogTitle>
             <DialogDescription>
-              Define que una tarea debe completarse antes de que otra pueda iniciar (Finish-to-Start)
+              {isEditing
+                ? 'Modifica los detalles de la dependencia'
+                : 'Define que una tarea debe completarse antes de que otra pueda iniciar (Finish-to-Start)'}
             </DialogDescription>
           </DialogHeader>
 
@@ -196,7 +245,7 @@ export function DependencyDialog({ task }: DependencyDialogProps) {
               Cancelar
             </Button>
             <Button type="submit">
-              Crear Dependencia
+              {isEditing ? 'Guardar Cambios' : 'Crear Dependencia'}
             </Button>
           </DialogFooter>
         </form>

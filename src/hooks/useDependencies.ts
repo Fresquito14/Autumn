@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { Dependency } from '@/types'
 import { dbHelpers } from '@/lib/storage/db'
+import { recalculateTaskDates } from '@/lib/calculations/dates'
 
 interface DependencyState {
   dependencies: Dependency[]
@@ -11,8 +12,9 @@ interface DependencyState {
   // Actions
   loadDependencies: (projectId: string) => Promise<void>
   getTaskDependencies: (taskId: string) => { predecessors: Dependency[]; successors: Dependency[] }
-  createDependency: (dependency: Omit<Dependency, 'id'>) => Promise<string>
-  deleteDependency: (id: string) => Promise<void>
+  createDependency: (dependency: Omit<Dependency, 'id'>, recalculateDates?: boolean) => Promise<string>
+  updateDependency: (id: string, updates: Partial<Omit<Dependency, 'id' | 'projectId'>>) => Promise<void>
+  deleteDependency: (id: string, recalculateDates?: boolean) => Promise<void>
   clearDependencies: () => void
   validateDependency: (predecessorId: string, successorId: string) => boolean
 }
@@ -67,6 +69,40 @@ export const useDependencies = create<DependencyState>()(
           set({ dependencies, isLoading: false })
 
           return dependency.id
+        } catch (error) {
+          set({ error: (error as Error).message, isLoading: false })
+          throw error
+        }
+      },
+
+      updateDependency: async (id, updates) => {
+        set({ isLoading: true, error: null })
+        try {
+          const dependency = get().dependencies.find(d => d.id === id)
+          if (!dependency) {
+            throw new Error('Dependency not found')
+          }
+
+          // If predecessorId or successorId changed, validate
+          if (updates.predecessorId || updates.successorId) {
+            const newPredecessorId = updates.predecessorId || dependency.predecessorId
+            const newSuccessorId = updates.successorId || dependency.successorId
+
+            const isValid = get().validateDependency(newPredecessorId, newSuccessorId)
+            if (!isValid) {
+              throw new Error('Circular dependency detected')
+            }
+          }
+
+          const updatedDependency: Dependency = {
+            ...dependency,
+            ...updates,
+          }
+
+          await dbHelpers.updateDependency(id, updatedDependency)
+
+          const dependencies = await dbHelpers.getProjectDependencies(dependency.projectId)
+          set({ dependencies, isLoading: false })
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })
           throw error

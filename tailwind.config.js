@@ -5,6 +5,22 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: [
+    'bg-autumn-progress',
+    'bg-autumn-critical',
+    'bg-accent',
+    'hover:bg-autumn-progress/90',
+    'hover:bg-autumn-critical/90',
+    'hover:bg-accent/90',
+    'border-autumn-progress/20',
+    'border-autumn-critical/20',
+    'text-autumn-progress',
+    'text-autumn-critical',
+    'text-autumn-progress-foreground',
+    'text-autumn-critical-foreground',
+    'fill-autumn-progress-foreground',
+    'fill-autumn-critical-foreground',
+  ],
   theme: {
     extend: {
       colors: {
@@ -41,11 +57,11 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        // Custom project colors
-        'critical-path': '#DC2626',
-        completed: '#059669',
-        'in-progress': '#0284C7',
-        delayed: '#F59E0B',
+        // Autumn-themed custom colors (mapped to CSS variables)
+        'autumn-critical': 'hsl(var(--autumn-critical))',
+        'autumn-critical-foreground': 'hsl(var(--autumn-critical-foreground))',
+        'autumn-progress': 'hsl(var(--autumn-progress))',
+        'autumn-progress-foreground': 'hsl(var(--autumn-progress-foreground))',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -54,5 +70,7 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('tailwind-scrollbar-hide')
+  ],
 }

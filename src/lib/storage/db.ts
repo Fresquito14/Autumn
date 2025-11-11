@@ -116,6 +116,10 @@ export const dbHelpers = {
     return await db.dependencies.add(dependency)
   },
 
+  async updateDependency(id: string, dependency: Dependency) {
+    return await db.dependencies.update(id, dependency)
+  },
+
   async deleteDependency(id: string) {
     return await db.dependencies.delete(id)
   },
@@ -186,5 +190,24 @@ export const dbHelpers = {
 
   async deleteBaseline(id: string) {
     return await db.baselines.delete(id)
+  },
+
+  // Development/Debug utilities
+  async clearAllData() {
+    await db.transaction('rw', [db.projects, db.tasks, db.milestones, db.dependencies, db.resources, db.timeEntries, db.baselines], async () => {
+      await db.projects.clear()
+      await db.tasks.clear()
+      await db.milestones.clear()
+      await db.dependencies.clear()
+      await db.resources.clear()
+      await db.timeEntries.clear()
+      await db.baselines.clear()
+    })
+  },
+
+  async deleteDatabase() {
+    await db.delete()
+    // Reload the page to reinitialize the database
+    window.location.reload()
   },
 }
