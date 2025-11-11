@@ -11,7 +11,7 @@ import { MilestoneList } from './components/features/Milestones/MilestoneList'
 import { GanttChart } from './components/features/GanttChart/GanttChart'
 import { Button } from './components/ui/button'
 import { ThemeToggle } from './components/ui/ThemeToggle'
-import { dbHelpers } from './lib/storage/db'
+import { db, dbHelpers } from './lib/storage/db'
 import { downloadProjectAsJSON, readProjectFile, importProject } from './lib/export/json'
 
 function App() {
@@ -65,7 +65,7 @@ function App() {
       const projectId = await importProject(data)
 
       // Switch to imported project
-      const importedProject = await dbHelpers.db.projects.get(projectId)
+      const importedProject = await db.projects.get(projectId)
       if (importedProject) {
         setCurrentProject(importedProject)
         alert('✅ Proyecto importado correctamente')

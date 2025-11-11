@@ -1,4 +1,4 @@
-import { dbHelpers } from '../storage/db'
+import { db, dbHelpers } from '../storage/db'
 import type { ProjectExportData } from '@/types/export'
 import type { Project, Task, Dependency, Resource, Milestone } from '@/types'
 
@@ -9,7 +9,7 @@ const EXPORT_VERSION = '1.0.0'
  */
 export async function exportProject(projectId: string): Promise<ProjectExportData> {
   // Load all project data
-  const project = await dbHelpers.db.projects.get(projectId)
+  const project = await db.projects.get(projectId)
   if (!project) {
     throw new Error('Project not found')
   }
@@ -19,7 +19,7 @@ export async function exportProject(projectId: string): Promise<ProjectExportDat
     dbHelpers.getProjectDependencies(projectId),
     dbHelpers.getProjectResources(projectId),
     dbHelpers.getProjectMilestones(projectId),
-    dbHelpers.db.baselines.where('projectId').equals(projectId).toArray(),
+    db.baselines.where('projectId').equals(projectId).toArray(),
   ])
 
   return {
@@ -121,6 +121,7 @@ function remapIds(data: ProjectExportData): {
   const project: Project = {
     ...data.project,
     id: newProjectId,
+    startDate: new Date(data.project.startDate),
     createdAt: new Date(),
     updatedAt: new Date(),
   }
@@ -132,6 +133,11 @@ function remapIds(data: ProjectExportData): {
     projectId: newProjectId,
     parentId: task.parentId ? idMap.get(task.parentId) : undefined,
     assignedTo: task.assignedTo?.map(resId => idMap.get(resId) || resId) || [],
+    // Convert date strings back to Date objects
+    startDate: new Date(task.startDate),
+    endDate: new Date(task.endDate),
+    actualStartDate: task.actualStartDate ? new Date(task.actualStartDate) : undefined,
+    actualEndDate: task.actualEndDate ? new Date(task.actualEndDate) : undefined,
     createdAt: new Date(),
     updatedAt: new Date(),
   }))
@@ -158,6 +164,7 @@ function remapIds(data: ProjectExportData): {
     id: idMap.get(ms.id)!,
     projectId: newProjectId,
     linkedTaskId: ms.linkedTaskId ? idMap.get(ms.linkedTaskId) : undefined,
+    date: new Date(ms.date),
   }))
 
   return { project, tasks, dependencies, resources, milestones }
@@ -177,34 +184,34 @@ export async function importProject(data: ProjectExportData): Promise<string> {
   const { project, tasks, dependencies, resources, milestones } = remapIds(validatedData)
 
   // Import everything in a transaction
-  await dbHelpers.db.transaction('rw', [
-    dbHelpers.db.projects,
-    dbHelpers.db.tasks,
-    dbHelpers.db.dependencies,
-    dbHelpers.db.resources,
-    dbHelpers.db.milestones,
+  await db.transaction('rw', [
+    db.projects,
+    db.tasks,
+    db.dependencies,
+    db.resources,
+    db.milestones,
   ], async () => {
     // Create project
-    await dbHelpers.db.projects.add(project)
+    await db.projects.add(project)
 
     // Create resources first (tasks might reference them)
     if (resources.length > 0) {
-      await dbHelpers.db.resources.bulkAdd(resources)
+      await db.resources.bulkAdd(resources)
     }
 
     // Create tasks
     if (tasks.length > 0) {
-      await dbHelpers.db.tasks.bulkAdd(tasks)
+      await db.tasks.bulkAdd(tasks)
     }
 
     // Create dependencies
     if (dependencies.length > 0) {
-      await dbHelpers.db.dependencies.bulkAdd(dependencies)
+      await db.dependencies.bulkAdd(dependencies)
     }
 
     // Create milestones
     if (milestones.length > 0) {
-      await dbHelpers.db.milestones.bulkAdd(milestones)
+      await db.milestones.bulkAdd(milestones)
     }
   })
 
