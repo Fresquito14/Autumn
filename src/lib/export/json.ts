@@ -2,7 +2,32 @@ import { db, dbHelpers } from '../storage/db'
 import type { ProjectExportData } from '@/types/export'
 import type { Project, Task, Dependency, Resource, Milestone } from '@/types'
 
-const EXPORT_VERSION = '1.0.0'
+// Pokémon version names (Generation 1)
+const POKEMON_VERSIONS = [
+  'Bulbasaur',   // #001
+  'Ivysaur',     // #002
+  'Venusaur',    // #003
+  'Charmander',  // #004
+  'Charmeleon',  // #005
+  'Charizard',   // #006
+  'Squirtle',    // #007
+  'Wartortle',   // #008
+  'Blastoise',   // #009
+  'Caterpie',    // #010
+  'Metapod',     // #011
+  'Butterfree',  // #012
+  'Weedle',      // #013
+  'Kakuna',      // #014
+  'Beedrill',    // #015
+  'Pidgey',      // #016
+  'Pidgeotto',   // #017
+  'Pidgeot',     // #018
+  'Rattata',     // #019
+  'Raticate',    // #020
+]
+
+const CURRENT_VERSION = 1
+const EXPORT_VERSION = `${CURRENT_VERSION}.0-${POKEMON_VERSIONS[CURRENT_VERSION - 1]}`
 
 /**
  * Export a complete project to JSON format
