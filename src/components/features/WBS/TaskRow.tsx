@@ -155,8 +155,8 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
           'w-28 flex gap-0.5 transition-opacity',
           isHovered ? 'opacity-100' : 'opacity-0'
         )}>
-          <ActualProgressDialog task={task} />
-          <CopyTaskBlockDialog task={task} />
+          <ActualProgressDialog key={`progress-${task.id}`} task={task} />
+          <CopyTaskBlockDialog key={`copy-${task.id}`} task={task} />
           <TaskFormDialog
             task={task}
             trigger={<Button variant="ghost" size="sm" className="h-6 w-6 p-0"><span className="sr-only">Editar</span></Button>}

@@ -47,10 +47,18 @@ export function GanttChart() {
       }
     }
 
+    // Update width immediately
     updateWidth()
+
+    // Also update after a short delay to ensure DOM has fully rendered
+    const timeoutId = setTimeout(updateWidth, 100)
+
     window.addEventListener('resize', updateWidth)
-    return () => window.removeEventListener('resize', updateWidth)
-  }, [])
+    return () => {
+      window.removeEventListener('resize', updateWidth)
+      clearTimeout(timeoutId)
+    }
+  }, [tasks.length]) // Re-run when tasks change
 
   if (isLoading) {
     return (

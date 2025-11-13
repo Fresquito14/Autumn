@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { CheckCircle2 } from 'lucide-react'
 import {
@@ -31,44 +31,66 @@ interface ActualProgressDialogProps {
 
 export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProps) {
   const [open, setOpen] = useState(false)
-  const { tasks, updateTask } = useTasks()
+  const { tasks, updateTask, getTask } = useTasks()
   const { dependencies } = useDependencies()
   const { currentProject } = useProject()
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<ActualProgressFormData>({
+  // Get fresh task data from store
+  const currentTask = getTask(task.id) || task
+
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ActualProgressFormData>({
     defaultValues: {
-      actualDuration: task.actualDuration || task.duration,
+      actualDuration: currentTask.actualDuration || currentTask.duration,
     }
   })
 
+  // Update form default value when currentTask changes
+  useEffect(() => {
+    if (currentTask.actualDuration) {
+      setValue('actualDuration', currentTask.actualDuration)
+    }
+  }, [currentTask.actualDuration, setValue])
+
   // Check if task is a leaf task (no children)
-  const isLeafTask = !tasks.some(t => t.parentId === task.id)
+  const isLeafTask = !tasks.some(t => t.parentId === currentTask.id)
 
   // Checklist handlers
   const handleAddChecklistItem = async (text: string) => {
+    const freshTask = getTask(task.id)
+    if (!freshTask) return
+
     const newItem: ChecklistItem = {
       id: `checklist-${Date.now()}-${Math.random()}`,
       text,
       completed: false
     }
-    const updatedChecklist = [...(task.checklist || []), newItem]
+    const updatedChecklist = [...(freshTask.checklist || []), newItem]
     await updateTask(task.id, { checklist: updatedChecklist })
   }
 
   const handleToggleChecklistItem = async (itemId: string) => {
-    const updatedChecklist = (task.checklist || []).map(item =>
+    const freshTask = getTask(task.id)
+    if (!freshTask) return
+
+    const updatedChecklist = (freshTask.checklist || []).map(item =>
       item.id === itemId ? { ...item, completed: !item.completed } : item
     )
     await updateTask(task.id, { checklist: updatedChecklist })
   }
 
   const handleDeleteChecklistItem = async (itemId: string) => {
-    const updatedChecklist = (task.checklist || []).filter(item => item.id !== itemId)
+    const freshTask = getTask(task.id)
+    if (!freshTask) return
+
+    const updatedChecklist = (freshTask.checklist || []).filter(item => item.id !== itemId)
     await updateTask(task.id, { checklist: updatedChecklist })
   }
 
   const handleUpdateChecklistItem = async (itemId: string, text: string) => {
-    const updatedChecklist = (task.checklist || []).map(item =>
+    const freshTask = getTask(task.id)
+    if (!freshTask) return
+
+    const updatedChecklist = (freshTask.checklist || []).map(item =>
       item.id === itemId ? { ...item, text } : item
     )
     await updateTask(task.id, { checklist: updatedChecklist })
@@ -162,7 +184,7 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
     </Button>
   )
 
-  const variance = task.actualDuration ? task.actualDuration - task.duration : 0
+  const variance = currentTask.actualDuration ? currentTask.actualDuration - currentTask.duration : 0
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -185,13 +207,13 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
             {/* Checklist - only for leaf tasks */}
             {isLeafTask && (
               <TaskChecklist
-                checklist={task.checklist || []}
+                checklist={currentTask.checklist || []}
                 onAddItem={handleAddChecklistItem}
                 onToggleItem={handleToggleChecklistItem}
                 onDeleteItem={handleDeleteChecklistItem}
                 onUpdateItem={handleUpdateChecklistItem}
                 onAllCompleted={handleAllChecklistCompleted}
-                hasActualDuration={task.actualDuration !== undefined && task.actualDuration !== null}
+                hasActualDuration={currentTask.actualDuration !== undefined && currentTask.actualDuration !== null}
               />
             )}
 
@@ -199,7 +221,7 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
             <div className="grid gap-2">
               <Label>Duración Planificada</Label>
               <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-                {task.duration} días laborables
+                {currentTask.duration} días laborables
               </div>
             </div>
 
@@ -228,7 +250,7 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
             </div>
 
             {/* Current Variance */}
-            {task.actualDuration !== undefined && (
+            {currentTask.actualDuration !== undefined && (
               <div className="bg-muted p-3 rounded-md text-sm">
                 <p className="font-medium mb-1">Variación Actual:</p>
                 <p className={variance === 0 ? 'text-muted-foreground' : variance > 0 ? 'text-destructive' : 'text-green-600'}>
@@ -239,7 +261,7 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
           </div>
 
           <DialogFooter className="gap-2">
-            {task.actualDuration !== undefined && (
+            {currentTask.actualDuration !== undefined && (
               <Button
                 type="button"
                 variant="outline"
