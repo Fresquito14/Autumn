@@ -18,7 +18,6 @@ import { useProject } from '@/hooks/useProject'
 import { useLevelFilter } from '@/hooks/useLevelFilter'
 import { useViewMode } from '@/hooks/useViewMode'
 import { getTimelineBounds, calculateTaskBarPosition } from '@/lib/calculations/dates'
-import type { Task } from '@/types'
 
 const ROW_HEIGHT = 40
 
@@ -317,7 +316,7 @@ export function GanttChart() {
                   )
                 })}
 
-                {visibleTasks.map((task, index) => {
+                {visibleTasks.map((task) => {
                   // Calculate planned position (always based on startDate/endDate)
                   const plannedPosition = calculateTaskBarPosition(
                     new Date(task.startDate),
