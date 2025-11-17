@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { CheckCircle2 } from 'lucide-react'
 import {
@@ -31,6 +31,7 @@ interface ActualProgressDialogProps {
 
 export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProps) {
   const [open, setOpen] = useState(false)
+  const taskIdRef = useRef(task.id)
   const { tasks, updateTask, getTask } = useTasks()
   const { dependencies } = useDependencies()
   const { currentProject } = useProject()
@@ -43,6 +44,14 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
       actualDuration: currentTask.actualDuration || currentTask.duration,
     }
   })
+
+  // Close dialog if task ID changes (shouldn't happen, but safety measure)
+  useEffect(() => {
+    if (task.id !== taskIdRef.current) {
+      setOpen(false)
+      taskIdRef.current = task.id
+    }
+  }, [task.id])
 
   // Update form default value when currentTask changes
   useEffect(() => {
@@ -186,8 +195,13 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
 
   const variance = currentTask.actualDuration ? currentTask.actualDuration - currentTask.duration : 0
 
+  // Stable onOpenChange handler
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    setOpen(newOpen)
+  }, [])
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
       </DialogTrigger>
