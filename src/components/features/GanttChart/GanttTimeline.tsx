@@ -1,4 +1,4 @@
-import { generateTimelineScale } from '@/lib/calculations/dates'
+import { generateTimelineScale, calculateTimelineDimensions } from '@/lib/calculations/dates'
 import { addDays } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -11,19 +11,15 @@ interface GanttTimelineProps {
 export function GanttTimeline({ startDate, endDate, width }: GanttTimelineProps) {
   const weeks = generateTimelineScale(startDate, endDate, 'week')
 
-  // Calculate total days
-  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-  const dayWidth = width / totalDays
+  // Use centralized function for consistent calculation
+  const { totalDays, normalizedStart } = calculateTimelineDimensions(startDate, endDate, width)
 
-  // Generate day information
+  // Generate day information using normalized dates
   const days = Array.from({ length: totalDays }, (_, i) => {
-    const date = addDays(startDate, i)
-    // Normalize to avoid timezone issues
-    const normalized = new Date(date)
-    normalized.setHours(12, 0, 0, 0)
-    const dayOfWeek = normalized.getDay()
+    const date = addDays(normalizedStart, i)
+    const dayOfWeek = date.getDay()
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6 // Sunday = 0, Saturday = 6
-    return { date: normalized, dayOfWeek, isWeekend }
+    return { date, dayOfWeek, isWeekend }
   })
 
   return (

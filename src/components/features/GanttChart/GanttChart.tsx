@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Calendar } from 'lucide-react'
-import { addDays, differenceInDays } from 'date-fns'
+import { addDays } from 'date-fns'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { GanttTimeline } from './GanttTimeline'
@@ -17,7 +17,12 @@ import { useMilestones } from '@/hooks/useMilestones'
 import { useProject } from '@/hooks/useProject'
 import { useLevelFilter } from '@/hooks/useLevelFilter'
 import { useViewMode } from '@/hooks/useViewMode'
-import { getTimelineBounds, calculateTaskBarPosition } from '@/lib/calculations/dates'
+import {
+  getTimelineBounds,
+  calculateTaskBarPosition,
+  calculateTimelineDimensions,
+  calculateDatePosition
+} from '@/lib/calculations/dates'
 
 const ROW_HEIGHT = 40
 
@@ -39,7 +44,8 @@ export function GanttChart() {
     }
   }, [currentProject, loadTasks, loadDependencies, loadMilestones])
 
-  useEffect(() => {
+  // Use useLayoutEffect to avoid intermediate renders with wrong width
+  useLayoutEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
         setContainerWidth(containerRef.current.offsetWidth)
@@ -49,15 +55,16 @@ export function GanttChart() {
     // Update width immediately
     updateWidth()
 
-    // Also update after a short delay to ensure DOM has fully rendered
-    const timeoutId = setTimeout(updateWidth, 100)
-
-    window.addEventListener('resize', updateWidth)
-    return () => {
-      window.removeEventListener('resize', updateWidth)
-      clearTimeout(timeoutId)
+    // Use ResizeObserver for better performance and accuracy
+    const resizeObserver = new ResizeObserver(updateWidth)
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current)
     }
-  }, [tasks.length]) // Re-run when tasks change
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, []) // Run only once on mount
 
   if (isLoading) {
     return (
@@ -93,8 +100,15 @@ export function GanttChart() {
 
   const { start: timelineStart, end: timelineEnd } = getTimelineBounds(tasks)
 
+  // Calculate timeline dimensions using centralized function
+  const { totalDays, dayWidth, normalizedStart, normalizedEnd } = calculateTimelineDimensions(
+    timelineStart,
+    timelineEnd,
+    containerWidth
+  )
+
   // Debug log
-  console.log(`Timeline: ${timelineStart.toLocaleDateString()} (day ${timelineStart.getDay()}) to ${timelineEnd.toLocaleDateString()}`)
+  console.log(`Timeline: ${normalizedStart.toLocaleDateString()} to ${normalizedEnd.toLocaleDateString()} (${totalDays} days, dayWidth: ${dayWidth}px)`)
 
   // Calculate max level in tasks
   const maxLevel = Math.max(...tasks.map(t => t.level), 0)
@@ -107,41 +121,28 @@ export function GanttChart() {
   // Get visible tasks (flatten hierarchy for Gantt)
   const visibleTasks = filteredTasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
 
-  // Calculate total days and days for weekend/today markers
-  const totalDays = Math.ceil((timelineEnd.getTime() - timelineStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-  const dayWidth = containerWidth / totalDays
-
-  // Generate weekend columns
+  // Generate weekend columns using normalized dates
   const weekendColumns: { left: number; width: number; date: Date; day: number }[] = []
   for (let i = 0; i < totalDays; i++) {
-    const date = addDays(timelineStart, i)
-    // Normalize to avoid timezone issues
-    const normalized = new Date(date)
-    normalized.setHours(12, 0, 0, 0)
-    const dayOfWeek = normalized.getDay()
+    const date = addDays(normalizedStart, i)
+    const dayOfWeek = date.getDay()
 
     // 0 = Sunday, 6 = Saturday
     if (dayOfWeek === 0 || dayOfWeek === 6) {
       const col = {
         left: i * dayWidth,
         width: dayWidth,
-        date: normalized,
+        date,
         day: dayOfWeek
       }
       weekendColumns.push(col)
-
-      // Debug log
-      if (weekendColumns.length <= 3) {
-        console.log(`Weekend ${weekendColumns.length}: ${normalized.toLocaleDateString()} (day ${dayOfWeek}), left: ${col.left}px`)
-      }
     }
   }
 
-  // Calculate today's position
+  // Calculate today's position using centralized function
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayPosition = today >= timelineStart && today <= timelineEnd
-    ? differenceInDays(today, timelineStart) * dayWidth
+  const todayPosition = today >= normalizedStart && today <= normalizedEnd
+    ? calculateDatePosition(today, timelineStart, timelineEnd, containerWidth).left
     : null
 
   // Create a map of task positions for dependency lines
@@ -301,9 +302,13 @@ export function GanttChart() {
 
                 {/* Milestones */}
                 {milestones.map((milestone) => {
-                  const milestoneDate = new Date(milestone.date)
-                  const daysFromStart = differenceInDays(milestoneDate, timelineStart)
-                  const left = (daysFromStart * containerWidth) / totalDays
+                  // Use centralized function for consistent positioning
+                  const { left } = calculateDatePosition(
+                    milestone.date,
+                    timelineStart,
+                    timelineEnd,
+                    containerWidth
+                  )
 
                   return (
                     <GanttMilestone

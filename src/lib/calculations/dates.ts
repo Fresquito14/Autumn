@@ -124,6 +124,66 @@ export function getTimelineBounds(tasks: { startDate: Date; endDate: Date }[]): 
 }
 
 /**
+ * Normalize a date to midnight (00:00:00.000) to avoid timezone issues
+ */
+function normalizeDateToMidnight(date: Date): Date {
+  const normalized = new Date(date)
+  normalized.setHours(0, 0, 0, 0)
+  return normalized
+}
+
+/**
+ * Calculate timeline dimensions (totalDays and dayWidth) in a consistent way
+ * This is the single source of truth for all Gantt calculations
+ */
+export function calculateTimelineDimensions(
+  timelineStart: Date,
+  timelineEnd: Date,
+  containerWidth: number
+): {
+  totalDays: number
+  dayWidth: number
+  normalizedStart: Date
+  normalizedEnd: Date
+} {
+  // Normalize dates to midnight to avoid timezone and DST issues
+  const normalizedStart = normalizeDateToMidnight(timelineStart)
+  const normalizedEnd = normalizeDateToMidnight(timelineEnd)
+
+  // Use differenceInDays from date-fns for consistency
+  const totalDays = differenceInDays(normalizedEnd, normalizedStart) + 1
+  const dayWidth = containerWidth / totalDays
+
+  return { totalDays, dayWidth, normalizedStart, normalizedEnd }
+}
+
+/**
+ * Calculate the left position for a single date in the timeline
+ * Used for milestones, today marker, and other single-point markers
+ */
+export function calculateDatePosition(
+  targetDate: Date,
+  timelineStart: Date,
+  timelineEnd: Date,
+  containerWidth: number
+): {
+  left: number
+  daysFromStart: number
+} {
+  const { dayWidth, normalizedStart } = calculateTimelineDimensions(
+    timelineStart,
+    timelineEnd,
+    containerWidth
+  )
+
+  const normalizedTarget = normalizeDateToMidnight(targetDate)
+  const daysFromStart = differenceInDays(normalizedTarget, normalizedStart)
+  const left = daysFromStart * dayWidth
+
+  return { left, daysFromStart }
+}
+
+/**
  * Calculate position and width for a task bar in the Gantt chart
  */
 export function calculateTaskBarPosition(
@@ -136,11 +196,17 @@ export function calculateTaskBarPosition(
   left: number
   width: number
 } {
-  const totalDays = Math.ceil((timelineEnd.getTime() - timelineStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-  const dayWidth = containerWidth / totalDays
+  const { dayWidth, normalizedStart } = calculateTimelineDimensions(
+    timelineStart,
+    timelineEnd,
+    containerWidth
+  )
 
-  const daysFromStart = differenceInDays(taskStart, timelineStart)
-  const taskDuration = differenceInDays(taskEnd, taskStart) + 1
+  const normalizedTaskStart = normalizeDateToMidnight(taskStart)
+  const normalizedTaskEnd = normalizeDateToMidnight(taskEnd)
+
+  const daysFromStart = differenceInDays(normalizedTaskStart, normalizedStart)
+  const taskDuration = differenceInDays(normalizedTaskEnd, normalizedTaskStart) + 1
 
   const fullWidth = taskDuration * dayWidth
   const reducedWidth = fullWidth * 0.95 // Reduce 5% for better connection line visibility
