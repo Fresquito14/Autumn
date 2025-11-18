@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import type { TaskResourceAssignment } from '@/types'
+import type { TaskResourceAssignment, Resource, Holiday } from '@/types'
 import { dbHelpers } from '@/lib/storage/db'
 import { calculateWeeklyAllocation, recalculateWeeklyAllocation } from '@/lib/calculations/resources'
 
@@ -19,14 +19,18 @@ interface ResourceAssignmentState {
     assignment: Omit<TaskResourceAssignment, 'id' | 'weeklyDistribution' | 'isManualDistribution'>,
     taskStart: Date,
     taskEnd: Date,
-    workingDaysPerWeek: number[]
+    workingDaysPerWeek: number[],
+    resource?: Resource,
+    holidays?: Holiday[]
   ) => Promise<string>
   updateAssignment: (id: string, changes: Partial<TaskResourceAssignment>) => Promise<void>
   recalculateAssignment: (
     id: string,
     newTaskStart: Date,
     newTaskEnd: Date,
-    workingDaysPerWeek: number[]
+    workingDaysPerWeek: number[],
+    resource?: Resource,
+    holidays?: Holiday[]
   ) => Promise<void>
   deleteAssignment: (id: string) => Promise<void>
   clearAssignments: () => void
@@ -77,7 +81,7 @@ export const useResourceAssignments = create<ResourceAssignmentState>()(
         return get().assignments.filter(a => a.resourceId === resourceId)
       },
 
-      createAssignment: async (assignmentData, taskStart, taskEnd, workingDaysPerWeek) => {
+      createAssignment: async (assignmentData, taskStart, taskEnd, workingDaysPerWeek, resource, holidays) => {
         set({ isLoading: true, error: null })
         try {
           // Calculate initial weekly distribution
@@ -85,7 +89,9 @@ export const useResourceAssignments = create<ResourceAssignmentState>()(
             taskStart,
             taskEnd,
             assignmentData.plannedHours,
-            workingDaysPerWeek
+            workingDaysPerWeek,
+            resource,
+            holidays
           )
 
           const assignment: TaskResourceAssignment = {
@@ -125,7 +131,7 @@ export const useResourceAssignments = create<ResourceAssignmentState>()(
         }
       },
 
-      recalculateAssignment: async (id, newTaskStart, newTaskEnd, workingDaysPerWeek) => {
+      recalculateAssignment: async (id, newTaskStart, newTaskEnd, workingDaysPerWeek, resource, holidays) => {
         set({ isLoading: true, error: null })
         try {
           const assignment = get().assignments.find(a => a.id === id)
@@ -141,7 +147,9 @@ export const useResourceAssignments = create<ResourceAssignmentState>()(
             newTaskEnd,
             assignment.plannedHours,
             workingDaysPerWeek,
-            assignment.isManualDistribution
+            assignment.isManualDistribution,
+            resource,
+            holidays
           )
 
           await dbHelpers.updateTaskAssignment(id, {

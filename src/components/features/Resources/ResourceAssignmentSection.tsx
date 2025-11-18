@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Trash2, Users } from 'lucide-react'
 import { useResources } from '@/hooks/useResources'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
+import { useProject } from '@/hooks/useProject'
 import type { Resource, TaskResourceAssignment } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +31,7 @@ export function ResourceAssignmentSection({
   onAssignmentsChange
 }: ResourceAssignmentSectionProps) {
   const { resources, loadAllResources } = useResources()
+  const { currentProject } = useProject()
   const {
     assignments,
     loadTaskAssignments,
@@ -59,6 +61,10 @@ export function ResourceAssignmentSection({
 
     setIsSubmitting(true)
     try {
+      // Get the selected resource
+      const resource = resources.find(r => r.id === selectedResourceId)
+      const holidays = currentProject?.config?.holidays || []
+
       await createAssignment(
         {
           taskId,
@@ -67,7 +73,9 @@ export function ResourceAssignmentSection({
         },
         taskStart,
         taskEnd,
-        workingDaysPerWeek
+        workingDaysPerWeek,
+        resource,
+        holidays
       )
 
       setIsAddDialogOpen(false)

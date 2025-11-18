@@ -139,6 +139,8 @@ export function calculateWeeklyAllocation(
  * @param totalPlannedHours - Total planned hours
  * @param workingDaysPerWeek - Array of working days
  * @param isManualDistribution - Whether to preserve manual overrides
+ * @param resource - Resource being assigned (for calendar awareness)
+ * @param holidays - Project holidays
  * @returns Updated weekly allocation
  */
 export function recalculateWeeklyAllocation(
@@ -147,7 +149,9 @@ export function recalculateWeeklyAllocation(
   newTaskEnd: Date,
   totalPlannedHours: number,
   workingDaysPerWeek: number[],
-  isManualDistribution: boolean
+  isManualDistribution: boolean,
+  resource?: Resource,
+  holidays?: Holiday[]
 ): WeeklyAllocation[] {
   // If manual distribution, don't auto-recalculate (user must manually update)
   if (isManualDistribution) {
@@ -159,7 +163,9 @@ export function recalculateWeeklyAllocation(
     newTaskStart,
     newTaskEnd,
     totalPlannedHours,
-    workingDaysPerWeek
+    workingDaysPerWeek,
+    resource,
+    holidays
   )
 }
 
