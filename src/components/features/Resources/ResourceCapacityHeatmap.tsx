@@ -1,13 +1,15 @@
 import { useMemo } from 'react'
 import { startOfWeek, addWeeks, format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import type { Resource, TaskResourceAssignment } from '@/types'
-import { getWeekKey } from '@/lib/calculations/resources'
+import type { Resource, TaskResourceAssignment, Task } from '@/types'
+import { getWeekKey, calculateWeeklyAllocation } from '@/lib/calculations/resources'
 import { cn } from '@/lib/utils'
 
 interface ResourceCapacityHeatmapProps {
   resources: Resource[]
   assignments: TaskResourceAssignment[]
+  tasks?: Task[] // Optional: to use actual dates when available
+  workingDaysPerWeek?: number[]
   startDate: Date
   weekCount?: number // Number of weeks to display
 }
@@ -23,6 +25,8 @@ interface WeekCapacity {
 export function ResourceCapacityHeatmap({
   resources,
   assignments,
+  tasks,
+  workingDaysPerWeek = [1, 2, 3, 4, 5],
   startDate,
   weekCount = 12
 }: ResourceCapacityHeatmapProps) {
@@ -54,9 +58,33 @@ export function ResourceCapacityHeatmap({
       })
     })
 
+    // Create a map of tasks for quick lookup
+    const taskMap = new Map<string, Task>()
+    tasks?.forEach(task => taskMap.set(task.id, task))
+
     // Calculate allocated hours from assignments
     assignments.forEach(assignment => {
-      assignment.weeklyDistribution.forEach(week => {
+      // Get the task to check for actual dates
+      const task = taskMap.get(assignment.taskId)
+
+      // Use actual dates if available, otherwise use the stored distribution
+      let weeklyDistribution = assignment.weeklyDistribution
+
+      if (task && (task.actualStartDate || task.actualEndDate)) {
+        // Recalculate distribution using actual dates
+        const taskStart = task.actualStartDate || task.startDate
+        const taskEnd = task.actualEndDate || task.endDate
+
+        weeklyDistribution = calculateWeeklyAllocation(
+          taskStart,
+          taskEnd,
+          assignment.plannedHours,
+          workingDaysPerWeek
+        )
+      }
+
+      // Add hours to the heatmap
+      weeklyDistribution.forEach(week => {
         const weekKey = getWeekKey(week.weekStart)
 
         if (data[assignment.resourceId] && data[assignment.resourceId][weekKey]) {
@@ -76,7 +104,7 @@ export function ResourceCapacityHeatmap({
     })
 
     return { data, weeks }
-  }, [resources, assignments, startDate, weekCount])
+  }, [resources, assignments, tasks, workingDaysPerWeek, startDate, weekCount])
 
   // Get color class based on utilization
   const getUtilizationColor = (percent: number) => {

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, Users } from 'lucide-react'
 import { useResources } from '@/hooks/useResources'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
+import { useTasks } from '@/hooks/useTasks'
+import { useProject } from '@/hooks/useProject'
 import { ResourceCapacityHeatmap } from './ResourceCapacityHeatmap'
 import { ResourceFormDialog } from './ResourceFormDialog'
 import type { Resource } from '@/types'
@@ -11,6 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export function ResourceManagement() {
   const { resources, isLoading, loadAllResources, deleteResource } = useResources()
   const { assignments, loadAllAssignments } = useResourceAssignments()
+  const { tasks } = useTasks()
+  const { currentProject } = useProject()
 
   const [selectedResource, setSelectedResource] = useState<Resource | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -149,6 +153,8 @@ export function ResourceManagement() {
             <ResourceCapacityHeatmap
               resources={resources}
               assignments={assignments}
+              tasks={tasks}
+              workingDaysPerWeek={currentProject?.config?.workingDays || [1, 2, 3, 4, 5]}
               startDate={heatmapStartDate}
               weekCount={12}
             />

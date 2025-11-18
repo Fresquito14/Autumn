@@ -274,8 +274,8 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
             {isEditing && isLeafTask && task && currentProject && (
               <ResourceAssignmentSection
                 taskId={task.id}
-                taskStart={new Date(watch('startDate'))}
-                taskEnd={addBusinessDays(
+                taskStart={task.actualStartDate || new Date(watch('startDate'))}
+                taskEnd={task.actualEndDate || addBusinessDays(
                   new Date(watch('startDate')),
                   watch('duration') - 1,
                   currentProject.config?.workingDays || [1, 2, 3, 4, 5]
