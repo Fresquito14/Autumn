@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { startOfWeek, addWeeks, format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import type { Resource, TaskResourceAssignment, Task } from '@/types'
+import type { Resource, TaskResourceAssignment, Task, Holiday } from '@/types'
 import { getWeekKey, calculateWeeklyAllocation } from '@/lib/calculations/resources'
 import { cn } from '@/lib/utils'
 
@@ -10,6 +10,7 @@ interface ResourceCapacityHeatmapProps {
   assignments: TaskResourceAssignment[]
   tasks?: Task[] // Optional: to use actual dates when available
   workingDaysPerWeek?: number[]
+  holidays?: Holiday[] // Project holidays
   startDate: Date
   weekCount?: number // Number of weeks to display
 }
@@ -27,6 +28,7 @@ export function ResourceCapacityHeatmap({
   assignments,
   tasks,
   workingDaysPerWeek = [1, 2, 3, 4, 5],
+  holidays,
   startDate,
   weekCount = 12
 }: ResourceCapacityHeatmapProps) {
@@ -62,16 +64,21 @@ export function ResourceCapacityHeatmap({
     const taskMap = new Map<string, Task>()
     tasks?.forEach(task => taskMap.set(task.id, task))
 
+    // Create a map of resources for quick lookup
+    const resourceMap = new Map<string, Resource>()
+    resources.forEach(resource => resourceMap.set(resource.id, resource))
+
     // Calculate allocated hours from assignments
     assignments.forEach(assignment => {
       // Get the task to check for actual dates
       const task = taskMap.get(assignment.taskId)
+      const resource = resourceMap.get(assignment.resourceId)
 
       // Use actual dates if available, otherwise use the stored distribution
       let weeklyDistribution = assignment.weeklyDistribution
 
       if (task && (task.actualStartDate || task.actualEndDate)) {
-        // Recalculate distribution using actual dates
+        // Recalculate distribution using actual dates and considering vacations/holidays
         const taskStart = task.actualStartDate || task.startDate
         const taskEnd = task.actualEndDate || task.endDate
 
@@ -79,7 +86,9 @@ export function ResourceCapacityHeatmap({
           taskStart,
           taskEnd,
           assignment.plannedHours,
-          workingDaysPerWeek
+          workingDaysPerWeek,
+          resource,
+          holidays
         )
       }
 
@@ -104,7 +113,7 @@ export function ResourceCapacityHeatmap({
     })
 
     return { data, weeks }
-  }, [resources, assignments, tasks, workingDaysPerWeek, startDate, weekCount])
+  }, [resources, assignments, tasks, workingDaysPerWeek, holidays, startDate, weekCount])
 
   // Get color class based on utilization
   const getUtilizationColor = (percent: number) => {

@@ -134,10 +134,11 @@ export function GanttTaskBar({
               {isCritical && progress < 100 && <span className="text-autumn-critical ml-1">(CRÍTICO)</span>}
             </div>
             <div className="text-muted-foreground text-xs mt-1">
+              <span className="font-medium">Planificado: </span>
               {format(task.startDate, 'dd MMM', { locale: es })} - {format(task.endDate, 'dd MMM yyyy', { locale: es })}
             </div>
             <div className="text-muted-foreground text-xs">
-              Duración planificada: {task.duration} {task.duration === 1 ? 'día' : 'días'}
+              Duración: {task.duration} {task.duration === 1 ? 'día' : 'días'}
             </div>
             {progress > 0 && (
               <div className="text-autumn-progress text-xs font-medium">
@@ -146,8 +147,9 @@ export function GanttTaskBar({
             )}
             {hasActualDuration && task.actualDuration !== undefined && (
               <>
-                <div className="text-muted-foreground text-xs">
-                  Duración real: {task.actualDuration} {task.actualDuration === 1 ? 'día' : 'días'}
+                <div className="text-muted-foreground text-xs mt-1">
+                  <span className="font-medium">Real: </span>
+                  Duración {task.actualDuration} {task.actualDuration === 1 ? 'día' : 'días'}
                 </div>
                 <div className={cn(
                   "text-xs font-medium",
@@ -247,29 +249,41 @@ export function GanttTaskBar({
                 {task.wbsCode} - {task.name}
                 {isCritical && progress < 100 && <span className="text-autumn-critical ml-1">(CRÍTICO)</span>}
               </div>
-              <div className="text-muted-foreground text-xs mt-1">
-                {format(task.startDate, 'dd MMM', { locale: es })} - {format(task.endDate, 'dd MMM yyyy', { locale: es })}
-              </div>
-              <div className="text-muted-foreground text-xs">
-                Duración planificada: {task.duration} {task.duration === 1 ? 'día' : 'días'}
-              </div>
+              {task.actualStartDate && task.actualEndDate ? (
+                <>
+                  <div className="text-muted-foreground text-xs mt-1">
+                    <span className="font-medium">Real: </span>
+                    {format(task.actualStartDate, 'dd MMM', { locale: es })} - {format(task.actualEndDate, 'dd MMM yyyy', { locale: es })}
+                  </div>
+                  {task.actualDuration !== undefined && (
+                    <div className="text-muted-foreground text-xs">
+                      Duración: {task.actualDuration} {task.actualDuration === 1 ? 'día' : 'días'}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="text-muted-foreground text-xs mt-1">
+                    <span className="font-medium">Planificado: </span>
+                    {format(task.startDate, 'dd MMM', { locale: es })} - {format(task.endDate, 'dd MMM yyyy', { locale: es })}
+                  </div>
+                  <div className="text-muted-foreground text-xs">
+                    Duración: {task.duration} {task.duration === 1 ? 'día' : 'días'}
+                  </div>
+                </>
+              )}
               {progress > 0 && (
                 <div className="text-autumn-progress text-xs font-medium">
                   Progreso: {progress}%
                 </div>
               )}
-              {hasActualDuration && task.actualDuration !== undefined && (
-                <>
-                  <div className="text-muted-foreground text-xs">
-                    Duración real: {task.actualDuration} {task.actualDuration === 1 ? 'día' : 'días'}
-                  </div>
-                  <div className={cn(
-                    "text-xs font-medium",
-                    task.actualDuration > task.duration ? "text-autumn-critical" : "text-autumn-progress"
-                  )}>
-                    Variación: {task.actualDuration > task.duration ? '+' : ''}{task.actualDuration - task.duration} {Math.abs(task.actualDuration - task.duration) === 1 ? 'día' : 'días'}
-                  </div>
-                </>
+              {hasActualDuration && task.actualDuration !== undefined && task.actualDuration !== task.duration && (
+                <div className={cn(
+                  "text-xs font-medium",
+                  task.actualDuration > task.duration ? "text-autumn-critical" : "text-autumn-progress"
+                )}>
+                  Variación: {task.actualDuration > task.duration ? '+' : ''}{task.actualDuration - task.duration} {Math.abs(task.actualDuration - task.duration) === 1 ? 'día' : 'días'}
+                </div>
               )}
               {taskCPM && (
                 <div className="text-muted-foreground text-xs">

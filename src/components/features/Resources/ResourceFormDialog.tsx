@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { X, Plus, Trash2 } from 'lucide-react'
-import type { Resource } from '@/types'
+import { X, Plus, Trash2, Calendar } from 'lucide-react'
+import type { Resource, DateRange } from '@/types'
 import { useResources } from '@/hooks/useResources'
 import {
   Dialog,
@@ -13,6 +13,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 interface ResourceFormDialogProps {
   open: boolean
@@ -32,10 +34,13 @@ export function ResourceFormDialog({
     email: '',
     maxHoursPerWeek: 40,
     costPerHour: 0,
-    tags: [] as string[]
+    tags: [] as string[],
+    vacations: [] as DateRange[]
   })
 
   const [tagInput, setTagInput] = useState('')
+  const [vacationStart, setVacationStart] = useState('')
+  const [vacationEnd, setVacationEnd] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Initialize form when resource changes
@@ -46,7 +51,8 @@ export function ResourceFormDialog({
         email: resource.email || '',
         maxHoursPerWeek: resource.maxHoursPerWeek,
         costPerHour: resource.costPerHour || 0,
-        tags: resource.tags || []
+        tags: resource.tags || [],
+        vacations: resource.calendar?.vacations || []
       })
     } else {
       setFormData({
@@ -54,10 +60,13 @@ export function ResourceFormDialog({
         email: '',
         maxHoursPerWeek: 40,
         costPerHour: 0,
-        tags: []
+        tags: [],
+        vacations: []
       })
     }
     setTagInput('')
+    setVacationStart('')
+    setVacationEnd('')
   }, [resource, open])
 
   const handleAddTag = () => {
@@ -78,6 +87,32 @@ export function ResourceFormDialog({
     }))
   }
 
+  const handleAddVacation = () => {
+    if (!vacationStart || !vacationEnd) return
+
+    const start = new Date(vacationStart)
+    const end = new Date(vacationEnd)
+
+    if (start > end) {
+      alert('La fecha de inicio debe ser anterior a la fecha de fin')
+      return
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      vacations: [...prev.vacations, { start, end }]
+    }))
+    setVacationStart('')
+    setVacationEnd('')
+  }
+
+  const handleRemoveVacation = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      vacations: prev.vacations.filter((_, i) => i !== index)
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -95,7 +130,8 @@ export function ResourceFormDialog({
           email: formData.email || undefined,
           maxHoursPerWeek: formData.maxHoursPerWeek,
           costPerHour: formData.costPerHour || undefined,
-          tags: formData.tags
+          tags: formData.tags,
+          calendar: { vacations: formData.vacations }
         })
       } else {
         // Create mode
@@ -105,7 +141,7 @@ export function ResourceFormDialog({
           maxHoursPerWeek: formData.maxHoursPerWeek,
           costPerHour: formData.costPerHour || undefined,
           tags: formData.tags,
-          calendar: { vacations: [] }
+          calendar: { vacations: formData.vacations }
         })
       }
 
@@ -235,6 +271,68 @@ export function ResourceFormDialog({
                       className="hover:text-destructive"
                     >
                       <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Vacations */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Vacaciones
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="vacationStart" className="text-xs">Desde</Label>
+                <Input
+                  id="vacationStart"
+                  type="date"
+                  value={vacationStart}
+                  onChange={e => setVacationStart(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="vacationEnd" className="text-xs">Hasta</Label>
+                <Input
+                  id="vacationEnd"
+                  type="date"
+                  value={vacationEnd}
+                  onChange={e => setVacationEnd(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddVacation}
+              className="w-full"
+              disabled={!vacationStart || !vacationEnd}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir vacaciones
+            </Button>
+
+            {/* Vacation list */}
+            {formData.vacations.length > 0 && (
+              <div className="space-y-2 mt-2">
+                {formData.vacations.map((vacation, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 bg-secondary rounded-md text-sm"
+                  >
+                    <span>
+                      {format(vacation.start, 'dd MMM', { locale: es })} - {format(vacation.end, 'dd MMM yyyy', { locale: es })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveVacation(index)}
+                      className="hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 ))}

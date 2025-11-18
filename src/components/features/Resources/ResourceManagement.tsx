@@ -155,6 +155,7 @@ export function ResourceManagement() {
               assignments={assignments}
               tasks={tasks}
               workingDaysPerWeek={currentProject?.config?.workingDays || [1, 2, 3, 4, 5]}
+              holidays={currentProject?.config?.holidays || []}
               startDate={heatmapStartDate}
               weekCount={12}
             />

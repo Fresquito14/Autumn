@@ -3,6 +3,7 @@ export interface Holiday {
   date: Date
   name: string
   description?: string
+  appliesTo?: string[] // Optional: Tags of resources this holiday applies to. If empty, applies to all.
 }
 
 export interface DateRange {

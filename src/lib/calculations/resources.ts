@@ -1,15 +1,42 @@
-import { startOfWeek, endOfWeek, eachWeekOfInterval, differenceInDays, addDays, getWeek, getYear } from 'date-fns'
-import type { WeeklyAllocation, Resource } from '@/types'
+import { startOfWeek, endOfWeek, eachWeekOfInterval, differenceInDays, addDays, getWeek, getYear, isWithinInterval, isSameDay } from 'date-fns'
+import type { WeeklyAllocation, Resource, Holiday, DateRange } from '@/types'
+
+/**
+ * Check if a date is a vacation day for a resource
+ */
+function isVacationDay(date: Date, vacations: DateRange[]): boolean {
+  return vacations.some(vacation =>
+    isWithinInterval(date, { start: vacation.start, end: vacation.end })
+  )
+}
+
+/**
+ * Check if a date is a holiday
+ */
+function isHoliday(date: Date, holidays: Holiday[], resourceTags: string[]): boolean {
+  return holidays.some(holiday => {
+    // Check if holiday date matches
+    if (!isSameDay(date, holiday.date)) return false
+
+    // If holiday applies to all (no specific tags), return true
+    if (!holiday.appliesTo || holiday.appliesTo.length === 0) return true
+
+    // Check if resource has any of the holiday tags
+    return holiday.appliesTo.some(tag => resourceTags.includes(tag))
+  })
+}
 
 /**
  * Calculate weekly allocation for a task resource assignment
  * Distributes hours proportionally based on working days in each week
+ * Excludes vacation days and holidays
  *
  * @param taskStart - Task start date
  * @param taskEnd - Task end date
  * @param totalPlannedHours - Total hours to distribute
  * @param workingDaysPerWeek - Array of working days (0=Sunday, 6=Saturday)
  * @param resource - Resource being assigned (for calendar awareness)
+ * @param holidays - Project holidays
  * @returns Array of weekly allocations
  */
 export function calculateWeeklyAllocation(
@@ -17,7 +44,8 @@ export function calculateWeeklyAllocation(
   taskEnd: Date,
   totalPlannedHours: number,
   workingDaysPerWeek: number[], // e.g., [1,2,3,4,5] for Mon-Fri
-  resource?: Resource
+  resource?: Resource,
+  holidays?: Holiday[]
 ): WeeklyAllocation[] {
   // Get all weeks that overlap with the task duration
   const weeks = eachWeekOfInterval(
@@ -39,13 +67,21 @@ export function calculateWeeklyAllocation(
     let workingDaysCount = 0
     const daysInOverlap = differenceInDays(overlapEnd, overlapStart) + 1
 
+    const vacations = resource?.calendar?.vacations || []
+    const resourceTags = resource?.tags || []
+
     for (let i = 0; i < daysInOverlap; i++) {
       const day = addDays(overlapStart, i)
       const dayOfWeek = day.getDay()
 
       // Check if this day is a working day
       if (workingDaysPerWeek.includes(dayOfWeek)) {
-        // TODO: Check resource calendar for vacations/custom working days
+        // Skip if it's a vacation day for this resource
+        if (isVacationDay(day, vacations)) continue
+
+        // Skip if it's a holiday that applies to this resource
+        if (holidays && isHoliday(day, holidays, resourceTags)) continue
+
         workingDaysCount++
       }
     }
@@ -129,18 +165,21 @@ export function recalculateWeeklyAllocation(
 
 /**
  * Calculate total capacity for a resource in a given date range
+ * Excludes vacation days and holidays
  *
  * @param resource - Resource to calculate capacity for
  * @param rangeStart - Start of date range
  * @param rangeEnd - End of date range
  * @param workingDaysPerWeek - Array of working days
+ * @param holidays - Project holidays
  * @returns Total available hours
  */
 export function calculateResourceCapacity(
   resource: Resource,
   rangeStart: Date,
   rangeEnd: Date,
-  workingDaysPerWeek: number[]
+  workingDaysPerWeek: number[],
+  holidays?: Holiday[]
 ): number {
   const weeks = eachWeekOfInterval(
     { start: rangeStart, end: rangeEnd },
@@ -148,6 +187,8 @@ export function calculateResourceCapacity(
   )
 
   let totalHours = 0
+  const vacations = resource.calendar?.vacations || []
+  const resourceTags = resource.tags || []
 
   for (const weekStart of weeks) {
     const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
@@ -165,7 +206,12 @@ export function calculateResourceCapacity(
       const dayOfWeek = day.getDay()
 
       if (workingDaysPerWeek.includes(dayOfWeek)) {
-        // TODO: Check resource.calendar for vacations
+        // Skip if it's a vacation day for this resource
+        if (isVacationDay(day, vacations)) continue
+
+        // Skip if it's a holiday that applies to this resource
+        if (holidays && isHoliday(day, holidays, resourceTags)) continue
+
         workingDaysCount++
       }
     }
