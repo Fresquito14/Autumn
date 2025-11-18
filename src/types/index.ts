@@ -11,7 +11,12 @@ export type { Task, Milestone, ChecklistItem, ConstraintType } from './task'
 export type { Dependency, DependencyType } from './dependency'
 
 // Resource types
-export type { Resource, ResourceCalendar } from './resource'
+export type {
+  Resource,
+  ResourceCalendar,
+  TaskResourceAssignment,
+  WeeklyAllocation
+} from './resource'
 
 // Tracking types
 export type { TimeEntry, Baseline } from './tracking'

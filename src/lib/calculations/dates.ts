@@ -226,14 +226,17 @@ export function generateTimelineScale(
   end: Date,
   granularity: 'day' | 'week' | 'month' = 'week'
 ): Array<{ date: Date; label: string; width: number }> {
-  const totalDays = differenceInDays(end, start)
-  const days = eachDayOfInterval({ start, end })
+  // Normalize dates to match the rest of the Gantt calculations
+  const normalizedStart = normalizeDateToMidnight(start)
+  const normalizedEnd = normalizeDateToMidnight(end)
+  const totalDays = differenceInDays(normalizedEnd, normalizedStart) + 1
+  const days = eachDayOfInterval({ start: normalizedStart, end: normalizedEnd })
 
   if (granularity === 'month') {
     const months: Array<{ date: Date; label: string; width: number }> = []
-    let currentMonth = startOfMonth(start)
+    let currentMonth = startOfMonth(normalizedStart)
 
-    while (currentMonth <= end) {
+    while (currentMonth <= normalizedEnd) {
       const monthEnd = endOfMonth(currentMonth)
       const monthDays = days.filter((day) => isSameMonth(day, currentMonth)).length
 
@@ -252,9 +255,9 @@ export function generateTimelineScale(
   if (granularity === 'week') {
     const weeks: Array<{ date: Date; label: string; width: number }> = []
     // Use default week start (Sunday) to match JavaScript's getDay() behavior
-    let currentWeek = startOfWeek(start)
+    let currentWeek = startOfWeek(normalizedStart)
 
-    while (currentWeek <= end) {
+    while (currentWeek <= normalizedEnd) {
       const weekEnd = endOfWeek(currentWeek)
       const weekDays = days.filter(
         (day) => day >= currentWeek && day <= weekEnd

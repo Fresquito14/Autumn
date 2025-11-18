@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TaskChecklist } from './TaskChecklist'
+import { ResourceAssignmentSection } from '@/components/features/Resources/ResourceAssignmentSection'
 import { useTasks } from '@/hooks/useTasks'
 import { useDependencies } from '@/hooks/useDependencies'
 import { useProject } from '@/hooks/useProject'
@@ -266,6 +267,20 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
                 onDeleteItem={handleDeleteChecklistItem}
                 onUpdateItem={handleUpdateChecklistItem}
                 hasActualDuration={false}
+              />
+            )}
+
+            {/* Resource Assignment - only for editing existing leaf tasks */}
+            {isEditing && isLeafTask && task && currentProject && (
+              <ResourceAssignmentSection
+                taskId={task.id}
+                taskStart={new Date(watch('startDate'))}
+                taskEnd={addBusinessDays(
+                  new Date(watch('startDate')),
+                  watch('duration') - 1,
+                  currentProject.config?.workingDays || [1, 2, 3, 4, 5]
+                )}
+                workingDaysPerWeek={currentProject.config?.workingDays || [1, 2, 3, 4, 5]}
               />
             )}
 

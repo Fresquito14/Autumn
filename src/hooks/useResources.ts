@@ -9,7 +9,8 @@ interface ResourceState {
   error: string | null
 
   // Actions
-  loadResources: (projectId: string) => Promise<void>
+  loadAllResources: () => Promise<void> // Global resources - no projectId needed
+  loadProjectResources: (projectId: string) => Promise<Resource[]> // Get resources assigned to a specific project
   getResource: (id: string) => Resource | undefined
   createResource: (resource: Omit<Resource, 'id'>) => Promise<string>
   updateResource: (id: string, changes: Partial<Resource>) => Promise<void>
@@ -24,13 +25,22 @@ export const useResources = create<ResourceState>()(
       isLoading: false,
       error: null,
 
-      loadResources: async (projectId: string) => {
+      loadAllResources: async () => {
         set({ isLoading: true, error: null })
         try {
-          const resources = await dbHelpers.getProjectResources(projectId)
+          const resources = await dbHelpers.getAllResources()
           set({ resources, isLoading: false })
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })
+        }
+      },
+
+      loadProjectResources: async (projectId: string) => {
+        try {
+          return await dbHelpers.getProjectResources(projectId)
+        } catch (error) {
+          console.error('Failed to load project resources:', error)
+          return []
         }
       },
 
@@ -44,13 +54,15 @@ export const useResources = create<ResourceState>()(
           const resource: Resource = {
             ...resourceData,
             id: crypto.randomUUID(),
+            tags: resourceData.tags || [],
             maxHoursPerWeek: resourceData.maxHoursPerWeek || 40,
             calendar: resourceData.calendar || { vacations: [] },
           }
 
           await dbHelpers.createResource(resource)
 
-          const resources = await dbHelpers.getProjectResources(resource.projectId)
+          // Reload all global resources
+          const resources = await dbHelpers.getAllResources()
           set({ resources, isLoading: false })
 
           return resource.id
@@ -65,13 +77,9 @@ export const useResources = create<ResourceState>()(
         try {
           await dbHelpers.updateResource(id, changes)
 
-          const resource = get().resources.find(r => r.id === id)
-          if (resource) {
-            const resources = await dbHelpers.getProjectResources(resource.projectId)
-            set({ resources, isLoading: false })
-          } else {
-            set({ isLoading: false })
-          }
+          // Reload all global resources
+          const resources = await dbHelpers.getAllResources()
+          set({ resources, isLoading: false })
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })
         }
@@ -80,15 +88,10 @@ export const useResources = create<ResourceState>()(
       deleteResource: async (id) => {
         set({ isLoading: true, error: null })
         try {
-          const resource = get().resources.find(r => r.id === id)
-          if (!resource) {
-            set({ isLoading: false })
-            return
-          }
-
           await dbHelpers.deleteResource(id)
 
-          const resources = await dbHelpers.getProjectResources(resource.projectId)
+          // Reload all global resources
+          const resources = await dbHelpers.getAllResources()
           set({ resources, isLoading: false })
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })

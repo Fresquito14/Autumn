@@ -12,7 +12,7 @@ export function GanttTimeline({ startDate, endDate, width }: GanttTimelineProps)
   const weeks = generateTimelineScale(startDate, endDate, 'week')
 
   // Use centralized function for consistent calculation
-  const { totalDays, normalizedStart } = calculateTimelineDimensions(startDate, endDate, width)
+  const { totalDays, dayWidth, normalizedStart } = calculateTimelineDimensions(startDate, endDate, width)
 
   // Generate day information using normalized dates
   const days = Array.from({ length: totalDays }, (_, i) => {

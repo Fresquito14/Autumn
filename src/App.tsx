@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react'
-import { ArrowLeft, Trash2, Download, Upload } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { ArrowLeft, Trash2, Download, Upload, Users } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { useProject } from './hooks/useProject'
 import { useAutoRecalculate } from './hooks/useAutoRecalculate'
@@ -9,15 +9,28 @@ import { WBSTree } from './components/features/WBS/WBSTree'
 import { DependencyList } from './components/features/WBS/DependencyList'
 import { MilestoneList } from './components/features/Milestones/MilestoneList'
 import { GanttChart } from './components/features/GanttChart/GanttChart'
+import { ResourceManagement } from './components/features/Resources/ResourceManagement'
 import { Button } from './components/ui/button'
 import { ThemeToggle } from './components/ui/ThemeToggle'
 import { db, dbHelpers } from './lib/storage/db'
 import { downloadProjectAsJSON, readProjectFile, importProject } from './lib/export/json'
 
+type View = 'projects' | 'project' | 'resources'
+
 function App() {
   const { currentProject, setCurrentProject } = useProject()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isImporting, setIsImporting] = useState(false)
+  const [currentView, setCurrentView] = useState<View>('projects')
+
+  // Sync view with project state
+  useEffect(() => {
+    if (currentProject && currentView !== 'project') {
+      setCurrentView('project')
+    } else if (!currentProject && currentView === 'project') {
+      setCurrentView('projects')
+    }
+  }, [currentProject, currentView])
 
   // Enable automatic reactive calculations
   useAutoRecalculate()
@@ -114,7 +127,7 @@ function App() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {currentProject ? (
+              {currentView === 'project' && currentProject ? (
                 <>
                   <Button
                     variant="outline"
@@ -128,12 +141,24 @@ function App() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setCurrentProject(null)}
+                    onClick={() => {
+                      setCurrentProject(null)
+                      setCurrentView('projects')
+                    }}
                   >
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Volver a Proyectos
                   </Button>
                 </>
+              ) : currentView === 'resources' ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentView('projects')}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Volver a Proyectos
+                </Button>
               ) : (
                 <>
                   <input
@@ -153,9 +178,18 @@ function App() {
                     <Upload className="h-4 w-4 mr-2" />
                     {isImporting ? 'Importando...' : 'Importar'}
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentView('resources')}
+                    title="Gestión de recursos globales"
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Recursos
+                  </Button>
                 </>
               )}
-              <ProjectSetupDialog />
+              {currentView === 'projects' && <ProjectSetupDialog />}
               <ThemeToggle />
               {/* Development: Reset Database Button */}
               {import.meta.env.DEV && (
@@ -174,7 +208,9 @@ function App() {
       </header>
 
       <main className="px-4 py-4">
-        {!currentProject ? (
+        {currentView === 'resources' ? (
+          <ResourceManagement />
+        ) : currentView === 'projects' ? (
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-bold tracking-tight">Bienvenido a Autumn</h2>
