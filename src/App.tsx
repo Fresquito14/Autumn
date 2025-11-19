@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ArrowLeft, Trash2, Download, Upload, Users } from 'lucide-react'
+import { ArrowLeft, Trash2, Download, Upload, Users, PartyPopper } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { useProject } from './hooks/useProject'
 import { useAutoRecalculate } from './hooks/useAutoRecalculate'
@@ -10,12 +10,13 @@ import { DependencyList } from './components/features/WBS/DependencyList'
 import { MilestoneList } from './components/features/Milestones/MilestoneList'
 import { GanttChart } from './components/features/GanttChart/GanttChart'
 import { ResourceManagement } from './components/features/Resources/ResourceManagement'
+import { GlobalHolidaysManagement } from './components/features/GlobalHolidays/GlobalHolidaysManagement'
 import { Button } from './components/ui/button'
 import { ThemeToggle } from './components/ui/ThemeToggle'
 import { db, dbHelpers } from './lib/storage/db'
 import { downloadProjectAsJSON, readProjectFile, importProject } from './lib/export/json'
 
-type View = 'projects' | 'project' | 'resources'
+type View = 'projects' | 'project' | 'resources' | 'holidays'
 
 function App() {
   const { currentProject, setCurrentProject } = useProject()
@@ -159,6 +160,15 @@ function App() {
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Volver a Proyectos
                 </Button>
+              ) : currentView === 'holidays' ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentView('projects')}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Volver a Proyectos
+                </Button>
               ) : (
                 <>
                   <input
@@ -187,6 +197,15 @@ function App() {
                     <Users className="h-4 w-4 mr-2" />
                     Recursos
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentView('holidays')}
+                    title="Gestión de festivos globales"
+                  >
+                    <PartyPopper className="h-4 w-4 mr-2" />
+                    Festivos
+                  </Button>
                 </>
               )}
               {currentView === 'projects' && <ProjectSetupDialog />}
@@ -208,7 +227,9 @@ function App() {
       </header>
 
       <main className="px-4 py-4">
-        {currentView === 'resources' ? (
+        {currentView === 'holidays' ? (
+          <GlobalHolidaysManagement />
+        ) : currentView === 'resources' ? (
           <ResourceManagement />
         ) : currentView === 'projects' ? (
           <div className="max-w-7xl mx-auto space-y-6">
