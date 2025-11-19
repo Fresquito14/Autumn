@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Plus, Edit, Trash2, Users } from 'lucide-react'
 import { useResources } from '@/hooks/useResources'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import { useTasks } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProject'
+import { useGlobalHolidays } from '@/hooks/useGlobalHolidays'
+import { getCombinedHolidays } from '@/lib/calculations/holidays'
 import { ResourceCapacityHeatmap } from './ResourceCapacityHeatmap'
 import { ResourceFormDialog } from './ResourceFormDialog'
 import type { Resource } from '@/types'
@@ -15,16 +17,24 @@ export function ResourceManagement() {
   const { assignments, loadAllAssignments } = useResourceAssignments()
   const { tasks } = useTasks()
   const { currentProject } = useProject()
+  const { holidays: globalHolidays, loadAllHolidays } = useGlobalHolidays()
 
   const [selectedResource, setSelectedResource] = useState<Resource | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [heatmapStartDate] = useState(new Date())
 
-  // Load all resources and assignments on mount
+  // Load all resources, global holidays and assignments on mount
   useEffect(() => {
     loadAllResources()
     loadAllAssignments()
-  }, [loadAllResources, loadAllAssignments])
+    loadAllHolidays()
+  }, [loadAllResources, loadAllAssignments, loadAllHolidays])
+
+  // Combine global and project-specific holidays
+  const combinedHolidays = useMemo(() => {
+    if (!currentProject) return []
+    return getCombinedHolidays(globalHolidays, currentProject.config)
+  }, [globalHolidays, currentProject])
 
   const handleCreateResource = () => {
     setSelectedResource(undefined)
@@ -155,7 +165,7 @@ export function ResourceManagement() {
               assignments={assignments}
               tasks={tasks}
               workingDaysPerWeek={currentProject?.config?.workingDays || [1, 2, 3, 4, 5]}
-              holidays={currentProject?.config?.holidays || []}
+              holidays={combinedHolidays}
               startDate={heatmapStartDate}
               weekCount={12}
             />

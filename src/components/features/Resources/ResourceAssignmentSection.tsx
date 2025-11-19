@@ -3,6 +3,8 @@ import { Plus, Trash2, Users } from 'lucide-react'
 import { useResources } from '@/hooks/useResources'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import { useProject } from '@/hooks/useProject'
+import { useGlobalHolidays } from '@/hooks/useGlobalHolidays'
+import { getCombinedHolidays } from '@/lib/calculations/holidays'
 import type { Resource, TaskResourceAssignment } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +34,7 @@ export function ResourceAssignmentSection({
 }: ResourceAssignmentSectionProps) {
   const { resources, loadAllResources } = useResources()
   const { currentProject } = useProject()
+  const { holidays: globalHolidays, loadAllHolidays } = useGlobalHolidays()
   const {
     assignments,
     loadTaskAssignments,
@@ -44,26 +47,29 @@ export function ResourceAssignmentSection({
   const [plannedHours, setPlannedHours] = useState<number>(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Load resources and assignments
+  // Load resources, global holidays, and assignments
   useEffect(() => {
     loadAllResources()
+    loadAllHolidays()
     if (taskId) {
       loadTaskAssignments(taskId)
     }
-  }, [taskId, loadAllResources, loadTaskAssignments])
+  }, [taskId, loadAllResources, loadAllHolidays, loadTaskAssignments])
 
   // Get available resources (not already assigned)
   const assignedResourceIds = assignments.map(a => a.resourceId)
   const availableResources = resources.filter(r => !assignedResourceIds.includes(r.id))
 
   const handleAddAssignment = async () => {
-    if (!selectedResourceId || plannedHours <= 0) return
+    if (!selectedResourceId || plannedHours <= 0 || !currentProject) return
 
     setIsSubmitting(true)
     try {
       // Get the selected resource
       const resource = resources.find(r => r.id === selectedResourceId)
-      const holidays = currentProject?.config?.holidays || []
+
+      // Combine global and project-specific holidays
+      const holidays = getCombinedHolidays(globalHolidays, currentProject.config)
 
       await createAssignment(
         {

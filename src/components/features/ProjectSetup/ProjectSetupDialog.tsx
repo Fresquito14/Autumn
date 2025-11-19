@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { Calendar, Plus, Trash2, PartyPopper } from 'lucide-react'
 import { format } from 'date-fns'
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useProject } from '@/hooks/useProject'
+import { useGlobalHolidays } from '@/hooks/useGlobalHolidays'
 import type { ProjectConfig, Holiday } from '@/types'
 
 interface ProjectFormData {
@@ -29,6 +30,7 @@ interface ProjectFormData {
 export function ProjectSetupDialog() {
   const [open, setOpen] = useState(false)
   const { createProject } = useProject()
+  const { holidays: globalHolidays, loadAllHolidays } = useGlobalHolidays()
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ProjectFormData>({
     defaultValues: {
       name: '',
@@ -39,14 +41,31 @@ export function ProjectSetupDialog() {
     }
   })
 
+  // Load global holidays when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadAllHolidays()
+    }
+  }, [open, loadAllHolidays])
+
   // Holiday management state
-  const [holidays, setHolidays] = useState<Holiday[]>([])
+  const [useGlobalHolidays, setUseGlobalHolidays] = useState(true)
+  const [excludedGlobalHolidayIds, setExcludedGlobalHolidayIds] = useState<string[]>([])
+  const [projectSpecificHolidays, setProjectSpecificHolidays] = useState<Holiday[]>([])
   const [holidayName, setHolidayName] = useState('')
   const [holidayDate, setHolidayDate] = useState('')
   const [holidayDescription, setHolidayDescription] = useState('')
   const [holidayTags, setHolidayTags] = useState('')
 
-  const handleAddHoliday = () => {
+  const handleToggleGlobalHoliday = (holidayId: string) => {
+    if (excludedGlobalHolidayIds.includes(holidayId)) {
+      setExcludedGlobalHolidayIds(excludedGlobalHolidayIds.filter(id => id !== holidayId))
+    } else {
+      setExcludedGlobalHolidayIds([...excludedGlobalHolidayIds, holidayId])
+    }
+  }
+
+  const handleAddProjectHoliday = () => {
     if (!holidayName || !holidayDate) return
 
     const newHoliday: Holiday = {
@@ -57,15 +76,15 @@ export function ProjectSetupDialog() {
       appliesTo: holidayTags ? holidayTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : undefined
     }
 
-    setHolidays([...holidays, newHoliday])
+    setProjectSpecificHolidays([...projectSpecificHolidays, newHoliday])
     setHolidayName('')
     setHolidayDate('')
     setHolidayDescription('')
     setHolidayTags('')
   }
 
-  const handleRemoveHoliday = (id: string) => {
-    setHolidays(holidays.filter(h => h.id !== id))
+  const handleRemoveProjectHoliday = (id: string) => {
+    setProjectSpecificHolidays(projectSpecificHolidays.filter(h => h.id !== id))
   }
 
   const onSubmit = async (data: ProjectFormData) => {
@@ -77,7 +96,10 @@ export function ProjectSetupDialog() {
     const config: ProjectConfig = {
       workingDays,
       hoursPerDay: data.hoursPerDay,
-      holidays: holidays,
+      useGlobalHolidays,
+      excludedGlobalHolidayIds,
+      projectSpecificHolidays,
+      skipHolidaysInScheduling: true,
       defaultDuration: 1,
     }
 
@@ -93,7 +115,9 @@ export function ProjectSetupDialog() {
 
       setOpen(false)
       reset()
-      setHolidays([])
+      setUseGlobalHolidays(true)
+      setExcludedGlobalHolidayIds([])
+      setProjectSpecificHolidays([])
     } catch (error) {
       console.error('Error creating project:', error)
     }
@@ -217,100 +241,166 @@ export function ProjectSetupDialog() {
                 Días Festivos
               </Label>
 
-              {/* Add Holiday Form */}
-              <div className="grid gap-2 p-3 bg-muted/50 rounded-lg">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label htmlFor="holidayName" className="text-xs">Nombre *</Label>
-                    <Input
-                      id="holidayName"
-                      placeholder="Ej: Navidad"
-                      value={holidayName}
-                      onChange={(e) => setHolidayName(e.target.value)}
-                      className="h-8"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="holidayDate" className="text-xs">Fecha *</Label>
-                    <Input
-                      id="holidayDate"
-                      type="date"
-                      value={holidayDate}
-                      onChange={(e) => setHolidayDate(e.target.value)}
-                      className="h-8"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="holidayDescription" className="text-xs">Descripción (opcional)</Label>
-                  <Input
-                    id="holidayDescription"
-                    placeholder="Descripción del festivo"
-                    value={holidayDescription}
-                    onChange={(e) => setHolidayDescription(e.target.value)}
-                    className="h-8"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="holidayTags" className="text-xs">Aplica a recursos con tags (opcional)</Label>
-                  <Input
-                    id="holidayTags"
-                    placeholder="Ej: España, Madrid (separados por comas)"
-                    value={holidayTags}
-                    onChange={(e) => setHolidayTags(e.target.value)}
-                    className="h-8"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Deja vacío para aplicar a todos los recursos
-                  </p>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddHoliday}
-                  disabled={!holidayName || !holidayDate}
-                  className="w-full"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Añadir Festivo
-                </Button>
+              {/* Use Global Holidays Checkbox */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="useGlobalHolidays"
+                  checked={useGlobalHolidays}
+                  onChange={(e) => setUseGlobalHolidays(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="useGlobalHolidays" className="cursor-pointer">
+                  Usar festivos globales
+                </Label>
               </div>
 
-              {/* Holidays List */}
-              {holidays.length > 0 && (
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {holidays.map((holiday) => (
-                    <div
-                      key={holiday.id}
-                      className="flex items-start justify-between p-2 bg-secondary rounded-md text-sm"
-                    >
-                      <div className="flex-1">
-                        <div className="font-medium">{holiday.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(holiday.date, 'dd MMM yyyy', { locale: es })}
-                          {holiday.description && ` • ${holiday.description}`}
-                        </div>
-                        {holiday.appliesTo && holiday.appliesTo.length > 0 && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Aplica a: {holiday.appliesTo.join(', ')}
+              {/* Global Holidays List */}
+              {useGlobalHolidays && globalHolidays.length > 0 && (
+                <div className="space-y-2 max-h-48 overflow-y-auto p-3 bg-muted/30 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Desmarca los festivos que NO aplican a este proyecto:
+                  </p>
+                  {globalHolidays
+                    .sort((a, b) => a.date.getTime() - b.date.getTime())
+                    .map((holiday) => {
+                      const isExcluded = excludedGlobalHolidayIds.includes(holiday.id)
+                      return (
+                        <div
+                          key={holiday.id}
+                          className={`flex items-start gap-2 p-2 rounded-md text-sm transition-colors ${
+                            isExcluded ? 'bg-muted/50 opacity-50' : 'bg-secondary'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!isExcluded}
+                            onChange={() => handleToggleGlobalHoliday(holiday.id)}
+                            className="h-4 w-4 mt-0.5"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium">{holiday.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(holiday.date, 'dd MMM yyyy', { locale: es })}
+                              {holiday.description && ` • ${holiday.description}`}
+                            </div>
+                            {holiday.appliesTo && holiday.appliesTo.length > 0 && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Aplica a: {holiday.appliesTo.join(', ')}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveHoliday(holiday.id)}
-                        className="text-destructive hover:text-destructive/80"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                        </div>
+                      )
+                    })}
                 </div>
               )}
+
+              {useGlobalHolidays && globalHolidays.length === 0 && (
+                <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded-lg">
+                  No hay festivos globales definidos. Ve a la sección "Festivos" para crear algunos.
+                </p>
+              )}
+
+              {/* Project-Specific Holidays */}
+              <div className="grid gap-2 pt-2">
+                <Label className="text-sm">Festivos específicos de este proyecto (opcional)</Label>
+
+                {/* Add Holiday Form */}
+                <div className="grid gap-2 p-3 bg-muted/50 rounded-lg">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="holidayName" className="text-xs">Nombre *</Label>
+                      <Input
+                        id="holidayName"
+                        placeholder="Ej: Feria local"
+                        value={holidayName}
+                        onChange={(e) => setHolidayName(e.target.value)}
+                        className="h-8"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="holidayDate" className="text-xs">Fecha *</Label>
+                      <Input
+                        id="holidayDate"
+                        type="date"
+                        value={holidayDate}
+                        onChange={(e) => setHolidayDate(e.target.value)}
+                        className="h-8"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="holidayDescription" className="text-xs">Descripción (opcional)</Label>
+                    <Input
+                      id="holidayDescription"
+                      placeholder="Descripción del festivo"
+                      value={holidayDescription}
+                      onChange={(e) => setHolidayDescription(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="holidayTags" className="text-xs">Aplica a recursos con tags (opcional)</Label>
+                    <Input
+                      id="holidayTags"
+                      placeholder="Ej: España, Madrid (separados por comas)"
+                      value={holidayTags}
+                      onChange={(e) => setHolidayTags(e.target.value)}
+                      className="h-8"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Deja vacío para aplicar a todos los recursos
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddProjectHoliday}
+                    disabled={!holidayName || !holidayDate}
+                    className="w-full"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Añadir Festivo del Proyecto
+                  </Button>
+                </div>
+
+                {/* Project Holidays List */}
+                {projectSpecificHolidays.length > 0 && (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {projectSpecificHolidays.map((holiday) => (
+                      <div
+                        key={holiday.id}
+                        className="flex items-start justify-between p-2 bg-secondary rounded-md text-sm"
+                      >
+                        <div className="flex-1">
+                          <div className="font-medium">{holiday.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(holiday.date, 'dd MMM yyyy', { locale: es })}
+                            {holiday.description && ` • ${holiday.description}`}
+                          </div>
+                          {holiday.appliesTo && holiday.appliesTo.length > 0 && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Aplica a: {holiday.appliesTo.join(', ')}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveProjectHoliday(holiday.id)}
+                          className="text-destructive hover:text-destructive/80"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
