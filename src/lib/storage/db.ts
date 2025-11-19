@@ -8,6 +8,7 @@ import type {
   TimeEntry,
   Baseline,
   TaskResourceAssignment,
+  GlobalHoliday,
 } from '@/types'
 
 // Database class extending Dexie
@@ -21,6 +22,7 @@ class AutumnDatabase extends Dexie {
   taskResourceAssignments!: EntityTable<TaskResourceAssignment, 'id'>
   timeEntries!: EntityTable<TimeEntry, 'id'>
   baselines!: EntityTable<Baseline, 'id'>
+  globalHolidays!: EntityTable<GlobalHoliday, 'id'>
 
   constructor() {
     super('AutumnDB')
@@ -56,6 +58,64 @@ class AutumnDatabase extends Dexie {
         const { projectId, ...rest } = r as any
         return rest
       }))
+    })
+
+    // Version 3: Global holidays + updated project config
+    this.version(3).stores({
+      projects: 'id, name, createdAt, updatedAt',
+      tasks: 'id, projectId, wbsCode, parentId, level, startDate, endDate, createdAt, updatedAt, [projectId+wbsCode]',
+      milestones: 'id, projectId, date, linkedTaskId',
+      dependencies: 'id, projectId, predecessorId, successorId, [projectId+predecessorId], [projectId+successorId]',
+      resources: 'id, name, email',
+      taskResourceAssignments: 'id, taskId, resourceId, [taskId+resourceId]',
+      timeEntries: 'id, taskId, resourceId, date, [taskId+resourceId]',
+      baselines: 'id, projectId, createdAt',
+      globalHolidays: 'id, name, date, createdAt, updatedAt', // New table for global holidays
+    }).upgrade(async (trans) => {
+      // Migration: Move existing project holidays to global holidays
+      const projects = await trans.table('projects').toArray()
+      const globalHolidaysToAdd: GlobalHoliday[] = []
+      const seenHolidays = new Map<string, string>() // key: date+name, value: id
+
+      for (const project of projects as any[]) {
+        if (project.config?.holidays && Array.isArray(project.config.holidays)) {
+          for (const holiday of project.config.holidays) {
+            const key = `${holiday.date.toISOString()}-${holiday.name}`
+
+            // If we haven't seen this holiday before, add it to global holidays
+            if (!seenHolidays.has(key)) {
+              const globalHoliday: GlobalHoliday = {
+                id: holiday.id,
+                name: holiday.name,
+                date: holiday.date,
+                description: holiday.description,
+                appliesTo: holiday.appliesTo,
+                isRecurring: false,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              }
+              globalHolidaysToAdd.push(globalHoliday)
+              seenHolidays.set(key, holiday.id)
+            }
+          }
+
+          // Update project config to use global holidays
+          await trans.table('projects').update(project.id, {
+            config: {
+              ...project.config,
+              useGlobalHolidays: true,
+              excludedGlobalHolidayIds: [],
+              projectSpecificHolidays: [],
+              skipHolidaysInScheduling: true, // Default: holidays don't extend task duration
+            }
+          })
+        }
+      }
+
+      // Add all unique holidays to global holidays table
+      if (globalHolidaysToAdd.length > 0) {
+        await trans.table('globalHolidays').bulkAdd(globalHolidaysToAdd)
+      }
     })
   }
 }
@@ -271,9 +331,33 @@ export const dbHelpers = {
     return await db.baselines.delete(id)
   },
 
+  // Global Holidays
+  async getAllGlobalHolidays() {
+    return await db.globalHolidays.toArray()
+  },
+
+  async getGlobalHoliday(id: string) {
+    return await db.globalHolidays.get(id)
+  },
+
+  async createGlobalHoliday(holiday: GlobalHoliday) {
+    return await db.globalHolidays.add(holiday)
+  },
+
+  async updateGlobalHoliday(id: string, changes: Partial<GlobalHoliday>) {
+    return await db.globalHolidays.update(id, {
+      ...changes,
+      updatedAt: new Date(),
+    })
+  },
+
+  async deleteGlobalHoliday(id: string) {
+    return await db.globalHolidays.delete(id)
+  },
+
   // Development/Debug utilities
   async clearAllData() {
-    await db.transaction('rw', [db.projects, db.tasks, db.milestones, db.dependencies, db.resources, db.taskResourceAssignments, db.timeEntries, db.baselines], async () => {
+    await db.transaction('rw', [db.projects, db.tasks, db.milestones, db.dependencies, db.resources, db.taskResourceAssignments, db.timeEntries, db.baselines, db.globalHolidays], async () => {
       await db.projects.clear()
       await db.tasks.clear()
       await db.milestones.clear()
@@ -282,6 +366,7 @@ export const dbHelpers = {
       await db.taskResourceAssignments.clear()
       await db.timeEntries.clear()
       await db.baselines.clear()
+      await db.globalHolidays.clear()
     })
   },
 

@@ -1,5 +1,5 @@
 // Calendar types
-export type { Holiday, DateRange, WorkingDay } from './calendar'
+export type { Holiday, GlobalHoliday, DateRange, WorkingDay } from './calendar'
 
 // Project types
 export type { Project, ProjectConfig } from './project'
