@@ -49,7 +49,7 @@ export function ProjectSetupDialog() {
   }, [open, loadAllHolidays])
 
   // Holiday management state
-  const [useGlobalHolidays, setUseGlobalHolidays] = useState(true)
+  const [shouldUseGlobalHolidays, setUseGlobalHolidays] = useState(true)
   const [excludedGlobalHolidayIds, setExcludedGlobalHolidayIds] = useState<string[]>([])
   const [projectSpecificHolidays, setProjectSpecificHolidays] = useState<Holiday[]>([])
   const [holidayName, setHolidayName] = useState('')
@@ -96,7 +96,7 @@ export function ProjectSetupDialog() {
     const config: ProjectConfig = {
       workingDays,
       hoursPerDay: data.hoursPerDay,
-      useGlobalHolidays,
+      useGlobalHolidays: shouldUseGlobalHolidays,
       excludedGlobalHolidayIds,
       projectSpecificHolidays,
       skipHolidaysInScheduling: true,
@@ -245,32 +245,33 @@ export function ProjectSetupDialog() {
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
-                  id="useGlobalHolidays"
-                  checked={useGlobalHolidays}
+                  id="shouldUseGlobalHolidays"
+                  checked={shouldUseGlobalHolidays}
                   onChange={(e) => setUseGlobalHolidays(e.target.checked)}
                   className="h-4 w-4"
                 />
-                <Label htmlFor="useGlobalHolidays" className="cursor-pointer">
+                <Label htmlFor="shouldUseGlobalHolidays" className="cursor-pointer">
                   Usar festivos globales
                 </Label>
               </div>
 
               {/* Global Holidays List */}
-              {useGlobalHolidays && globalHolidays.length > 0 && (
+              {shouldUseGlobalHolidays && globalHolidays.length > 0 && (
                 <div className="space-y-2 max-h-48 overflow-y-auto p-3 bg-muted/30 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-2">
                     Desmarca los festivos que NO aplican a este proyecto:
                   </p>
                   {globalHolidays
-                    .sort((a, b) => a.date.getTime() - b.date.getTime())
+                    .map(h => ({ ...h, safeDate: new Date(h.date) }))
+                    .filter(h => !isNaN(h.safeDate.getTime())) // Only valid dates
+                    .sort((a, b) => a.safeDate.getTime() - b.safeDate.getTime())
                     .map((holiday) => {
                       const isExcluded = excludedGlobalHolidayIds.includes(holiday.id)
                       return (
                         <div
                           key={holiday.id}
-                          className={`flex items-start gap-2 p-2 rounded-md text-sm transition-colors ${
-                            isExcluded ? 'bg-muted/50 opacity-50' : 'bg-secondary'
-                          }`}
+                          className={`flex items-start gap-2 p-2 rounded-md text-sm transition-colors ${isExcluded ? 'bg-muted/50 opacity-50' : 'bg-secondary'
+                            }`}
                         >
                           <input
                             type="checkbox"
@@ -281,7 +282,7 @@ export function ProjectSetupDialog() {
                           <div className="flex-1">
                             <div className="font-medium">{holiday.name}</div>
                             <div className="text-xs text-muted-foreground">
-                              {format(holiday.date, 'dd MMM yyyy', { locale: es })}
+                              {format(holiday.safeDate, 'dd MMM yyyy', { locale: es })}
                               {holiday.description && ` • ${holiday.description}`}
                             </div>
                             {holiday.appliesTo && holiday.appliesTo.length > 0 && (
@@ -296,7 +297,7 @@ export function ProjectSetupDialog() {
                 </div>
               )}
 
-              {useGlobalHolidays && globalHolidays.length === 0 && (
+              {shouldUseGlobalHolidays && globalHolidays.length === 0 && (
                 <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded-lg">
                   No hay festivos globales definidos. Ve a la sección "Festivos" para crear algunos.
                 </p>
@@ -402,6 +403,7 @@ export function ProjectSetupDialog() {
                 )}
               </div>
             </div>
+
           </div>
 
           <DialogFooter>
