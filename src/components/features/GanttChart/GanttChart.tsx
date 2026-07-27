@@ -32,7 +32,7 @@ export function GanttChart() {
   const { milestones, loadMilestones } = useMilestones()
   const { currentProject } = useProject()
   const { maxDisplayLevel, setMaxDisplayLevel } = useLevelFilter()
-  const { viewMode, setViewMode } = useViewMode()
+  const { viewMode, setViewMode, zoomLevel, setZoomLevel } = useViewMode()
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(800)
 
@@ -100,15 +100,29 @@ export function GanttChart() {
 
   const { start: timelineStart, end: timelineEnd } = getTimelineBounds(tasks)
 
+  // Calculate base total days first to compute zoom width
+  const { totalDays: baseTotalDays } = calculateTimelineDimensions(timelineStart, timelineEnd, 1000)
+
+  // Determine base day width depending on zoom level
+  let baseDayWidth = 20
+  if (zoomLevel === 'day') {
+    baseDayWidth = 60
+  } else if (zoomLevel === 'month') {
+    baseDayWidth = 6
+  }
+
+  const calculatedWidth = baseTotalDays * baseDayWidth
+  const ganttWidth = Math.max(containerWidth, calculatedWidth)
+
   // Calculate timeline dimensions using centralized function
   const { totalDays, dayWidth, normalizedStart, normalizedEnd } = calculateTimelineDimensions(
     timelineStart,
     timelineEnd,
-    containerWidth
+    ganttWidth
   )
 
   // Debug log
-  console.log(`Timeline: ${normalizedStart.toLocaleDateString()} to ${normalizedEnd.toLocaleDateString()} (${totalDays} days, dayWidth: ${dayWidth}px)`)
+  console.log(`Timeline: ${normalizedStart.toLocaleDateString()} to ${normalizedEnd.toLocaleDateString()} (${totalDays} days, dayWidth: ${dayWidth}px, zoomLevel: ${zoomLevel})`)
 
   // Calculate max level in tasks
   const maxLevel = Math.max(...tasks.map(t => t.level), 0)
@@ -142,7 +156,7 @@ export function GanttChart() {
   // Calculate today's position using centralized function
   const today = new Date()
   const todayPosition = today >= normalizedStart && today <= normalizedEnd
-    ? calculateDatePosition(today, timelineStart, timelineEnd, containerWidth).left
+    ? calculateDatePosition(today, timelineStart, timelineEnd, ganttWidth).left
     : null
 
   // Create a map of task positions for dependency lines
@@ -166,7 +180,7 @@ export function GanttChart() {
       taskEnd,
       timelineStart,
       timelineEnd,
-      containerWidth
+      ganttWidth
     )
 
     // Debug log for tasks starting on 21/11
@@ -197,6 +211,7 @@ export function GanttChart() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* View Mode (Plan / Real) */}
             <ToggleGroup
               type="single"
               value={viewMode}
@@ -210,6 +225,25 @@ export function GanttChart() {
                 Real
               </ToggleGroupItem>
             </ToggleGroup>
+
+            {/* Zoom Controls */}
+            <ToggleGroup
+              type="single"
+              value={zoomLevel}
+              onValueChange={(value) => value && setZoomLevel(value as 'day' | 'week' | 'month')}
+              className="border rounded-md bg-muted/40"
+            >
+              <ToggleGroupItem value="day" aria-label="Zoom día" className="text-xs px-2.5 h-8">
+                Día
+              </ToggleGroupItem>
+              <ToggleGroupItem value="week" aria-label="Zoom semana" className="text-xs px-2.5 h-8">
+                Semana
+              </ToggleGroupItem>
+              <ToggleGroupItem value="month" aria-label="Zoom mes" className="text-xs px-2.5 h-8">
+                Mes
+              </ToggleGroupItem>
+            </ToggleGroup>
+
             <LevelFilter
               maxLevel={maxLevel}
               currentMaxLevel={maxDisplayLevel}
@@ -250,11 +284,12 @@ export function GanttChart() {
 
           {/* Right panel - Timeline and bars */}
           <div className="flex-1 overflow-x-auto scrollbar-hide" ref={containerRef}>
-            <div style={{ minWidth: containerWidth }}>
+            <div style={{ width: `${ganttWidth}px`, minWidth: '100%' }}>
               <GanttTimeline
                 startDate={timelineStart}
                 endDate={timelineEnd}
-                width={containerWidth}
+                width={ganttWidth}
+                zoomLevel={zoomLevel}
               />
 
               {/* Task bars */}
@@ -275,15 +310,13 @@ export function GanttChart() {
                 {/* Today marker */}
                 {todayPosition !== null && (
                   <div
-                    className="absolute top-0 bottom-0 pointer-events-none"
+                    className="absolute top-0 bottom-0 pointer-events-none border-l-2 border-dashed border-sky-500 z-30"
                     style={{
                       left: `${todayPosition}px`,
-                      zIndex: 5,
-                      width: '2px'
+                      width: '0px'
                     }}
                   >
-                    <div className="w-full h-full bg-blue-500 opacity-50" />
-                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded whitespace-nowrap">
+                    <div className="absolute top-1 left-1 bg-sky-500 text-white text-[9px] font-bold px-1 py-0.5 rounded shadow-sm whitespace-nowrap opacity-90 select-none">
                       Hoy
                     </div>
                   </div>
@@ -295,7 +328,7 @@ export function GanttChart() {
                   tasks={visibleTasks}
                   timelineStart={timelineStart}
                   timelineEnd={timelineEnd}
-                  containerWidth={containerWidth}
+                  containerWidth={ganttWidth}
                   rowHeight={ROW_HEIGHT}
                   getTaskPosition={getTaskPosition}
                 />
@@ -307,7 +340,7 @@ export function GanttChart() {
                     milestone.date,
                     timelineStart,
                     timelineEnd,
-                    containerWidth
+                    ganttWidth
                   )
 
                   return (
@@ -328,7 +361,7 @@ export function GanttChart() {
                     new Date(task.endDate),
                     timelineStart,
                     timelineEnd,
-                    containerWidth
+                    ganttWidth
                   )
 
                   // Calculate actual position if we have actual dates
@@ -339,7 +372,7 @@ export function GanttChart() {
                       new Date(task.actualEndDate),
                       timelineStart,
                       timelineEnd,
-                      containerWidth
+                      ganttWidth
                     )
                   }
 
@@ -356,6 +389,7 @@ export function GanttChart() {
                         actualLeft={actualPosition.left}
                         actualWidth={actualPosition.width}
                         rowHeight={ROW_HEIGHT}
+                        dayWidth={dayWidth}
                       />
                     </div>
                   )

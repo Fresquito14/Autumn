@@ -1,4 +1,4 @@
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Zap } from 'lucide-react'
 import type { Task } from '@/types'
@@ -6,7 +6,10 @@ import { cn } from '@/lib/utils'
 import { useCriticalPath } from '@/hooks/useCriticalPath'
 import { useViewMode } from '@/hooks/useViewMode'
 import { useTasks } from '@/hooks/useTasks'
+import { useProject } from '@/hooks/useProject'
 import { calculateTaskProgress } from '@/lib/utils/progress'
+import { addBusinessDays } from '@/lib/calculations/dates'
+import { useRef, useState } from 'react'
 
 interface GanttTaskBarProps {
   task: Task
@@ -15,6 +18,7 @@ interface GanttTaskBarProps {
   actualLeft: number
   actualWidth: number
   rowHeight: number
+  dayWidth: number
 }
 
 export function GanttTaskBar({
@@ -23,11 +27,13 @@ export function GanttTaskBar({
   plannedWidth,
   actualLeft,
   actualWidth,
-  rowHeight
+  rowHeight,
+  dayWidth
 }: GanttTaskBarProps) {
   const { isTaskCritical, getTaskCPM } = useCriticalPath()
   const { viewMode } = useViewMode()
-  const { tasks } = useTasks()
+  const { tasks, updateTask } = useTasks()
+  const { currentProject } = useProject()
   const isCritical = isTaskCritical(task.id)
   const taskCPM = getTaskCPM(task.id)
 
@@ -50,22 +56,160 @@ export function GanttTaskBar({
   // Determine if task has actual progress
   const hasActualDuration = task.actualDuration !== undefined && task.actualDuration !== null
 
+  const workingDays = currentProject?.config?.workingDays || [1, 2, 3, 4, 5]
+  const isLeafTask = !tasks.some(t => t.parentId === task.id)
+
+  // Local drag and resize states
+  const [dragOffsetDays, setDragOffsetDays] = useState<number>(0)
+  const [resizeDeltaDays, setResizeDeltaDays] = useState<number>(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const pointerStartRef = useRef<{ clientX: number; originalStartDate: Date; originalDuration: number } | null>(null)
+
+  const handleDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (viewMode !== 'plan' || !isLeafTask) return
+    if ((e.target as HTMLElement).closest('.resize-handle')) return
+
+    e.currentTarget.setPointerCapture(e.pointerId)
+    pointerStartRef.current = {
+      clientX: e.clientX,
+      originalStartDate: new Date(task.startDate),
+      originalDuration: task.duration
+    }
+    setIsDragging(true)
+    e.stopPropagation()
+  }
+
+  const handleDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || !pointerStartRef.current) return
+
+    const deltaX = e.clientX - pointerStartRef.current.clientX
+    const deltaDays = Math.round(deltaX / dayWidth)
+    setDragOffsetDays(deltaDays)
+  }
+
+  const handleDragEnd = async (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || !pointerStartRef.current) return
+
+    e.currentTarget.releasePointerCapture(e.pointerId)
+    setIsDragging(false)
+
+    const finalOffset = dragOffsetDays
+    setDragOffsetDays(0)
+
+    if (finalOffset !== 0) {
+      const originalStart = pointerStartRef.current.originalStartDate
+      const duration = pointerStartRef.current.originalDuration
+
+      const newStartDate = addDays(originalStart, finalOffset)
+      const newEndDate = addBusinessDays(newStartDate, duration - 1, workingDays)
+
+      try {
+        await updateTask(task.id, {
+          startDate: newStartDate,
+          endDate: newEndDate
+        })
+      } catch (err) {
+        console.error('Error updating task date on drag:', err)
+      }
+    }
+    pointerStartRef.current = null
+  }
+
+  const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (viewMode !== 'plan' || !isLeafTask) return
+
+    e.currentTarget.setPointerCapture(e.pointerId)
+    pointerStartRef.current = {
+      clientX: e.clientX,
+      originalStartDate: new Date(task.startDate),
+      originalDuration: task.duration
+    }
+    setIsResizing(true)
+    e.stopPropagation()
+    e.preventDefault()
+  }
+
+  const handleResizeMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isResizing || !pointerStartRef.current) return
+
+    const deltaX = e.clientX - pointerStartRef.current.clientX
+    const deltaDays = Math.round(deltaX / dayWidth)
+    
+    const originalDuration = pointerStartRef.current.originalDuration
+    const potentialNewDuration = originalDuration + deltaDays
+    if (potentialNewDuration < 1) {
+      setResizeDeltaDays(1 - originalDuration)
+    } else {
+      setResizeDeltaDays(deltaDays)
+    }
+  }
+
+  const handleResizeEnd = async (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isResizing || !pointerStartRef.current) return
+
+    e.currentTarget.releasePointerCapture(e.pointerId)
+    setIsResizing(false)
+
+    const finalDelta = resizeDeltaDays
+    setResizeDeltaDays(0)
+
+    if (finalDelta !== 0) {
+      const originalStart = pointerStartRef.current.originalStartDate
+      const originalDuration = pointerStartRef.current.originalDuration
+      const newDuration = Math.max(1, originalDuration + finalDelta)
+      const newEndDate = addBusinessDays(originalStart, newDuration - 1, workingDays)
+
+      try {
+        await updateTask(task.id, {
+          duration: newDuration,
+          endDate: newEndDate
+        })
+      } catch (err) {
+        console.error('Error updating task duration on resize:', err)
+      }
+    }
+    pointerStartRef.current = null
+  }
+
+  const currentLeft = plannedLeft + dragOffsetDays * dayWidth
+  const currentWidth = Math.max(20, plannedWidth + resizeDeltaDays * dayWidth)
+
+  // Real-time preview dates for the tooltip
+  const previewStart = isDragging
+    ? addDays(new Date(task.startDate), dragOffsetDays)
+    : new Date(task.startDate)
+
+  const previewDuration = isResizing
+    ? Math.max(1, task.duration + resizeDeltaDays)
+    : task.duration
+
+  const previewEnd = isDragging || isResizing
+    ? addBusinessDays(previewStart, previewDuration - 1, workingDays)
+    : new Date(task.endDate)
+
   return (
     <>
       {/* Planned Task Bar - always positioned at planned location */}
       <div
-        className="absolute group cursor-pointer z-10"
+        className={cn(
+          "absolute group z-10 select-none",
+          viewMode === 'plan' && isLeafTask ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+        )}
         style={{
-          left: `${plannedLeft}px`,
-          width: `${plannedWidth}px`,
+          left: `${currentLeft}px`,
+          width: `${currentWidth}px`,
           minWidth: '20px',
           top: `${barTop}px`,
           height: `${barHeight}px`,
         }}
+        onPointerDown={handleDragStart}
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
       >
         <div
           className={cn(
-            'h-full rounded-md shadow-sm transition-all flex',
+            'h-full rounded-md shadow-sm transition-all flex relative overflow-hidden',
             viewMode === 'actual' && 'opacity-40',
             // Border color: green if 100% complete, critical if incomplete and critical, otherwise default
             progress === 100
@@ -89,7 +233,7 @@ export function GanttTaskBar({
               }}
             >
               {/* Task Name in completed portion - only if wide enough and in plan mode */}
-              {viewMode === 'plan' && (plannedWidth * progress / 100) > 100 && (
+              {viewMode === 'plan' && (currentWidth * progress / 100) > 100 && (
                 <div className="px-2 flex items-center gap-1 w-full">
                   {isCritical && progress < 100 && <Zap className="h-3 w-3" style={{ fill: 'white', color: 'white' }} />}
                   <span className="text-xs font-medium truncate" style={{ color: 'white' }}>
@@ -113,7 +257,7 @@ export function GanttTaskBar({
               }}
             >
               {/* Task Name in remaining portion - only if completed portion is too small or progress is 0 */}
-              {viewMode === 'plan' && plannedWidth > 100 && (progress === 0 || (plannedWidth * progress / 100) <= 100) && (
+              {viewMode === 'plan' && currentWidth > 100 && (progress === 0 || (currentWidth * progress / 100) <= 100) && (
                 <div className="px-2 flex items-center gap-1 w-full">
                   {isCritical && <Zap className="h-3 w-3" style={{ fill: 'white', color: 'white' }} />}
                   <span className="text-xs font-medium truncate" style={{ color: 'white' }}>
@@ -122,6 +266,16 @@ export function GanttTaskBar({
                 </div>
               )}
             </div>
+          )}
+
+          {/* Resize handle (only for leaf tasks in plan view) */}
+          {viewMode === 'plan' && isLeafTask && (
+            <div
+              className="resize-handle absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 active:bg-white/50 rounded-r-md transition-colors z-20 animate-pulse"
+              onPointerDown={handleResizeStart}
+              onPointerMove={handleResizeMove}
+              onPointerUp={handleResizeEnd}
+            />
           )}
         </div>
 
@@ -135,10 +289,10 @@ export function GanttTaskBar({
             </div>
             <div className="text-muted-foreground text-xs mt-1">
               <span className="font-medium">Planificado: </span>
-              {format(task.startDate, 'dd MMM', { locale: es })} - {format(task.endDate, 'dd MMM yyyy', { locale: es })}
+              {format(previewStart, 'dd MMM', { locale: es })} - {format(previewEnd, 'dd MMM yyyy', { locale: es })}
             </div>
             <div className="text-muted-foreground text-xs">
-              Duración: {task.duration} {task.duration === 1 ? 'día' : 'días'}
+              Duración: {previewDuration} {previewDuration === 1 ? 'día' : 'días'}
             </div>
             {progress > 0 && (
               <div className="text-autumn-progress text-xs font-medium">
