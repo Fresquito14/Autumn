@@ -103,8 +103,8 @@ export const useResourceAssignments = create<ResourceAssignmentState>()(
 
           await dbHelpers.createTaskAssignment(assignment)
 
-          // Reload assignments for the task
-          const assignments = await dbHelpers.getTaskAssignments(assignment.taskId)
+          // Reload all assignments
+          const assignments = await dbHelpers.getAllAssignments()
           set({ assignments, isLoading: false })
 
           return assignment.id
@@ -119,13 +119,8 @@ export const useResourceAssignments = create<ResourceAssignmentState>()(
         try {
           await dbHelpers.updateTaskAssignment(id, changes)
 
-          const assignment = get().assignments.find(a => a.id === id)
-          if (assignment) {
-            const assignments = await dbHelpers.getTaskAssignments(assignment.taskId)
-            set({ assignments, isLoading: false })
-          } else {
-            set({ isLoading: false })
-          }
+          const assignments = await dbHelpers.getAllAssignments()
+          set({ assignments, isLoading: false })
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })
         }
@@ -156,8 +151,8 @@ export const useResourceAssignments = create<ResourceAssignmentState>()(
             weeklyDistribution: newWeeklyDistribution
           })
 
-          // Reload assignments
-          const assignments = await dbHelpers.getTaskAssignments(assignment.taskId)
+          // Reload all assignments
+          const assignments = await dbHelpers.getAllAssignments()
           set({ assignments, isLoading: false })
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })
@@ -175,8 +170,8 @@ export const useResourceAssignments = create<ResourceAssignmentState>()(
 
           await dbHelpers.deleteTaskAssignment(id)
 
-          // Reload assignments for the task
-          const assignments = await dbHelpers.getTaskAssignments(assignment.taskId)
+          // Reload all assignments
+          const assignments = await dbHelpers.getAllAssignments()
           set({ assignments, isLoading: false })
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })

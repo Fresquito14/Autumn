@@ -8,8 +8,10 @@ import { ActualProgressDialog } from './ActualProgressDialog'
 import { CopyTaskBlockDialog } from './CopyTaskBlockDialog'
 import { useTasks } from '@/hooks/useTasks'
 import { useCriticalPath } from '@/hooks/useCriticalPath'
+import { useResources } from '@/hooks/useResources'
+import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import { calculateTaskProgress } from '@/lib/utils/progress'
-import type { Task } from '@/types'
+import type { Task, Resource } from '@/types'
 import { cn } from '@/lib/utils'
 
 interface TaskRowProps {
@@ -23,6 +25,8 @@ interface TaskRowProps {
 export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }: TaskRowProps) {
   const { tasks, deleteTask } = useTasks()
   const { isTaskCritical, getTaskCPM } = useCriticalPath()
+  const { resources } = useResources()
+  const { assignments } = useResourceAssignments()
   const [isHovered, setIsHovered] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
@@ -31,6 +35,22 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
 
   // Calculate progress for this task
   const progress = calculateTaskProgress(task, tasks)
+
+  // Get assigned resources for this task
+  const taskAssignments = assignments.filter(a => a.taskId === task.id)
+  const assignedResources = taskAssignments
+    .map(a => resources.find(r => r.id === a.resourceId))
+    .filter((r): r is Resource => !!r)
+
+  // Helper to get initials
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase()
+  }
 
   const handleDelete = async () => {
     if (confirm(`¿Eliminar tarea "${task.name}"?${hasChildren ? '\n\nEsto también eliminará todas las subtareas.' : ''}`)) {
@@ -96,7 +116,9 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
         {/* Critical Path Indicator */}
         <div className="w-5 flex-shrink-0">
           {isCritical && progress < 100 && (
-            <Zap className="h-3 w-3 text-autumn-critical fill-autumn-critical" title="Camino Crítico" />
+            <span title="Camino Crítico">
+              <Zap className="h-3 w-3 text-autumn-critical fill-autumn-critical" />
+            </span>
           )}
         </div>
 
@@ -129,9 +151,29 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
               </span>
             )}
           </div>
-          {task.description && (
-            <div className="text-xs text-muted-foreground truncate">
-              {task.description}
+          {(task.description || assignedResources.length > 0) && (
+            <div className="flex items-center gap-2 mt-0.5">
+              {task.description && (
+                <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                  {task.description}
+                </span>
+              )}
+              {task.description && assignedResources.length > 0 && (
+                <span className="text-muted-foreground/30 text-xs">|</span>
+              )}
+              {assignedResources.length > 0 && (
+                <div className="flex -space-x-1 items-center">
+                  {assignedResources.map(r => (
+                    <span
+                      key={r.id}
+                      className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[9px] font-semibold bg-primary/10 text-primary border border-background ring-1 ring-background"
+                      title={r.name}
+                    >
+                      {getInitials(r.name)}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

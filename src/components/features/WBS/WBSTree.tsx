@@ -8,19 +8,25 @@ import { LevelFilter } from './LevelFilter'
 import { useTasks } from '@/hooks/useTasks'
 import { useLevelFilter } from '@/hooks/useLevelFilter'
 import { useProject } from '@/hooks/useProject'
+import { useResources } from '@/hooks/useResources'
+import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import type { Task } from '@/types'
 
 export function WBSTree() {
   const { tasks, loadTasks, isLoading } = useTasks()
   const { currentProject } = useProject()
   const { maxDisplayLevel, setMaxDisplayLevel } = useLevelFilter()
+  const { loadAllResources } = useResources()
+  const { loadAllAssignments } = useResourceAssignments()
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (currentProject) {
       loadTasks(currentProject.id)
+      loadAllResources()
+      loadAllAssignments()
     }
-  }, [currentProject, loadTasks])
+  }, [currentProject, loadTasks, loadAllResources, loadAllAssignments])
 
   const toggleExpand = (taskId: string) => {
     setExpandedTasks((prev) => {

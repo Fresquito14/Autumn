@@ -5,7 +5,7 @@ import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import { useProject } from '@/hooks/useProject'
 import { useGlobalHolidays } from '@/hooks/useGlobalHolidays'
 import { getCombinedHolidays } from '@/lib/calculations/holidays'
-import type { Resource, TaskResourceAssignment } from '@/types'
+import type { Resource } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -36,8 +36,8 @@ export function ResourceAssignmentSection({
   const { currentProject } = useProject()
   const { holidays: globalHolidays, loadAllHolidays } = useGlobalHolidays()
   const {
-    assignments,
-    loadTaskAssignments,
+    assignments: allAssignments,
+    loadAllAssignments,
     createAssignment,
     deleteAssignment
   } = useResourceAssignments()
@@ -51,10 +51,11 @@ export function ResourceAssignmentSection({
   useEffect(() => {
     loadAllResources()
     loadAllHolidays()
-    if (taskId) {
-      loadTaskAssignments(taskId)
-    }
-  }, [taskId, loadAllResources, loadAllHolidays, loadTaskAssignments])
+    loadAllAssignments()
+  }, [loadAllResources, loadAllHolidays, loadAllAssignments])
+
+  // Filter assignments for this task
+  const assignments = allAssignments.filter(a => a.taskId === taskId)
 
   // Get available resources (not already assigned)
   const assignedResourceIds = assignments.map(a => a.resourceId)
