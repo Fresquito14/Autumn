@@ -58,6 +58,7 @@ export function GanttTaskBar({
   // Determine if task has actual progress
   const hasActualDuration = task.actualDuration !== undefined && task.actualDuration !== null
 
+  const workingDays = currentProject?.config?.workingDays || [1, 2, 3, 4, 5]
   const isLeafTask = !tasks.some(t => t.parentId === task.id)
   const predecessors = dependencies.filter(d => d.successorId === task.id)
   const hasPredecessors = predecessors.length > 0
