@@ -7,6 +7,7 @@ import { useCriticalPath } from '@/hooks/useCriticalPath'
 import { useViewMode } from '@/hooks/useViewMode'
 import { useTasks } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProject'
+import { useDependencies } from '@/hooks/useDependencies'
 import { calculateTaskProgress } from '@/lib/utils/progress'
 import { addBusinessDays } from '@/lib/calculations/dates'
 import { useRef, useState } from 'react'
@@ -56,14 +57,17 @@ export function GanttTaskBar({
   // Determine if task has actual progress
   const hasActualDuration = task.actualDuration !== undefined && task.actualDuration !== null
 
-  const workingDays = currentProject?.config?.workingDays || [1, 2, 3, 4, 5]
   const isLeafTask = !tasks.some(t => t.parentId === task.id)
+  const predecessors = dependencies.filter(d => d.successorId === task.id)
+  const hasPredecessors = predecessors.length > 0
 
   // Local drag and resize states
   const [dragOffsetDays, setDragOffsetDays] = useState<number>(0)
   const [resizeDeltaDays, setResizeDeltaDays] = useState<number>(0)
+  const [resizeLeftDeltaDays, setResizeLeftDeltaDays] = useState<number>(0)
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
+  const [isResizingLeft, setIsResizingLeft] = useState(false)
   const pointerStartRef = useRef<{ clientX: number; originalStartDate: Date; originalDuration: number } | null>(null)
 
   const handleDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -98,19 +102,29 @@ export function GanttTaskBar({
     setDragOffsetDays(0)
 
     if (finalOffset !== 0) {
-      const originalStart = pointerStartRef.current.originalStartDate
-      const duration = pointerStartRef.current.originalDuration
+      if (hasPredecessors) {
+        // If it has predecessors, shift the lag of those dependencies instead of updating start date directly
+        for (const dep of predecessors) {
+          const currentLag = dep.lag || 0
+          const newLag = Math.max(0, currentLag + finalOffset)
+          await updateDependency(dep.id, { lag: newLag })
+        }
+      } else {
+        // If no predecessors, update task startDate directly
+        const originalStart = pointerStartRef.current.originalStartDate
+        const duration = pointerStartRef.current.originalDuration
 
-      const newStartDate = addDays(originalStart, finalOffset)
-      const newEndDate = addBusinessDays(newStartDate, duration - 1, workingDays)
+        const newStartDate = addDays(originalStart, finalOffset)
+        const newEndDate = addBusinessDays(newStartDate, duration - 1, workingDays)
 
-      try {
-        await updateTask(task.id, {
-          startDate: newStartDate,
-          endDate: newEndDate
-        })
-      } catch (err) {
-        console.error('Error updating task date on drag:', err)
+        try {
+          await updateTask(task.id, {
+            startDate: newStartDate,
+            endDate: newEndDate
+          })
+        } catch (err) {
+          console.error('Error updating task date on drag:', err)
+        }
       }
     }
     pointerStartRef.current = null
@@ -172,19 +186,89 @@ export function GanttTaskBar({
     pointerStartRef.current = null
   }
 
-  const currentLeft = plannedLeft + dragOffsetDays * dayWidth
-  const currentWidth = Math.max(20, plannedWidth + resizeDeltaDays * dayWidth)
+  const handleResizeLeftStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (viewMode !== 'plan' || !isLeafTask) return
+
+    e.currentTarget.setPointerCapture(e.pointerId)
+    pointerStartRef.current = {
+      clientX: e.clientX,
+      originalStartDate: new Date(task.startDate),
+      originalDuration: task.duration
+    }
+    setIsResizingLeft(true)
+    e.stopPropagation()
+    e.preventDefault()
+  }
+
+  const handleResizeLeftMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isResizingLeft || !pointerStartRef.current) return
+
+    const deltaX = e.clientX - pointerStartRef.current.clientX
+    const deltaDays = Math.round(deltaX / dayWidth)
+    
+    const originalDuration = pointerStartRef.current.originalDuration
+    const potentialNewDuration = originalDuration - deltaDays
+    if (potentialNewDuration < 1) {
+      setResizeLeftDeltaDays(originalDuration - 1)
+    } else {
+      setResizeLeftDeltaDays(deltaDays)
+    }
+  }
+
+  const handleResizeLeftEnd = async (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isResizingLeft || !pointerStartRef.current) return
+
+    e.currentTarget.releasePointerCapture(e.pointerId)
+    setIsResizingLeft(false)
+
+    const finalDelta = resizeLeftDeltaDays
+    setResizeLeftDeltaDays(0)
+
+    if (finalDelta !== 0) {
+      const originalStart = pointerStartRef.current.originalStartDate
+      const originalDuration = pointerStartRef.current.originalDuration
+      const newDuration = Math.max(1, originalDuration - finalDelta)
+
+      try {
+        if (hasPredecessors) {
+          // If task has predecessors, only the duration varies, start date remains anchored (no change to lag)
+          const newEndDate = addBusinessDays(task.startDate, newDuration - 1, workingDays)
+          await updateTask(task.id, {
+            duration: newDuration,
+            endDate: newEndDate
+          })
+        } else {
+          // If no predecessors, shift the start date and reduce/increase duration so the end date remains unchanged
+          const newStartDate = addDays(originalStart, finalDelta)
+          await updateTask(task.id, {
+            startDate: newStartDate,
+            duration: newDuration
+          })
+        }
+      } catch (err) {
+        console.error('Error updating task dates on left resize:', err)
+      }
+    }
+    pointerStartRef.current = null
+  }
+
+  const currentLeft = plannedLeft + (dragOffsetDays * dayWidth) + (isResizingLeft && !hasPredecessors ? resizeLeftDeltaDays * dayWidth : 0)
+  const currentWidth = Math.max(20, plannedWidth + (resizeDeltaDays * dayWidth) - (isResizingLeft ? resizeLeftDeltaDays * dayWidth : 0))
 
   // Real-time preview dates for the tooltip
   const previewStart = isDragging
     ? addDays(new Date(task.startDate), dragOffsetDays)
+    : isResizingLeft && !hasPredecessors
+    ? addDays(new Date(task.startDate), resizeLeftDeltaDays)
     : new Date(task.startDate)
 
   const previewDuration = isResizing
     ? Math.max(1, task.duration + resizeDeltaDays)
+    : isResizingLeft
+    ? Math.max(1, task.duration - resizeLeftDeltaDays)
     : task.duration
 
-  const previewEnd = isDragging || isResizing
+  const previewEnd = isDragging || isResizing || isResizingLeft
     ? addBusinessDays(previewStart, previewDuration - 1, workingDays)
     : new Date(task.endDate)
 
@@ -268,7 +352,17 @@ export function GanttTaskBar({
             </div>
           )}
 
-          {/* Resize handle (only for leaf tasks in plan view) */}
+          {/* Left Resize handle (only for leaf tasks in plan view) */}
+          {viewMode === 'plan' && isLeafTask && (
+            <div
+              className="resize-handle absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 active:bg-white/50 rounded-l-md transition-colors z-20 animate-pulse"
+              onPointerDown={handleResizeLeftStart}
+              onPointerMove={handleResizeLeftMove}
+              onPointerUp={handleResizeLeftEnd}
+            />
+          )}
+
+          {/* Right Resize handle (only for leaf tasks in plan view) */}
           {viewMode === 'plan' && isLeafTask && (
             <div
               className="resize-handle absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 active:bg-white/50 rounded-r-md transition-colors z-20 animate-pulse"

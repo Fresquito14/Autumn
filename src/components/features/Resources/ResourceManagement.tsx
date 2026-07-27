@@ -8,7 +8,8 @@ import { useGlobalHolidays } from '@/hooks/useGlobalHolidays'
 import { getCombinedHolidays } from '@/lib/calculations/holidays'
 import { ResourceCapacityHeatmap } from './ResourceCapacityHeatmap'
 import { ResourceFormDialog } from './ResourceFormDialog'
-import type { Resource } from '@/types'
+import { db } from '@/lib/storage/db'
+import type { Resource, Task } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -21,13 +22,17 @@ export function ResourceManagement() {
 
   const [selectedResource, setSelectedResource] = useState<Resource | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [heatmapStartDate] = useState(new Date())
+  const [heatmapStartDate, setHeatmapStartDate] = useState<Date>(() => new Date())
+  const [allTasks, setAllTasks] = useState<Task[]>([])
 
-  // Load all resources, global holidays and assignments on mount
+  // Load all resources, global holidays, assignments, and tasks on mount
   useEffect(() => {
     loadAllResources()
     loadAllAssignments()
     loadAllHolidays()
+    db.tasks.toArray()
+      .then(setAllTasks)
+      .catch(err => console.error('Error loading all tasks for resources:', err))
   }, [loadAllResources, loadAllAssignments, loadAllHolidays])
 
   // Combine global and project-specific holidays
@@ -153,17 +158,28 @@ export function ResourceManagement() {
       {/* Capacity Heatmap */}
       {resources.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle>Mapa de Capacidad</CardTitle>
-            <CardDescription>
-              Visualización de la carga de trabajo por semana
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div>
+              <CardTitle>Mapa de Capacidad</CardTitle>
+              <CardDescription>
+                Visualización de la carga de trabajo por semana
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium">Fecha de inicio:</span>
+              <input
+                type="date"
+                className="px-2 py-1 text-xs border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                value={heatmapStartDate.toISOString().split('T')[0]}
+                onChange={e => setHeatmapStartDate(e.target.value ? new Date(e.target.value) : new Date())}
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <ResourceCapacityHeatmap
               resources={resources}
               assignments={assignments}
-              tasks={tasks}
+              tasks={allTasks}
               workingDaysPerWeek={currentProject?.config?.workingDays || [1, 2, 3, 4, 5]}
               holidays={combinedHolidays}
               startDate={heatmapStartDate}

@@ -94,7 +94,9 @@ export function ResourceCapacityHeatmap({
 
       // Add hours to the heatmap
       weeklyDistribution.forEach(week => {
-        const weekKey = getWeekKey(week.weekStart)
+        // Ensure weekStart is a Date object (handles serialization of Date objects to strings in DB/props)
+        const weekStartDate = week.weekStart instanceof Date ? week.weekStart : new Date(week.weekStart)
+        const weekKey = getWeekKey(weekStartDate)
 
         if (data[assignment.resourceId] && data[assignment.resourceId][weekKey]) {
           data[assignment.resourceId][weekKey].allocatedHours += week.plannedHours
