@@ -492,21 +492,31 @@ interface TaskWithCPM extends Task {
 
 ---
 
-## 🚦 Próximos Pasos - Fase 6: Recursos y Mejoras Finales
+## 🚀 Fase 6: Recursos y Gantt Interactivo - COMPLETADA
 
-### Tareas Pendientes
+**Fecha de completación**: 2026-07-27
 
-1. **Gestión de Recursos** (MVP)
-   - [ ] UI para crear/editar recursos
-   - [ ] Asignación de recursos a tareas
-   - [ ] Visualización de carga de trabajo
-   - [ ] Detección de sobreasignación
+### Logros Principales
 
-2. **Mejoras Adicionales** (Opcional)
-   - [ ] Exportar a CSV/Excel
-   - [ ] Drag & drop en Gantt para mover tareas
-   - [ ] Zoom in/out del timeline
-   - [ ] Marcador de "hoy" en Gantt
+#### 1. Gestión de Recursos Globales y Mapa de Capacidad ✅
+- [x] **Visualización de Recursos en WBS**: Avatares apilados con iniciales al lado del nombre de la tarea en el árbol WBS.
+- [x] **Gestión de Recursos y Asignación**: Flujo reactivo completo para asignar recursos y horas planificadas a tareas individuales con persistencia en Dexie IndexedDB.
+- [x] **Mapa de Carga de Trabajo (Heatmap)**: Carga dinámica de todas las tareas del sistema para resolver allocations y mapa de calor de capacidad de 12 semanas.
+- [x] **Selector de Fecha del Mapa**: Añadido input selector dinámico de fecha de inicio para visualizar la carga de trabajo en cualquier rango temporal (pasado/futuro).
+
+#### 2. Gantt Interactivo y Línea Temporal Adaptativa ✅
+- [x] **Zoom Temporal**: ToggleGroup para cambiar entre escalas de tiempo (Día, Semana y Mes) con cálculo dinámico del ancho del canvas y desplazamiento horizontal.
+- [x] **Cabeceras Inteligentes**: Adaptación automática de etiquetas del Timeline en base al ancho de columna del zoom.
+- [x] **Marcador de "Hoy"**: Línea vertical discontinua estilizada (`border-dashed border-sky-500`) con tag flotante que se reposiciona dinámicamente según el zoom.
+
+#### 3. Drag & Drop y Resizing Avanzado (Pointer Events) ✅
+- [x] **Desplazamiento Horizontal (Drag & Drop)**:
+  - Si la tarea tiene predecesores: Ajusta dinámicamente el **retraso (`lag` / delay)** de las dependencias, recalculando la cascada en el motor CPM.
+  - Si la tarea no tiene predecesores: Actualiza la fecha de inicio (`startDate`) directamente.
+- [x] **Doble Redimensionamiento (Left & Right Resize)**:
+  - Permite modificar la **duración** tirando de cualquiera de los extremos de la barra de tareas.
+  - El margen izquierdo/derecho altera la duración sin añadir retraso (lag) adicional, manteniendo la tarea anclada a su predecesor si existe.
+- [x] **Feedback en Tiempo Real**: Animación por pulsos en los tiradores y actualización instantánea del tooltip con fechas y duración preliminares durante el arrastre.
 
 ---
 
@@ -514,10 +524,10 @@ interface TaskWithCPM extends Task {
 
 ### Decisiones Técnicas
 
-1. **date-fns para fechas**: Más ligero y tree-shakeable que moment.js
-2. **Gantt con div absolutos**: Más simple que SVG o Canvas para MVP
-3. **Timeline semanal**: Balance entre detalle y rendimiento
-4. **Panel fijo + scrolleable**: Mejor UX que scroll completo
+1. **date-fns para fechas**: Más ligero y tree-shakeable que moment.js.
+2. **Gantt con div absolutos**: Más simple que SVG o Canvas para MVP, ahora extendido con transformaciones de tamaño dinámicas para el zoom.
+3. **Pointer Events**: Uso de punteros nativos de React para asegurar soporte de drag and drop en ratones de escritorio y pantallas táctiles (móviles/tabletas).
+4. **Carga asíncrona de IndexedDB**: Carga inteligente de todas las tareas en el módulo de recursos para resolver la sobreasignación global.
 
 ### Aprendizajes
 
