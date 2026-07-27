@@ -528,6 +528,6 @@ interface TaskWithCPM extends Task {
 
 ---
 
-**Última actualización**: 2025-11-10
-**Versión**: 0.5.0 (Fase 5 completada)
-**Estado**: ✅ Sistema de Baselines Implementado - MVP Core Completo
+**Última actualización**: 2026-07-27 (Integración de Antigravity)
+**Versión**: 0.5.1 (Fase de optimización y recursos)
+**Estado**: ✅ Asistente Antigravity conectado. Listo para fase 6.
