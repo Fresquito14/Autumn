@@ -35,6 +35,7 @@ export function GanttTaskBar({
   const { viewMode } = useViewMode()
   const { tasks, updateTask } = useTasks()
   const { currentProject } = useProject()
+  const { dependencies, updateDependency } = useDependencies()
   const isCritical = isTaskCritical(task.id)
   const taskCPM = getTaskCPM(task.id)
 
