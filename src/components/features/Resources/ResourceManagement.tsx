@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Edit, Trash2, Users, Search, CheckSquare, Square } from 'lucide-react'
+import { Plus, Edit, Trash2, Users, Search, CheckSquare, Square, X, Calendar } from 'lucide-react'
 import { useResources } from '@/hooks/useResources'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import { useTasks } from '@/hooks/useTasks'
@@ -13,9 +13,20 @@ import type { Resource, Task } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 export function ResourceManagement() {
-  const { resources, isLoading, loadAllResources, deleteResource, deleteResources } = useResources()
+  const { resources, isLoading, loadAllResources, deleteResource, deleteResources, updateResource } = useResources()
   const { assignments, loadAllAssignments } = useResourceAssignments()
   const { tasks } = useTasks()
   const { currentProject } = useProject()
@@ -29,6 +40,45 @@ export function ResourceManagement() {
   // Selection and search states
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedResourceIds, setSelectedResourceIds] = useState<Set<string>>(new Set())
+
+  // Vacation management states
+  const [vacationsResource, setVacationsResource] = useState<Resource | null>(null)
+  const [newVacationStart, setNewVacationStart] = useState('')
+  const [newVacationEnd, setNewVacationEnd] = useState('')
+
+  const handleAddVacationToResource = async (resourceId: string, start: Date, end: Date) => {
+    const res = resources.find(r => r.id === resourceId)
+    if (!res) return
+    const currentVacations = res.calendar?.vacations || []
+    const newVacations = [...currentVacations, { start, end }]
+    
+    try {
+      await updateResource(resourceId, {
+        calendar: { ...res.calendar, vacations: newVacations }
+      })
+      setNewVacationStart('')
+      setNewVacationEnd('')
+      setVacationsResource({ ...res, calendar: { ...res.calendar, vacations: newVacations } })
+    } catch (err) {
+      console.error('Error adding vacation:', err)
+    }
+  }
+
+  const handleRemoveVacationFromResource = async (resourceId: string, index: number) => {
+    const res = resources.find(r => r.id === resourceId)
+    if (!res) return
+    const currentVacations = res.calendar?.vacations || []
+    const newVacations = currentVacations.filter((_, idx) => idx !== index)
+    
+    try {
+      await updateResource(resourceId, {
+        calendar: { ...res.calendar, vacations: newVacations }
+      })
+      setVacationsResource({ ...res, calendar: { ...res.calendar, vacations: newVacations } })
+    } catch (err) {
+      console.error('Error removing vacation:', err)
+    }
+  }
 
   // Load all resources, global holidays, assignments, and tasks on mount
   useEffect(() => {
@@ -217,79 +267,151 @@ export function ResourceManagement() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                {filteredResources.map(resource => {
-                  const isSelected = selectedResourceIds.has(resource.id)
-                  return (
-                    <div
-                      key={resource.id}
-                      className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${
-                        isSelected ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        {/* Checkbox Button */}
-                        <button
-                          className="mt-1 flex-shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                          onClick={() => toggleSelectResource(resource.id)}
+              {/* Compact table layout */}
+              <div className="overflow-x-auto border rounded-lg">
+                <table className="w-full text-sm text-left border-collapse">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                      <th className="p-3 w-12 text-center">Seleccionar</th>
+                      <th className="p-3">Recurso</th>
+                      <th className="p-3">Capacidad y Coste</th>
+                      <th className="p-3">Tags / Habilidades</th>
+                      <th className="p-3">Vacaciones Solicitadas</th>
+                      <th className="p-3 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredResources.map(resource => {
+                      const isSelected = selectedResourceIds.has(resource.id)
+                      const vacations = resource.calendar?.vacations || []
+                      return (
+                        <tr
+                          key={resource.id}
+                          className={`border-b last:border-0 transition-colors ${
+                            isSelected ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/30'
+                          }`}
                         >
-                          {isSelected ? (
-                            <CheckSquare className="h-5 w-5 text-primary" />
-                          ) : (
-                            <Square className="h-5 w-5" />
-                          )}
-                        </button>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3">
-                            <div>
-                              <h3 className="font-medium text-foreground">{resource.name}</h3>
-                              {resource.email && (
-                                <p className="text-sm text-muted-foreground truncate">{resource.email}</p>
+                          {/* Selection Checkbox */}
+                          <td className="p-3 text-center">
+                            <button
+                              className="text-muted-foreground hover:text-primary transition-colors flex items-center justify-center mx-auto"
+                              onClick={() => toggleSelectResource(resource.id)}
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="h-4.5 w-4.5 text-primary" />
+                              ) : (
+                                <Square className="h-4.5 w-4.5" />
                               )}
-                            </div>
-                          </div>
+                            </button>
+                          </td>
 
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground flex-wrap">
-                            <span>{resource.maxHoursPerWeek}h/semana</span>
-                            {resource.costPerHour && (
-                              <span>{resource.costPerHour}€/hora</span>
+                          {/* Resource Name and Email */}
+                          <td className="p-3">
+                            <div className="font-semibold text-foreground text-xs">{resource.name}</div>
+                            {resource.email && (
+                              <div className="text-[10px] text-muted-foreground truncate max-w-[180px]" title={resource.email}>
+                                {resource.email}
+                              </div>
                             )}
-                            {resource.tags && resource.tags.length > 0 && (
-                              <div className="flex gap-1 flex-wrap">
+                          </td>
+
+                          {/* Capacity and Cost */}
+                          <td className="p-3 text-[11px] space-y-0.5">
+                            <div className="font-medium text-foreground">{resource.maxHoursPerWeek}h/semana</div>
+                            {resource.costPerHour && (
+                              <div className="text-muted-foreground">{resource.costPerHour}€/hora</div>
+                            )}
+                          </td>
+
+                          {/* Tags */}
+                          <td className="p-3">
+                            {resource.tags && resource.tags.length > 0 ? (
+                              <div className="flex gap-1 flex-wrap max-w-[160px]">
                                 {resource.tags.map(tag => (
                                   <span
                                     key={tag}
-                                    className="px-2 py-0.5 bg-secondary text-secondary-foreground rounded text-xs"
+                                    className="px-1.5 py-0.5 bg-secondary text-secondary-foreground rounded text-[10px] font-medium"
                                   >
                                     {tag}
                                   </span>
                                 ))}
                               </div>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground/60 italic">Sin tags</span>
                             )}
-                          </div>
-                        </div>
-                      </div>
+                          </td>
 
-                      <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleEditResource(resource)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleDeleteResource(resource.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )
-                })}
+                          {/* Vacations */}
+                          <td className="p-3">
+                            <div className="flex items-center gap-1.5 flex-wrap max-w-[260px]">
+                              {vacations.length > 0 ? (
+                                vacations.map((vac, idx) => {
+                                  const startStr = format(new Date(vac.start), 'dd MMM', { locale: es })
+                                  const endStr = format(new Date(vac.end), 'dd MMM', { locale: es })
+                                  return (
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-sky-100 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 rounded text-[10px] font-semibold border border-sky-200/50"
+                                    >
+                                      <Calendar className="h-3 w-3 text-sky-500" />
+                                      {startStr} - {endStr}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleRemoveVacationFromResource(resource.id, idx)
+                                        }}
+                                        className="hover:text-red-500 rounded-full p-0.5 transition-colors"
+                                        title="Eliminar estas vacaciones"
+                                      >
+                                        <X className="h-2.5 w-2.5" />
+                                      </button>
+                                    </span>
+                                  )
+                                })
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground/60 italic">Sin vacaciones</span>
+                              )}
+                              
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 rounded-full hover:bg-sky-100 dark:hover:bg-sky-950 text-sky-600 dark:text-sky-400"
+                                onClick={() => setVacationsResource(resource)}
+                                title="Gestionar vacaciones"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+
+                          {/* Row Actions */}
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleEditResource(resource)}
+                                title="Editar recurso"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleDeleteResource(resource.id)}
+                                title="Eliminar recurso"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -336,6 +458,96 @@ export function ResourceManagement() {
         onOpenChange={setIsFormOpen}
         resource={selectedResource}
       />
+
+      {/* Vacations Management Dialog */}
+      <Dialog open={!!vacationsResource} onOpenChange={(open) => !open && setVacationsResource(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Gestionar Vacaciones</DialogTitle>
+            <DialogDescription>
+              Planifica o elimina periodos de descanso para <span className="font-semibold text-foreground">{vacationsResource?.name}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* List of current vacations */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Vacaciones Registradas</h4>
+              {vacationsResource?.calendar?.vacations && vacationsResource.calendar.vacations.length > 0 ? (
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {vacationsResource.calendar.vacations.map((vac, idx) => {
+                    const startStr = format(new Date(vac.start), 'dd MMM yyyy', { locale: es })
+                    const endStr = format(new Date(vac.end), 'dd MMM yyyy', { locale: es })
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted text-xs">
+                        <span className="font-medium text-foreground flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5 text-sky-500" />
+                          {startStr} - {endStr}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleRemoveVacationFromResource(vacationsResource.id, idx)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">No hay vacaciones registradas.</p>
+              )}
+            </div>
+
+            {/* Add new vacation form */}
+            <div className="space-y-3 border-t pt-3">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Añadir Nuevo Rango</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Desde</Label>
+                  <Input
+                    type="date"
+                    className="h-8 text-xs px-2"
+                    value={newVacationStart}
+                    onChange={e => setNewVacationStart(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Hasta</Label>
+                  <Input
+                    type="date"
+                    className="h-8 text-xs px-2"
+                    value={newVacationEnd}
+                    onChange={e => setNewVacationEnd(e.target.value)}
+                  />
+                </div>
+              </div>
+              <Button
+                className="w-full h-8 text-xs font-semibold mt-2"
+                onClick={async () => {
+                  if (!newVacationStart || !newVacationEnd) return
+                  const start = new Date(newVacationStart)
+                  const end = new Date(newVacationEnd)
+                  if (start > end) {
+                    alert('La fecha de inicio debe ser anterior a la de fin')
+                    return
+                  }
+                  await handleAddVacationToResource(vacationsResource!.id, start, end)
+                }}
+              >
+                Añadir Rango
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setVacationsResource(null)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
