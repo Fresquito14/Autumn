@@ -139,25 +139,50 @@ export function validateProjectImport(data: unknown): ProjectExportData | null {
 /**
  * Generate new IDs for all entities to avoid collisions
  */
-function remapIds(data: ProjectExportData): {
+async function remapIds(data: ProjectExportData): Promise<{
   project: Project
   tasks: Task[]
   dependencies: Dependency[]
   resources: Resource[]
   milestones: Milestone[]
   taskResourceAssignments: any[]
-} {
+}> {
   const idMap = new Map<string, string>()
 
   // Generate new project ID
   const newProjectId = crypto.randomUUID()
   idMap.set(data.project.id, newProjectId)
 
-  // Generate new IDs for all entities
+  // Generate new IDs for tasks, dependencies and milestones
   data.tasks.forEach(task => idMap.set(task.id, crypto.randomUUID()))
   data.dependencies.forEach(dep => idMap.set(dep.id, crypto.randomUUID()))
-  data.resources.forEach(res => idMap.set(res.id, crypto.randomUUID()))
   data.milestones.forEach(ms => idMap.set(ms.id, crypto.randomUUID()))
+
+  // For resources: check if resource already exists in DB by email or name
+  const existingResources = await db.resources.toArray()
+  const resourcesToInsert: Resource[] = []
+
+  data.resources.forEach(res => {
+    const match = existingResources.find(existing => {
+      if (res.email && existing.email) {
+        return res.email.trim().toLowerCase() === existing.email.trim().toLowerCase()
+      }
+      return res.name.trim().toLowerCase() === existing.name.trim().toLowerCase()
+    })
+
+    if (match) {
+      // Reuse the existing resource ID to prevent duplication
+      idMap.set(res.id, match.id)
+    } else {
+      // Generate a new ID and schedule it for insertion
+      const newResId = crypto.randomUUID()
+      idMap.set(res.id, newResId)
+      resourcesToInsert.push({
+        ...res,
+        id: newResId
+      })
+    }
+  })
 
   // Remap project
   const project: Project = {
@@ -193,13 +218,6 @@ function remapIds(data: ProjectExportData): {
     successorId: idMap.get(dep.successorId) || dep.successorId,
   }))
 
-  // Remap resources
-  const resources: Resource[] = data.resources.map(res => ({
-    ...res,
-    id: idMap.get(res.id)!,
-    projectId: newProjectId,
-  }))
-
   // Remap milestones
   const milestones: Milestone[] = data.milestones.map(ms => ({
     ...ms,
@@ -221,7 +239,7 @@ function remapIds(data: ProjectExportData): {
     }))
   }))
 
-  return { project, tasks, dependencies, resources, milestones, taskResourceAssignments }
+  return { project, tasks, dependencies, resources: resourcesToInsert, milestones, taskResourceAssignments }
 }
 
 /**
@@ -234,8 +252,8 @@ export async function importProject(data: ProjectExportData): Promise<string> {
     throw new Error('Invalid project data')
   }
 
-  // Remap all IDs to avoid collisions
-  const { project, tasks, dependencies, resources, milestones, taskResourceAssignments } = remapIds(validatedData)
+  // Remap all IDs to avoid collisions (deduplicating resources by name/email)
+  const { project, tasks, dependencies, resources, milestones, taskResourceAssignments } = await remapIds(validatedData)
 
   // Import everything in a transaction
   await db.transaction('rw', [
