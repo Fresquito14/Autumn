@@ -520,6 +520,27 @@ interface TaskWithCPM extends Task {
 
 ---
 
+## 🚀 Fase 7: Roadmap de Portafolio Global (Roadmap de Proyectos) - COMPLETADA
+
+**Fecha de completación**: 2026-07-28
+
+### Logros Principales
+
+#### 1. Roadmap del Portfolio unificado ([PortfolioTimeline.tsx](file:///C:/Users/Fresquito/OneDrive/Documentos/GitHub/Autumn/src/components/features/Portfolio/PortfolioTimeline.tsx)) ✅
+- [x] **Línea Temporal de Proyectos de un solo nivel**: Cada proyecto ocupa una única fila horizontal continua para ver toda la cartera en paralelo.
+- [x] **Visualización Segmentada de Fases**: Las barras de proyectos se segmentan horizontalmente en base a sus tareas raíz (top-level phases) que se ordenan secuencialmente en el mismo track.
+- [x] **Hitos en Línea (Milestones)**: Los hitos de cada proyecto se renderizan como diamantes de color rojo crítico flotando en línea a lo largo de la barra de su respectivo proyecto.
+- [x] **Escala Mensual con Subdivisiones Semanales**: Cuadrícula optimizada con cabecera mensual y columnas para semanas (S1, S2, etc.).
+- [x] **Selector de Navegación y Zoom**: Botones para desplazarse entre meses (Anterior / Siguiente) y regulador de zoom (+ / -) de la cuadrícula diaria.
+- [x] **Tarjetas de Estadísticas Globales (KPIs)**: Indicadores clave superiores: Proyectos Totales, En Progreso, Completados y Progreso Promedio de la cartera.
+- [x] **Navegación Rápida**: Botón interactivo "Gantt" para abrir y cargar directamente un proyecto en la planificación.
+
+#### 2. Integración y Layout ([App.tsx](file:///C:/Users/Fresquito/OneDrive/Documentos/GitHub/Autumn/src/App.tsx)) ✅
+- [x] **Botón en Navbar Principal**: Acceso al Roadmap directo desde el menú general del dashboard de proyectos.
+- [x] **Flujo y Redirección**: Soporte completo para cargar dinámicamente el proyecto y cambiar de vista a 'project' de forma reactiva al interactuar con el Timeline de Portafolio.
+
+---
+
 ## 📝 Notas de Desarrollo
 
 ### Decisiones Técnicas
@@ -538,6 +559,7 @@ interface TaskWithCPM extends Task {
 
 ---
 
-**Última actualización**: 2026-07-27 (Integración de Antigravity)
-**Versión**: 0.5.1 (Fase de optimización y recursos)
-**Estado**: ✅ Asistente Antigravity conectado. Listo para fase 6.
+**Última actualización**: 2026-07-28 (Lanzamiento de Roadmap de Portfolio)
+**Versión**: 0.7.0 (Fase 7 Completada)
+**Estado**: ✅ Portfolio global integrado con barras de fases apiladas en una sola línea e hitos flotantes. Listo.
+
