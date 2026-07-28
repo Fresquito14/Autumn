@@ -60,34 +60,59 @@ function App() {
     setIsImporting(true)
     try {
       // Read and parse file
-      const data = await readProjectFile(file)
+      const projectsData = await readProjectFile(file)
 
-      // Confirm import
-      const confirmed = confirm(
-        `¿Importar proyecto "${data.project.name}"?\n\n` +
-        `Tareas: ${data.tasks.length}\n` +
-        `Dependencias: ${data.dependencies.length}\n` +
-        `Hitos: ${data.milestones.length}\n` +
-        `Recursos: ${data.resources.length}`
-      )
+      if (projectsData.length === 1) {
+        const data = projectsData[0]
+        // Confirm import
+        const confirmed = confirm(
+          `¿Importar proyecto "${data.project.name}"?\n\n` +
+          `Tareas: ${data.tasks.length}\n` +
+          `Dependencias: ${data.dependencies.length}\n` +
+          `Hitos: ${data.milestones.length}\n` +
+          `Recursos: ${data.resources.length}`
+        )
 
-      if (!confirmed) {
-        setIsImporting(false)
-        return
-      }
+        if (!confirmed) {
+          setIsImporting(false)
+          return
+        }
 
-      // Import project
-      const projectId = await importProject(data)
+        // Import project
+        const projectId = await importProject(data)
 
-      // Switch to imported project
-      const importedProject = await db.projects.get(projectId)
-      if (importedProject) {
-        setCurrentProject(importedProject)
-        alert('✅ Proyecto importado correctamente')
+        // Switch to imported project
+        const importedProject = await db.projects.get(projectId)
+        if (importedProject) {
+          setCurrentProject(importedProject)
+          alert('✅ Proyecto importado correctamente')
+        }
+      } else {
+        // Confirm import for multiple projects
+        const projectNames = projectsData.map(p => `- ${p.project.name}`).join('\n')
+        const confirmed = confirm(
+          `¿Importar los siguientes ${projectsData.length} proyectos?\n\n` +
+          `${projectNames}\n\n` +
+          `Total Tareas: ${projectsData.reduce((acc, p) => acc + p.tasks.length, 0)}\n` +
+          `Total Recursos: ${projectsData.reduce((acc, p) => acc + p.resources.length, 0)}`
+        )
+
+        if (!confirmed) {
+          setIsImporting(false)
+          return
+        }
+
+        // Import all projects
+        for (const data of projectsData) {
+          await importProject(data)
+        }
+
+        alert(`✅ ${projectsData.length} proyectos importados correctamente. Cargando datos...`)
+        window.location.reload()
       }
     } catch (error) {
       console.error('Error importing project:', error)
-      alert('❌ Error al importar el proyecto: ' + (error as Error).message)
+      alert('❌ Error al importar: ' + (error as Error).message)
     } finally {
       setIsImporting(false)
       // Reset file input

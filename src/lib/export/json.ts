@@ -96,6 +96,7 @@ export async function downloadProjectAsJSON(projectId: string, filename?: string
  */
 export function validateProjectImport(data: unknown): ProjectExportData | null {
   if (!data || typeof data !== 'object') {
+    console.warn('[validateProjectImport] El dato no es un objeto válido:', data)
     return null
   }
 
@@ -103,12 +104,21 @@ export function validateProjectImport(data: unknown): ProjectExportData | null {
 
   // Check required fields
   if (!exportData.version || !exportData.project) {
+    console.warn('[validateProjectImport] Faltan campos requeridos (version o project):', {
+      hasVersion: !!exportData.version,
+      hasProject: !!exportData.project
+    })
     return null
   }
 
   // Check project has required fields
   const project = exportData.project as Partial<Project>
   if (!project.name || !project.startDate || !project.config) {
+    console.warn('[validateProjectImport] Al objeto project le faltan campos requeridos (name, startDate o config):', {
+      hasName: !!project.name,
+      hasStartDate: !!project.startDate,
+      hasConfig: !!project.config
+    })
     return null
   }
 
@@ -270,8 +280,9 @@ export async function importProject(data: ProjectExportData): Promise<string> {
 
 /**
  * Read and parse JSON file from file input
+ * Supports both single project objects and arrays of project objects.
  */
-export function readProjectFile(file: File): Promise<ProjectExportData> {
+export function readProjectFile(file: File): Promise<ProjectExportData[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
 
@@ -279,7 +290,27 @@ export function readProjectFile(file: File): Promise<ProjectExportData> {
       try {
         const json = e.target?.result as string
         const data = JSON.parse(json)
-        const validated = validateProjectImport(data)
+
+        let validated: ProjectExportData[] | null = null
+
+        if (Array.isArray(data)) {
+          const items = data.map(item => validateProjectImport(item)).filter(Boolean) as ProjectExportData[]
+          if (items.length === data.length) {
+            validated = items
+          } else {
+            console.warn('[readProjectFile] Algunos elementos del array fallaron la validación:', {
+              dataLength: data.length,
+              validLength: items.length
+            })
+          }
+        } else {
+          const item = validateProjectImport(data)
+          if (item) {
+            validated = [item]
+          } else {
+            console.warn('[readProjectFile] El objeto único falló la validación.')
+          }
+        }
 
         if (!validated) {
           reject(new Error('Archivo JSON inválido o corrupto'))
