@@ -541,6 +541,42 @@ interface TaskWithCPM extends Task {
 
 ---
 
+## 🚀 Fase 8: Filtro de Niveles Seguro, Roadmap Expandible y Gestión de Recursos Compacta con Vacaciones - COMPLETADA
+
+**Fecha de completación**: 2026-07-29
+
+### Logros Principales
+
+#### 1. Robustez del Filtro de Niveles (WBS & Gantt) ✅
+- [x] **Cálculo de nivel dinámico**: Autocalcula el nivel (`level`) de las tareas importadas basándose en la profundidad del código WBS si falta en el JSON.
+- [x] **Protección contra fallos NaN**: Añadida una salvaguarda (`level || 0`) al buscar el nivel máximo en [GanttChart.tsx](file:///C:/Users/Fresquito/OneDrive/Documentos/GitHub/Autumn/src/components/features/GanttChart/GanttChart.tsx) y [WBSTree.tsx](file:///C:/Users/Fresquito/OneDrive/Documentos/GitHub/Autumn/src/components/features/WBS/WBSTree.tsx) para evitar que valores nulos rompan la renderización.
+- [x] **Arreglo del modo oscuro**: Ajustadas las clases de [LevelFilter.tsx](file:///C:/Users/Fresquito/OneDrive/Documentos/GitHub/Autumn/src/components/features/WBS/LevelFilter.tsx) para que use `bg-background text-foreground` en el selector `<select>` y sus `<option>` internas, previniendo el texto blanco sobre fondo blanco.
+
+#### 2. Nueva Plantilla de Portafolio Consolidada ✅
+- [x] **4 Proyectos Clave**: Creada una nueva plantilla en [portfolio-completo.json](file:///C:/Users/Fresquito/OneDrive/Documentos/GitHub/Autumn/src/portfolio-completo.json) que contiene:
+  1. *Migración de ERP*
+  2. *Desarrollo de herramientas de demanda*
+  3. *Desarrollo de herramienta de desarrollo de negocio*
+  4. *Mejoras en Miami*
+- [x] **Fases Homogéneas y Fechas Escalonadas**: Cada proyecto tiene exactamente las fases de nivel 1: *Pipeline*, *Development*, *Validation* y *Closing*, dura entre 3 y 6 meses, e inicia en meses consecutivos para evitar el solapamiento total de recursos globales.
+
+#### 3. Despliegue de Subfases (Nivel 2) en el Roadmap ✅
+- [x] **Nivel 2 jerárquico**: Incorporación de botones de colapso/despliegue (`ChevronDown`/`ChevronUp`) por fila de proyecto en el Roadmap del Portfolio ([PortfolioTimeline.tsx](file:///C:/Users/Fresquito/OneDrive/Documentos/GitHub/Autumn/src/components/features/Portfolio/PortfolioTimeline.tsx)).
+- [x] **Diagrama de Barras Apiladas por Fase**: Al expandir, se muestran las fases principales en filas anidadas con sus subtareas de nivel 2 dispuestas secuencialmente en el mismo track.
+- [x] **Estilo Limpio**: Habilitada la clase `scrollbar-hide` para ocultar las barras de scroll en el Timeline, manteniendo la interfaz despejada.
+
+#### 4. Gestión de Recursos Compacta y Vacaciones ✅
+- [x] **Tabla Compacta de Recursos**: Rediseño visual en [ResourceManagement.tsx](file:///C:/Users/Fresquito/OneDrive/Documentos/GitHub/Autumn/src/components/features/Resources/ResourceManagement.tsx) para compactar los datos de recursos en una tabla densa con columnas claras para nombre, capacidad, coste y tags.
+- [x] **Badges de Vacaciones con Eliminación Rápida**: Muestra de forma directa las vacaciones planificadas en la fila del recurso como etiquetas interactivas con opción de borrado inmediato (`X`).
+- [x] **Diálogo de Gestión de Vacaciones**: Modal flotante integrado para registrar nuevos rangos temporales o auditar vacaciones de forma independiente por recurso.
+
+#### 5. Desglose por Proyectos y Filtro en Heatmap de Capacidad ✅
+- [x] **Filtro por Proyecto en Mapa**: Selector interactivo en el heatmap para filtrar y analizar la distribución de carga laboral de todos los recursos sobre un proyecto individual en tiempo real.
+- [x] **Desglose Dinámico de Horas**: Acordeones de filas de recursos en el heatmap ([ResourceCapacityHeatmap.tsx](file:///C:/Users/Fresquito/OneDrive/Documentos/GitHub/Autumn/src/components/features/Resources/ResourceCapacityHeatmap.tsx)) que muestran las horas dedicadas a cada proyecto de forma secuencial.
+- [x] **Tooltip de Desglose**: Información de proyectos y horas directamente en el tooltip flotante al pasar el cursor sobre cualquier celda semanal.
+
+---
+
 ## 📝 Notas de Desarrollo
 
 ### Decisiones Técnicas
@@ -552,14 +588,14 @@ interface TaskWithCPM extends Task {
 
 ### Aprendizajes
 
-- React Hook Form simplifica enormemente los formularios
-- Zustand es muy intuitivo para state management
-- IndexedDB funciona perfectamente para persistencia local
-- shadcn/ui components son muy customizables
+- React Hook Form simplifica enormemente los formularios.
+- Zustand es muy intuitivo para state management.
+- IndexedDB funciona perfectamente para persistencia local.
+- shadcn/ui components son muy customizables.
 
 ---
 
-**Última actualización**: 2026-07-28 (Lanzamiento de Roadmap de Portfolio)
-**Versión**: 0.7.0 (Fase 7 Completada)
-**Estado**: ✅ Portfolio global integrado con barras de fases apiladas en una sola línea e hitos flotantes. Listo.
+**Última actualización**: 2026-07-29 (Filtro por Proyecto en Heatmap, Roadmap de Subfases y Gestión de Vacaciones)
+**Versión**: 0.8.0 (Fase 8 Completada)
+**Estado**: ✅ Portfolio y Recursos optimizados con tablas compactas, gestión de vacaciones y mapas de calor con filtros e interacciones de colapso multinivel. Listo.
 
