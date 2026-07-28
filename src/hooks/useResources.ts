@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { Resource } from '@/types'
-import { dbHelpers } from '@/lib/storage/db'
+import { db, dbHelpers } from '@/lib/storage/db'
 
 interface ResourceState {
   resources: Resource[]
@@ -15,6 +15,7 @@ interface ResourceState {
   createResource: (resource: Omit<Resource, 'id'>) => Promise<string>
   updateResource: (id: string, changes: Partial<Resource>) => Promise<void>
   deleteResource: (id: string) => Promise<void>
+  deleteResources: (ids: string[]) => Promise<void>
   clearResources: () => void
 }
 
@@ -89,6 +90,24 @@ export const useResources = create<ResourceState>()(
         set({ isLoading: true, error: null })
         try {
           await dbHelpers.deleteResource(id)
+
+          // Reload all global resources
+          const resources = await dbHelpers.getAllResources()
+          set({ resources, isLoading: false })
+        } catch (error) {
+          set({ error: (error as Error).message, isLoading: false })
+        }
+      },
+
+      deleteResources: async (ids) => {
+        set({ isLoading: true, error: null })
+        try {
+          await db.transaction('rw', [db.resources, db.taskResourceAssignments], async () => {
+            // Delete all assignments for these resources
+            await db.taskResourceAssignments.where('resourceId').anyOf(ids).delete()
+            // Delete the resources
+            await db.resources.where('id').anyOf(ids).delete()
+          })
 
           // Reload all global resources
           const resources = await dbHelpers.getAllResources()

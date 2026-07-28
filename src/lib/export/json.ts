@@ -194,20 +194,24 @@ async function remapIds(data: ProjectExportData): Promise<{
   }
 
   // Remap tasks
-  const tasks: Task[] = data.tasks.map(task => ({
-    ...task,
-    id: idMap.get(task.id)!,
-    projectId: newProjectId,
-    parentId: task.parentId ? idMap.get(task.parentId) : undefined,
-    assignedTo: task.assignedTo?.map(resId => idMap.get(resId) || resId) || [],
-    // Convert date strings back to Date objects
-    startDate: new Date(task.startDate),
-    endDate: new Date(task.endDate),
-    actualStartDate: task.actualStartDate ? new Date(task.actualStartDate) : undefined,
-    actualEndDate: task.actualEndDate ? new Date(task.actualEndDate) : undefined,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }))
+  const tasks: Task[] = data.tasks.map(task => {
+    const level = task.level !== undefined ? task.level : (task.wbsCode ? task.wbsCode.split('.').length - 1 : 0)
+    return {
+      ...task,
+      id: idMap.get(task.id)!,
+      projectId: newProjectId,
+      parentId: task.parentId ? idMap.get(task.parentId) : undefined,
+      level,
+      assignedTo: task.assignedTo?.map(resId => idMap.get(resId) || resId) || [],
+      // Convert date strings back to Date objects
+      startDate: new Date(task.startDate),
+      endDate: new Date(task.endDate),
+      actualStartDate: task.actualStartDate ? new Date(task.actualStartDate) : undefined,
+      actualEndDate: task.actualEndDate ? new Date(task.actualEndDate) : undefined,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+  })
 
   // Remap dependencies
   const dependencies: Dependency[] = data.dependencies.map(dep => ({

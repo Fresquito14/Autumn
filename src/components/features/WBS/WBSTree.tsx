@@ -74,7 +74,7 @@ export function WBSTree() {
   const rootTasks = getChildTasks(undefined)
 
   // Calculate max level in tasks
-  const maxLevel = Math.max(...tasks.map(t => t.level), 0)
+  const maxLevel = Math.max(...tasks.map(t => t.level || 0), 0)
 
   // Filter tasks based on maxDisplayLevel
   const shouldShowTask = (task: Task): boolean => {

@@ -125,7 +125,7 @@ export function GanttChart() {
   console.log(`Timeline: ${normalizedStart.toLocaleDateString()} to ${normalizedEnd.toLocaleDateString()} (${totalDays} days, dayWidth: ${dayWidth}px, zoomLevel: ${zoomLevel})`)
 
   // Calculate max level in tasks
-  const maxLevel = Math.max(...tasks.map(t => t.level), 0)
+  const maxLevel = Math.max(...tasks.map(t => t.level || 0), 0)
 
   // Filter tasks based on maxDisplayLevel
   const filteredTasks = maxDisplayLevel === 0
