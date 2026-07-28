@@ -47,6 +47,10 @@ export async function exportProject(projectId: string): Promise<ProjectExportDat
     db.baselines.where('projectId').equals(projectId).toArray(),
   ])
 
+  // Get assignments for all tasks of this project
+  const taskIds = tasks.map(t => t.id)
+  const taskResourceAssignments = await db.taskResourceAssignments.where('taskId').anyOf(taskIds).toArray()
+
   return {
     version: EXPORT_VERSION,
     exportedAt: new Date(),
@@ -56,6 +60,7 @@ export async function exportProject(projectId: string): Promise<ProjectExportDat
     resources,
     milestones,
     baselines,
+    taskResourceAssignments,
   }
 }
 
@@ -117,6 +122,7 @@ export function validateProjectImport(data: unknown): ProjectExportData | null {
     resources: exportData.resources || [],
     milestones: exportData.milestones || [],
     baselines: exportData.baselines || [],
+    taskResourceAssignments: exportData.taskResourceAssignments || [],
   }
 }
 
@@ -129,6 +135,7 @@ function remapIds(data: ProjectExportData): {
   dependencies: Dependency[]
   resources: Resource[]
   milestones: Milestone[]
+  taskResourceAssignments: any[]
 } {
   const idMap = new Map<string, string>()
 
@@ -192,7 +199,19 @@ function remapIds(data: ProjectExportData): {
     date: new Date(ms.date),
   }))
 
-  return { project, tasks, dependencies, resources, milestones }
+  // Remap assignments
+  const taskResourceAssignments = (data.taskResourceAssignments || []).map(assign => ({
+    ...assign,
+    id: crypto.randomUUID(),
+    taskId: idMap.get(assign.taskId) || assign.taskId,
+    resourceId: idMap.get(assign.resourceId) || assign.resourceId,
+    weeklyDistribution: (assign.weeklyDistribution || []).map(week => ({
+      ...week,
+      weekStart: new Date(week.weekStart)
+    }))
+  }))
+
+  return { project, tasks, dependencies, resources, milestones, taskResourceAssignments }
 }
 
 /**
@@ -206,7 +225,7 @@ export async function importProject(data: ProjectExportData): Promise<string> {
   }
 
   // Remap all IDs to avoid collisions
-  const { project, tasks, dependencies, resources, milestones } = remapIds(validatedData)
+  const { project, tasks, dependencies, resources, milestones, taskResourceAssignments } = remapIds(validatedData)
 
   // Import everything in a transaction
   await db.transaction('rw', [
@@ -215,6 +234,7 @@ export async function importProject(data: ProjectExportData): Promise<string> {
     db.dependencies,
     db.resources,
     db.milestones,
+    db.taskResourceAssignments,
   ], async () => {
     // Create project
     await db.projects.add(project)
@@ -237,6 +257,11 @@ export async function importProject(data: ProjectExportData): Promise<string> {
     // Create milestones
     if (milestones.length > 0) {
       await db.milestones.bulkAdd(milestones)
+    }
+
+    // Create assignments
+    if (taskResourceAssignments.length > 0) {
+      await db.taskResourceAssignments.bulkAdd(taskResourceAssignments)
     }
   })
 

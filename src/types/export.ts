@@ -1,4 +1,4 @@
-import type { Project, Task, Dependency, Resource, Milestone, Baseline } from './index'
+import type { Project, Task, Dependency, Resource, Milestone, Baseline, TaskResourceAssignment } from './index'
 
 export interface ProjectExportData {
   version: string // Schema version for compatibility
@@ -9,4 +9,5 @@ export interface ProjectExportData {
   resources: Resource[]
   milestones: Milestone[]
   baselines: Baseline[]
+  taskResourceAssignments?: TaskResourceAssignment[]
 }
