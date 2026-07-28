@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ArrowLeft, Trash2, Download, Upload, Users, PartyPopper } from 'lucide-react'
+import { ArrowLeft, Trash2, Download, Upload, Users, PartyPopper, Calendar } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { useProject } from './hooks/useProject'
 import { useAutoRecalculate } from './hooks/useAutoRecalculate'
@@ -11,12 +11,13 @@ import { MilestoneList } from './components/features/Milestones/MilestoneList'
 import { GanttChart } from './components/features/GanttChart/GanttChart'
 import { ResourceManagement } from './components/features/Resources/ResourceManagement'
 import { GlobalHolidaysManagement } from './components/features/GlobalHolidays/GlobalHolidaysManagement'
+import { PortfolioTimeline } from './components/features/Portfolio/PortfolioTimeline'
 import { Button } from './components/ui/button'
 import { ThemeToggle } from './components/ui/ThemeToggle'
 import { db, dbHelpers } from './lib/storage/db'
 import { downloadProjectAsJSON, readProjectFile, importProject } from './lib/export/json'
 
-type View = 'projects' | 'project' | 'resources' | 'holidays'
+type View = 'projects' | 'project' | 'resources' | 'holidays' | 'portfolio'
 
 function App() {
   const { currentProject, setCurrentProject } = useProject()
@@ -169,6 +170,15 @@ function App() {
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Volver a Proyectos
                 </Button>
+              ) : currentView === 'portfolio' ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentView('projects')}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Volver a Proyectos
+                </Button>
               ) : (
                 <>
                   <input
@@ -187,6 +197,15 @@ function App() {
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     {isImporting ? 'Importando...' : 'Importar'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentView('portfolio')}
+                    title="Timeline global de proyectos (Roadmap)"
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Roadmap
                   </Button>
                   <Button
                     variant="outline"
@@ -231,6 +250,13 @@ function App() {
           <GlobalHolidaysManagement />
         ) : currentView === 'resources' ? (
           <ResourceManagement />
+        ) : currentView === 'portfolio' ? (
+          <PortfolioTimeline 
+            onOpenProject={(project) => {
+              setCurrentProject(project)
+              setCurrentView('project')
+            }} 
+          />
         ) : currentView === 'projects' ? (
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="text-center space-y-2">
