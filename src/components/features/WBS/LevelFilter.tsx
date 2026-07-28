@@ -18,12 +18,12 @@ export function LevelFilter({ maxLevel, currentMaxLevel, onLevelChange }: LevelF
       </Label>
       <select
         id="level-filter"
-        className="flex h-8 rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="flex h-8 rounded-md border border-input bg-background text-foreground px-2 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         value={currentMaxLevel}
         onChange={(e) => onLevelChange(Number(e.target.value))}
       >
         {Array.from({ length: maxLevel + 1 }, (_, i) => i).map((level) => (
-          <option key={level} value={level}>
+          <option key={level} value={level} className="bg-background text-foreground">
             {level === 0 ? 'Todos' : `Nivel ${level}`}
           </option>
         ))}
