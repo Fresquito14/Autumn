@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
@@ -12,6 +12,8 @@ import {
   Eye,
   ArrowRightLeft,
   UserCheck,
+  RefreshCw,
+  CloudDownload,
 } from 'lucide-react'
 import { useProject } from '@/hooks/useProject'
 import { useAuth } from '@/hooks/useAuth'
@@ -19,6 +21,7 @@ import { useOrganization } from '@/hooks/useOrganization'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { forceSeedPortfolioDataset } from '@/lib/storage/seed'
+import { supabaseSyncService } from '@/infrastructure/supabase/db_service'
 import { PremiumPricingModal } from '../Premium/PremiumPricingModal'
 import { TransferProjectDialog } from './TransferProjectDialog'
 import { calculateBusinessDays } from '@/lib/calculations/dates'
@@ -36,14 +39,48 @@ export function ProjectList() {
   const { projects, loadProjects, setCurrentProject, deleteProject, isLoading } = useProject()
   const { user } = useAuth()
   const { currentOrganization } = useOrganization()
-  const [isSeeding, setIsSeeding] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [isPricingOpen, setIsPricingOpen] = useState(false)
   const [projectMetrics, setProjectMetrics] = useState<Record<string, ProjectMetric>>({})
   const [onlyMyProjects, setOnlyMyProjects] = useState(false)
+  const hasAutoSyncedRef = useRef(false)
 
+  // Initial local load
   useEffect(() => {
     loadProjects()
   }, [loadProjects])
+
+  // Cloud sync handler
+  const handleSyncFromCloud = async (isQuiet = false) => {
+    if (!user) return
+    try {
+      setIsSyncing(true)
+      const synced = await supabaseSyncService.fetchAllProjectsFromCloud()
+      await loadProjects()
+      if (!isQuiet) {
+        if (synced && synced.length > 0) {
+          toast.success(`¡${synced.length} proyectos sincronizados desde la base de datos!`)
+        } else {
+          toast.info('No se encontraron proyectos en la base de datos para tu cuenta u organización.')
+        }
+      }
+    } catch (err: any) {
+      console.error('Error al sincronizar proyectos de la base de datos:', err)
+      if (!isQuiet) {
+        toast.error(`Error al conectar con la base de datos: ${err.message || 'Error de conexión'}`)
+      }
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  // Auto-sync from cloud on login/mount when authenticated
+  useEffect(() => {
+    if (user && !hasAutoSyncedRef.current) {
+      hasAutoSyncedRef.current = true
+      handleSyncFromCloud(true)
+    }
+  }, [user])
 
   // Compute end dates and schedule deviations for all projects
   useEffect(() => {
@@ -120,9 +157,10 @@ export function ProjectList() {
     }
   }, [projects])
 
+  // Demo seed handler (only in local offline/free mode)
   const handleForceLoad = async () => {
     try {
-      setIsSeeding(true)
+      setIsSyncing(true)
       await forceSeedPortfolioDataset()
       await loadProjects()
       toast.success('¡Proyectos de ejemplo cargados con éxito!')
@@ -130,32 +168,12 @@ export function ProjectList() {
       toast.error('Error al cargar proyectos de ejemplo')
       console.error(err)
     } finally {
-      setIsSeeding(false)
+      setIsSyncing(false)
     }
   }
 
-  if (isLoading || isSeeding) {
+  if (isLoading && projects.length === 0) {
     return <div className="text-center py-8 text-muted-foreground">Cargando proyectos...</div>
-  }
-
-  if (projects.length === 0) {
-    return (
-      <Card className="max-w-xl mx-auto my-8 border-dashed">
-        <CardHeader className="text-center pb-2">
-          <Database className="h-12 w-12 mx-auto mb-2 text-primary opacity-80" />
-          <CardTitle className="text-xl">No hay proyectos cargados</CardTitle>
-          <CardDescription className="mt-2 text-sm">
-            Haz clic a continuación para cargar proyectos de ejemplo con tareas, dependencias e hitos para probar la herramienta.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center pb-6">
-          <Button onClick={handleForceLoad} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-2">
-            <FolderOpen className="h-4 w-4 mr-2" />
-            Cargar Proyectos de Ejemplo
-          </Button>
-        </CardContent>
-      </Card>
-    )
   }
 
   // Filter projects by ownership if toggle is active
@@ -163,6 +181,50 @@ export function ProjectList() {
     if (!onlyMyProjects || !user) return true
     return !project.userId || project.userId === user.id
   })
+
+  // Empty state
+  if (projects.length === 0) {
+    return (
+      <Card className="max-w-xl mx-auto my-8 border-dashed">
+        <CardHeader className="text-center pb-2">
+          {user ? (
+            <CloudDownload className="h-12 w-12 mx-auto mb-2 text-primary opacity-80" />
+          ) : (
+            <Database className="h-12 w-12 mx-auto mb-2 text-primary opacity-80" />
+          )}
+          <CardTitle className="text-xl">
+            {user ? 'Sincronización de Base de Datos' : 'No hay proyectos cargados'}
+          </CardTitle>
+          <CardDescription className="mt-2 text-sm">
+            {user
+              ? 'Haz clic a continuación para descargar y sincronizar todos los proyectos de tu organización y proyectos propios desde Supabase.'
+              : 'Haz clic a continuación para cargar proyectos de ejemplo con tareas, dependencias e hitos para probar la herramienta en local.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center pb-6">
+          {user ? (
+            <Button
+              onClick={() => handleSyncFromCloud(false)}
+              disabled={isSyncing}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-2 gap-2"
+            >
+              <RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin')} />
+              {isSyncing ? 'Sincronizando...' : 'Cargar Proyectos de la Base de Datos'}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleForceLoad}
+              disabled={isSyncing}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-2 gap-2"
+            >
+              <FolderOpen className="h-4 w-4" />
+              {isSyncing ? 'Cargando...' : 'Cargar Proyectos de Ejemplo'}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -235,15 +297,31 @@ export function ProjectList() {
             </Button>
           )}
 
-          <Button
-            onClick={handleForceLoad}
-            variant="outline"
-            size="sm"
-            className="gap-2 border-primary/30 hover:bg-primary/10 text-xs font-semibold shrink-0"
-          >
-            <Database className="h-3.5 w-3.5 text-primary" />
-            Cargar Proyectos de Ejemplo
-          </Button>
+          {/* Cloud Sync Button (Premium/Logged In) or Seed Button (Local) */}
+          {user ? (
+            <Button
+              onClick={() => handleSyncFromCloud(false)}
+              disabled={isSyncing}
+              variant="outline"
+              size="sm"
+              className="gap-2 border-primary/30 hover:bg-primary/10 text-xs font-semibold shrink-0"
+              title="Sincronizar y recargar proyectos de la base de datos"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5 text-primary', isSyncing && 'animate-spin')} />
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar Base de Datos'}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleForceLoad}
+              disabled={isSyncing}
+              variant="outline"
+              size="sm"
+              className="gap-2 border-primary/30 hover:bg-primary/10 text-xs font-semibold shrink-0"
+            >
+              <Database className="h-3.5 w-3.5 text-primary" />
+              Cargar Proyectos de Ejemplo
+            </Button>
+          )}
         </div>
       </div>
 

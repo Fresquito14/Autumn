@@ -464,6 +464,7 @@ export const supabaseSyncService = {
       successorId: d.successor_id,
       type: d.type || 'FS',
       lag: Number(d.lag || 0),
+      actualLag: (d.actual_lag !== undefined && d.actual_lag !== null) ? Number(d.actual_lag) : undefined,
     }))
 
     const milestones: Milestone[] = (milesRes.data || []).map((m: any) => ({
