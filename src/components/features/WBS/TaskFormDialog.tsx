@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { CheckSquare, Link2 } from 'lucide-react'
+import { CheckSquare, Link2, Plus } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -311,11 +311,27 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
     return true
   })
 
+  const defaultTrigger = isCreatingChild ? (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-6 w-6 p-0 hover:text-primary hover:bg-primary/10"
+      title={`Añadir subtarea a ${parentTask?.wbsCode}`}
+    >
+      <Plus className="h-3.5 w-3.5" />
+    </Button>
+  ) : !isEditing ? (
+    <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 shadow-xs">
+      <Plus className="h-4 w-4" />
+      Nueva Tarea
+    </Button>
+  ) : null
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger && (
+      {(trigger || defaultTrigger) && (
         <DialogTrigger asChild onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-          {trigger}
+          {trigger || defaultTrigger}
         </DialogTrigger>
       )}
       <DialogContent
