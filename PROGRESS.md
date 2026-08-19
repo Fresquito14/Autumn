@@ -577,6 +577,38 @@ interface TaskWithCPM extends Task {
 
 ---
 
+## 🚀 Fase 9: Integración de Supabase Cloud, Autenticación y Sincronización en Tiempo Real - COMPLETADA
+
+**Fecha de completación**: 2026-08-04
+
+### Logros Principales
+
+#### 1. Arquitectura Relacional y Esquema en Supabase Cloud ✅
+- [x] **Conexión a Supabase**: Proyecto vinculado exitosamente (`ucgvpnecaksytqjhhugr`).
+- [x] **Despliegue DDL de 15 Tablas**: Creación de la estructura relacional (`projects`, `tasks`, `dependencies`, `resources`, `task_resource_assignments`, `allowed_users`, `baselines`, etc.).
+- [x] **Seguridad y RLS (Row Level Security)**: Habilitado RLS en todas las tablas con políticas basadas en `auth.uid() = user_id` y función helper de lista blanca `is_whitelisted()`.
+- [x] **Triggers de Base de Datos**:
+  - `tr_check_user_whitelist`: Verificación de correos en `allowed_users` previo a registros.
+  - `tr_check_circular_dependency`: Prevención de ciclos infinitos en el grafo de tareas.
+  - `tr_projects_occ`: Control de Concurrencia Optimista a nivel de entidad de negocio raíz en `public.projects`.
+
+#### 2. Migración Integrada del Portfolio (`portfolio-completo.json`) ✅
+- [x] **Transformación a UUIDs**: Mapeo determinista de claves de cliente (`proj-erp-0001`, `res-sofia-1111`) a formato UUID estándar de PostgreSQL.
+- [x] **Carga de Datos en Nube**: Migración completa de los 4 proyectos principales (*Migración ERP*, *Herramientas de Demanda*, *Desarrollo de Negocio*, *Mejoras Miami*), 48 tareas jerárquicas con WBS, 28 dependencias, 4 recursos globales y 32 asignaciones de tareas.
+
+#### 3. Autenticación Nativa y Modal de Inicio de Sesión ✅
+- [x] **Usuario Administrador**: Alta nativa del usuario administrador (`16jfernan@gmail.com`) en Supabase GoTrue Auth con confirmación de correo y rol `admin`.
+- [x] **Componente `LoginModal.tsx`**: Interfaz modal integrada en el header de la aplicación para inicio de sesión seguro con email y contraseña, así como opción para Google OAuth.
+- [x] **Extensión de `useAuth.ts`**: Integración del método `loginWithEmail` en la tienda Zustand del sistema.
+
+#### 4. Sincronización en la Nube y Optimización de Concurrencia (OCC) ✅
+- [x] **Integración de `@supabase/supabase-js`**: Servicio `supabaseSyncService` para carga y guardado diferencial.
+- [x] **Fingerprinting Limpio en `useAutosave.ts`**: Implementación de `getCleanDataFingerprint` para evitar bucles infinitos de autoguardado al comparar únicamente cambios reales de contenido (ignorando metadatos de versión).
+- [x] **Sincronización Idempotente (`.maybeSingle()`)**: Reemplazo de consultas rígidas para prevenir errores de red HTTP 406 cuando un proyecto aún no existe en la nube.
+- [x] **Actualización de Base de Datos Local**: Sincronización automática de versiones entre Supabase e IndexedDB (`db.projects`).
+
+---
+
 ## 📝 Notas de Desarrollo
 
 ### Decisiones Técnicas
@@ -585,6 +617,7 @@ interface TaskWithCPM extends Task {
 2. **Gantt con div absolutos**: Más simple que SVG o Canvas para MVP, ahora extendido con transformaciones de tamaño dinámicas para el zoom.
 3. **Pointer Events**: Uso de punteros nativos de React para asegurar soporte de drag and drop en ratones de escritorio y pantallas táctiles (móviles/tabletas).
 4. **Carga asíncrona de IndexedDB**: Carga inteligente de todas las tareas en el módulo de recursos para resolver la sobreasignación global.
+5. **OCC a nivel de Entidad Raíz**: Concentración del control de concurrencia optimista en la tabla de proyectos para garantizar rendimiento masivo al realizar `upsert` de tareas en bloque.
 
 ### Aprendizajes
 
@@ -592,10 +625,35 @@ interface TaskWithCPM extends Task {
 - Zustand es muy intuitivo para state management.
 - IndexedDB funciona perfectamente para persistencia local.
 - shadcn/ui components son muy customizables.
+- Supabase GoTrue Auth requiere vincular explícitamente registros en `auth.identities` si se realiza una inserción directa por SQL.
 
 ---
 
-**Última actualización**: 2026-07-29 (Filtro por Proyecto en Heatmap, Roadmap de Subfases y Gestión de Vacaciones)
-**Versión**: 0.8.0 (Fase 8 Completada)
-**Estado**: ✅ Portfolio y Recursos optimizados con tablas compactas, gestión de vacaciones y mapas de calor con filtros e interacciones de colapso multinivel. Listo.
+## 📌 Tareas Pendientes & Próximos Pasos (#backlog)
+
+### 🔐 Autenticación y Usuarios (#auth)
+- [ ] #auth Configurar el proveedor de Google OAuth en la consola de Supabase (Client ID & Client Secret de Google Cloud Console).
+- [ ] #auth Implementar formulario/diálogo para registro de nuevos usuarios (`signUpWithEmail`) y flujo de recuperación de contraseña.
+- [ ] #auth Crear panel de administración para añadir/eliminar miembros autorizados en `public.allowed_users`.
+
+### 🚀 Despliegue e Infraestructura (#deploy)
+- [ ] #deploy Configurar las variables de entorno (`VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`) en el panel del hosting (Vercel, Netlify o Cloudflare Pages).
+- [ ] #deploy Ejecutar el primer despliegue de producción (`npm run build`) y conectar dominio personalizado.
+- [ ] #deploy Configurar política de backups automatizados en Supabase Dashboard.
+
+### ⚡ Nuevas Funcionalidades y Tiempo Real (#feature)
+- [ ] #feature Integrar Supabase Realtime Channels para refresco colaborativo en vivo cuando múltiples usuarios editan el mismo proyecto.
+- [ ] #feature Implementar almacenamiento de documentos/adjuntos de tareas utilizando Supabase Storage Buckets.
+- [ ] #feature Añadir exportación de informes del portfolio en formato PDF e imágenes de Gantt de alta resolución.
+
+### 🧪 Calidad y Pruebas (#testing)
+- [ ] #testing Ampliar la suite de tests unitarios e integración para cubrir el hook `useAutosave` y la sincronización con Supabase.
+
+---
+
+**Última actualización**: 2026-08-04 (Migración de Portfolio, Autenticación Supabase Cloud, Sincronización Resiliente con Control OCC y Backlog Obsidian)
+**Versión**: 0.9.0 (Fase 9 Completada)
+**Estado**: ✅ Aplicación conectada a Supabase Cloud con datos del portfolio completos, autenticación administrada y sincronización reactiva en tiempo real. Listo.
+
+
 

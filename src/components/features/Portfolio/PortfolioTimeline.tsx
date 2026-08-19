@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Calendar, Users, PartyPopper, ArrowRight, BarChart3, Clock, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Calendar, PartyPopper, ArrowRight, BarChart3, ChevronDown, ChevronUp } from 'lucide-react'
 import { db } from '@/lib/storage/db'
+import { supabase } from '@/lib/supabase/client'
+import { supabaseSyncService } from '@/lib/supabase/db_service'
 import type { Project, Task, Milestone } from '@/types'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { calculateTaskProgress } from '@/lib/utils/progress'
 import { 
   format, 
@@ -12,7 +13,7 @@ import {
   startOfMonth, 
   endOfMonth, 
   addMonths, 
-  subMonths,
+  subMonths, 
   startOfWeek, 
   endOfWeek, 
   addWeeks, 
@@ -91,26 +92,71 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
     })
   }
 
-  // Load portfolio data from Dexie
+  // Load portfolio data from Dexie and sync with cloud, reactively subscribing to updates
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true)
+    let isMounted = true
+
+    async function loadData(showLoading = true) {
+      if (showLoading) setIsLoading(true)
       try {
+        // Try syncing from cloud first so Roadmap has complete task data
+        try {
+          await supabaseSyncService.fetchAllProjectsFromCloud()
+        } catch (cloudErr) {
+          console.warn('Cloud sync skipped in PortfolioTimeline:', cloudErr)
+        }
+
         const [projList, taskList, msList] = await Promise.all([
           db.projects.toArray(),
           db.tasks.toArray(),
           db.milestones.toArray()
         ])
-        setProjects(projList)
-        setAllTasks(taskList)
-        setAllMilestones(msList)
+        if (isMounted) {
+          setProjects(projList)
+          setAllTasks(taskList)
+          setAllMilestones(msList)
+        }
       } catch (err) {
         console.error('Error loading portfolio data:', err)
       } finally {
-        setIsLoading(false)
+        if (isMounted && showLoading) {
+          setIsLoading(false)
+        }
       }
     }
-    loadData()
+
+    loadData(true)
+
+    // Supabase Realtime channel subscription for live updates across users
+    const channel = supabase
+      .channel('portfolio-live-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'projects' },
+        () => {
+          loadData(false)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        () => {
+          loadData(false)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'milestones' },
+        () => {
+          loadData(false)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      isMounted = false
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   // Process data to calculate date ranges and statistics for each project
@@ -124,10 +170,10 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
       let endDate = addDays(startDate, 30)
 
       if (projectTasks.length > 0) {
-        const starts = projectTasks.map(t => new Date(t.startDate).getTime())
-        const ends = projectTasks.map(t => new Date(t.endDate).getTime())
-        startDate = new Date(Math.min(...starts))
-        endDate = new Date(Math.max(...ends))
+        const starts = projectTasks.map(t => new Date(t.startDate).getTime()).filter(t => !isNaN(t))
+        const ends = projectTasks.map(t => new Date(t.endDate).getTime()).filter(t => !isNaN(t))
+        if (starts.length > 0) startDate = new Date(Math.min(...starts))
+        if (ends.length > 0) endDate = new Date(Math.max(...ends))
       }
 
       // Root tasks represent the project phases
@@ -162,101 +208,91 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
   useEffect(() => {
     if (processedProjects.length === 0) return
 
-    const starts = processedProjects.map(p => p.startDate.getTime())
-    const ends = processedProjects.map(p => p.endDate.getTime())
-    
-    const minDate = new Date(Math.min(...starts))
-    const maxDate = new Date(Math.max(...ends))
+    const allDates = processedProjects.flatMap(p => [p.startDate, p.endDate])
+    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())))
+    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())))
 
-    setTimelineStart(startOfWeek(subMonths(minDate, 1), { weekStartsOn: 1 }))
-    setTimelineEnd(endOfWeek(addMonths(maxDate, 1), { weekStartsOn: 1 }))
-  }, [processedProjects])
+    if (!isNaN(minDate.getTime()) && !isNaN(maxDate.getTime())) {
+      setTimelineStart(startOfWeek(subMonths(minDate, 1), { weekStartsOn: 1 }))
+      setTimelineEnd(endOfWeek(addMonths(maxDate, 2), { weekStartsOn: 1 }))
+    }
+  }, [projects.length])
 
-  // Total calendar days in current view
-  const totalDays = useMemo(() => {
-    return differenceInDays(timelineEnd, timelineStart) + 1
-  }, [timelineStart, timelineEnd])
+  // Calculate timeline headers (months and weeks)
+  const { monthHeaders, weekHeaders, timelineWidth } = useMemo(() => {
+    const days = differenceInDays(timelineEnd, timelineStart) + 1
+    const width = days * dayWidth
 
-  const timelineWidth = totalDays * dayWidth
+    // Generate month headers
+    const months: { label: string; width: number; key: string }[] = []
+    let currentMonth = startOfMonth(timelineStart)
 
-  // Today position on grid
+    while (currentMonth <= timelineEnd) {
+      const monthEnd = endOfMonth(currentMonth)
+      const visibleStart = currentMonth < timelineStart ? timelineStart : currentMonth
+      const visibleEnd = monthEnd > timelineEnd ? timelineEnd : monthEnd
+      const monthDays = differenceInDays(visibleEnd, visibleStart) + 1
+
+      if (monthDays > 0) {
+        months.push({
+          label: format(currentMonth, 'MMMM yyyy', { locale: es }),
+          width: monthDays * dayWidth,
+          key: format(currentMonth, 'yyyy-MM')
+        })
+      }
+
+      currentMonth = addMonths(currentMonth, 1)
+    }
+
+    // Generate week headers
+    const weeks: { label: string; width: number; key: string; date: Date }[] = []
+    let currentWeek = startOfWeek(timelineStart, { weekStartsOn: 1 })
+
+    while (currentWeek <= timelineEnd) {
+      const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 })
+      const visibleStart = currentWeek < timelineStart ? timelineStart : currentWeek
+      const visibleEnd = weekEnd > timelineEnd ? timelineEnd : weekEnd
+      const weekDays = differenceInDays(visibleEnd, visibleStart) + 1
+
+      if (weekDays > 0) {
+        weeks.push({
+          label: `S${getWeek(currentWeek, { weekStartsOn: 1, firstWeekContainsDate: 4 })}`,
+          width: weekDays * dayWidth,
+          key: format(currentWeek, 'yyyy-MM-dd'),
+          date: currentWeek
+        })
+      }
+
+      currentWeek = addWeeks(currentWeek, 1)
+    }
+
+    return { monthHeaders: months, weekHeaders: weeks, timelineWidth: width }
+  }, [timelineStart, timelineEnd, dayWidth])
+
+  // Calculate current date position
   const todayLeft = useMemo(() => {
     const today = new Date()
-    if (today >= timelineStart && today <= timelineEnd) {
-      return differenceInDays(today, timelineStart) * dayWidth
-    }
-    return null
+    if (today < timelineStart || today > timelineEnd) return null
+    return differenceInDays(today, timelineStart) * dayWidth
   }, [timelineStart, timelineEnd, dayWidth])
 
-  // Generate month headers
-  const monthHeaders = useMemo(() => {
-    const months: Array<{ key: string; date: Date; width: number; label: string }> = []
-    let current = startOfMonth(timelineStart)
-    const end = endOfMonth(timelineEnd)
-
-    while (current <= end) {
-      const nextMonth = addMonths(current, 1)
-      const overlapStart = current > timelineStart ? current : timelineStart
-      const overlapEnd = nextMonth < timelineEnd ? nextMonth : timelineEnd
-      const days = differenceInDays(overlapEnd, overlapStart)
-
-      if (days > 0) {
-        months.push({
-          key: current.toISOString(),
-          date: current,
-          width: days * dayWidth,
-          label: format(current, 'MMMM yyyy', { locale: es }).toUpperCase()
-        })
-      }
-      current = nextMonth
-    }
-    return months
-  }, [timelineStart, timelineEnd, dayWidth])
-
-  // Generate week headers
-  const weekHeaders = useMemo(() => {
-    const weeks: Array<{ key: string; date: Date; width: number; label: string }> = []
-    let current = startOfWeek(timelineStart, { weekStartsOn: 1 })
-    const end = endOfWeek(timelineEnd, { weekStartsOn: 1 })
-
-    while (current <= end) {
-      const nextWeek = addWeeks(current, 1)
-      const overlapStart = current > timelineStart ? current : timelineStart
-      const overlapEnd = nextWeek < timelineEnd ? nextWeek : timelineEnd
-      const days = differenceInDays(overlapEnd, overlapStart)
-
-      if (days > 0) {
-        weeks.push({
-          key: current.toISOString(),
-          date: current,
-          width: days * dayWidth,
-          label: `S${getWeek(current, { weekStartsOn: 1, firstWeekContainsDate: 4 })}`
-        })
-      }
-      current = nextWeek
-    }
-    return weeks
-  }, [timelineStart, timelineEnd, dayWidth])
-
-  // Global portfolio stats
-  const stats = useMemo(() => {
-    const total = processedProjects.length
-    const completed = processedProjects.filter(p => p.progress >= 99.9).length
-    const active = total - completed
-    const avgProgress = total > 0 
-      ? processedProjects.reduce((sum, p) => sum + p.progress, 0) / total 
-      : 0
-
-    return { total, completed, active, avgProgress }
-  }, [processedProjects])
-
-  // Shift timeline range manually
+  // Navigation handlers
   const handleShiftTimeline = (months: number) => {
     setTimelineStart(prev => addMonths(prev, months))
     setTimelineEnd(prev => addMonths(prev, months))
   }
 
-  if (isLoading) {
+  const handleCenterOnToday = () => {
+    const today = new Date()
+    setTimelineStart(startOfWeek(subMonths(today, 1), { weekStartsOn: 1 }))
+    setTimelineEnd(endOfWeek(addMonths(today, 3), { weekStartsOn: 1 }))
+
+    if (containerRef.current && todayLeft) {
+      containerRef.current.scrollLeft = todayLeft - containerRef.current.clientWidth / 2
+    }
+  }
+
+  if (isLoading && projects.length === 0) {
     return (
       <div className="flex items-center justify-center h-96 text-muted-foreground">
         Cargando portfolio de proyectos...
@@ -295,10 +331,7 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
           <Button variant="outline" size="sm" onClick={() => handleShiftTimeline(-1)}>
             Anterior
           </Button>
-          <Button variant="outline" size="sm" onClick={() => {
-            setTimelineStart(startOfWeek(subMonths(new Date(), 1), { weekStartsOn: 1 }))
-            setTimelineEnd(endOfWeek(addMonths(new Date(), 3), { weekStartsOn: 1 }))
-          }}>
+          <Button variant="outline" size="sm" onClick={handleCenterOnToday}>
             Hoy
           </Button>
           <Button variant="outline" size="sm" onClick={() => handleShiftTimeline(1)}>
@@ -309,15 +342,18 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
           <div className="border rounded-md flex items-center overflow-hidden ml-2">
             <button
               onClick={() => setDayWidth(Math.max(6, dayWidth - 3))}
-              className="px-3 py-1 bg-background hover:bg-muted text-sm border-r"
-              title="Zoom Out"
+              className="px-3 py-1.5 text-xs hover:bg-muted font-mono transition-colors border-r"
+              title="Alejar zoom"
             >
               -
             </button>
+            <span className="px-2 text-xs text-muted-foreground select-none font-medium">
+              Zoom
+            </span>
             <button
-              onClick={() => setDayWidth(Math.min(30, dayWidth + 3))}
-              className="px-3 py-1 bg-background hover:bg-muted text-sm"
-              title="Zoom In"
+              onClick={() => setDayWidth(Math.min(40, dayWidth + 3))}
+              className="px-3 py-1.5 text-xs hover:bg-muted font-mono transition-colors border-l"
+              title="Acercar zoom"
             >
               +
             </button>
@@ -325,65 +361,24 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="shadow-sm">
-          <CardHeader className="py-4">
-            <CardDescription className="text-xs uppercase font-medium">Proyectos Totales</CardDescription>
-            <CardTitle className="text-2xl mt-1 flex items-center justify-between">
-              {stats.total}
-              <Calendar className="h-5 w-5 text-blue-500 opacity-80" />
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="shadow-sm">
-          <CardHeader className="py-4">
-            <CardDescription className="text-xs uppercase font-medium">En Progreso</CardDescription>
-            <CardTitle className="text-2xl mt-1 flex items-center justify-between">
-              {stats.active}
-              <Clock className="h-5 w-5 text-amber-500 opacity-80" />
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="shadow-sm">
-          <CardHeader className="py-4">
-            <CardDescription className="text-xs uppercase font-medium">Completados</CardDescription>
-            <CardTitle className="text-2xl mt-1 flex items-center justify-between">
-              {stats.completed}
-              <CheckCircle2 className="h-5 w-5 text-emerald-500 opacity-80" />
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="shadow-sm">
-          <CardHeader className="py-4">
-            <CardDescription className="text-xs uppercase font-medium">Progreso Medio</CardDescription>
-            <CardTitle className="text-2xl mt-1 flex items-center justify-between">
-              {Math.round(stats.avgProgress)}%
-              <div className="w-16 bg-secondary h-2 rounded-full overflow-hidden">
-                <div className="bg-primary h-full" style={{ width: `${stats.avgProgress}%` }} />
-              </div>
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      {/* Main Roadmap Board */}
-      <Card className="overflow-hidden border shadow-sm">
-        <div className="flex flex-col">
-          {/* Scrollable Container */}
-          <div ref={containerRef} className="overflow-x-auto w-full scrollbar-hide">
-            {/* Timeline Header (Sticky) */}
-            <div className="flex flex-col border-b bg-muted/20 min-w-max sticky top-0 z-30">
+      {/* Main Gantt-style Timeline Container */}
+      <div className="border rounded-xl bg-card shadow-sm overflow-hidden flex flex-col">
+        {/* Scrollable Timeline Area */}
+        <div ref={containerRef} className="overflow-x-auto overflow-y-hidden select-none">
+          <div style={{ width: `${timelineWidth + 320}px` }} className="flex flex-col">
+            
+            {/* Timeline Header (Months + Weeks) */}
+            <div className="sticky top-0 z-30 bg-card border-b">
               {/* Months line */}
-              <div className="flex border-b h-10 items-center">
-                <div className="w-80 flex-shrink-0 border-r bg-background/50 h-full flex items-center px-4 font-semibold text-xs text-muted-foreground uppercase sticky left-0 z-40">
-                  PROYECTOS / FASES
+              <div className="flex h-9 items-center border-b bg-muted/30">
+                <div className="w-80 flex-shrink-0 border-r bg-background h-full flex items-center px-4 font-semibold text-xs text-muted-foreground uppercase tracking-wider sticky left-0 z-40 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                  Proyectos ({processedProjects.length})
                 </div>
                 <div className="flex">
                   {monthHeaders.map(month => (
                     <div
                       key={month.key}
-                      className="border-r h-full flex items-center justify-center font-bold text-xs text-muted-foreground/80 px-2"
+                      className="border-r h-full flex items-center justify-center text-xs font-semibold text-foreground/80 capitalize"
                       style={{ width: `${month.width}px` }}
                     >
                       {month.label}
@@ -498,14 +493,15 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                           return (
                             <div
                               key={phase.id}
-                              className="absolute rounded border px-2 flex items-center justify-between group cursor-pointer transition-all hover:scale-[1.01] hover:brightness-105 overflow-hidden shadow-sm"
+                              className="absolute rounded border px-2 flex items-center justify-between group cursor-pointer hover:scale-[1.01] hover:brightness-105 overflow-hidden shadow-sm"
                               style={{
                                 left: `${left}px`,
                                 width: `${Math.max(25, width)}px`,
                                 height: '32px',
                                 top: '12px',
                                 backgroundColor: color.bg,
-                                borderColor: color.border
+                                borderColor: color.border,
+                                transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
                               }}
                               onClick={() => onOpenProject(project)}
                             >
@@ -549,10 +545,11 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                           return (
                             <div
                               key={ms.id}
-                              className="absolute w-4 h-4 bg-autumn-critical border-2 border-popover rotate-45 flex items-center justify-center cursor-pointer group z-20 hover:scale-125 transition-transform"
+                              className="absolute w-4 h-4 bg-autumn-critical border-2 border-popover rotate-45 flex items-center justify-center cursor-pointer group z-10 hover:scale-125"
                               style={{
                                 left: `${left - 8}px`, // Center the diamond
                                 top: '20px',
+                                transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease',
                               }}
                               onClick={() => onOpenProject(project)}
                             >
@@ -611,7 +608,7 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                             </div>
 
                             {/* Floating subphase segments (level 2 tasks) */}
-                            {subPhases.map((sub, idx) => {
+                            {subPhases.map((sub, _idx) => {
                               const left = differenceInDays(new Date(sub.startDate), timelineStart) * dayWidth
                               const width = (differenceInDays(new Date(sub.endDate), new Date(sub.startDate)) + 1) * dayWidth
                               const color = PHASE_COLORS[phase.colorIndex % PHASE_COLORS.length]
@@ -623,7 +620,7 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                               return (
                                 <div
                                   key={sub.id}
-                                  className="absolute rounded border px-2 flex items-center justify-between group cursor-pointer transition-all hover:scale-[1.01] hover:brightness-105 overflow-hidden shadow-xs"
+                                  className="absolute rounded border px-2 flex items-center justify-between group cursor-pointer hover:scale-[1.01] hover:brightness-105 overflow-hidden shadow-xs"
                                   style={{
                                     left: `${left}px`,
                                     width: `${Math.max(25, width)}px`,
@@ -631,7 +628,8 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                                     top: '14px',
                                     backgroundColor: color.bg,
                                     borderColor: color.border,
-                                    opacity: 0.85
+                                    opacity: 0.85,
+                                    transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
                                   }}
                                   onClick={() => onOpenProject(project)}
                                 >
@@ -645,7 +643,7 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                                   />
 
                                   <span
-                                    className="text-[10px] font-medium truncate select-none z-10 w-full text-center"
+                                    className="text-[11px] font-semibold truncate select-none z-10 w-full text-center"
                                     style={{ color: color.text }}
                                   >
                                     {sub.name}
@@ -662,7 +660,7 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                                     </div>
                                   </div>
                                 </div>
-                              );
+                              )
                             })}
                           </div>
                         </div>
@@ -674,7 +672,7 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
             </div>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }

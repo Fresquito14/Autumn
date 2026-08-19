@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { useMilestones } from '@/hooks/useMilestones'
 import { useTasks } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProject'
-import type { Milestone, Task } from '@/types'
+import type { Milestone } from '@/types'
 import { addBusinessDays } from '@/lib/calculations/dates'
 
 interface MilestoneFormData {
@@ -169,7 +169,7 @@ export function MilestoneFormDialog({
               </Label>
               <select
                 id="linkedTaskId"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-10 w-full rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 {...register('linkedTaskId')}
               >
                 <option value="">Sin vincular</option>
@@ -211,7 +211,7 @@ export function MilestoneFormDialog({
               <Input
                 id="date"
                 type="date"
-                disabled={linkedTaskId && linkedTaskId !== ''}
+                disabled={Boolean(linkedTaskId && linkedTaskId !== '')}
                 {...register('date', { required: 'La fecha es obligatoria' })}
               />
               {errors.date && (

@@ -3,6 +3,8 @@ import { devtools } from 'zustand/middleware'
 import type { Task, Dependency } from '@/types'
 import { dbHelpers } from '@/lib/storage/db'
 import { recalculateTaskDates, calculateBusinessDays } from '@/lib/calculations/dates'
+import { recalculateLinkedMilestones } from '@/lib/calculations/milestones'
+import { supabase } from '@/lib/supabase/client'
 
 interface TaskState {
   tasks: Task[]
@@ -30,7 +32,6 @@ export const useTasks = create<TaskState>()(
         set({ isLoading: true, error: null })
         try {
           const tasks = await dbHelpers.getProjectTasks(projectId)
-          // Sort by WBS code for hierarchical display
           tasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
           set({ tasks, isLoading: false })
         } catch (error) {
@@ -43,7 +44,7 @@ export const useTasks = create<TaskState>()(
       },
 
       createTask: async (taskData) => {
-        set({ isLoading: true, error: null })
+        set({ error: null })
         try {
           const now = new Date()
           const task: Task = {
@@ -59,45 +60,73 @@ export const useTasks = create<TaskState>()(
 
           const tasks = await dbHelpers.getProjectTasks(task.projectId)
           tasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
-          set({ tasks, isLoading: false })
+          set({ tasks })
 
           return task
         } catch (error) {
-          set({ error: (error as Error).message, isLoading: false })
+          set({ error: (error as Error).message })
           throw error
         }
       },
 
       updateTask: async (id, changes) => {
-        set({ isLoading: true, error: null })
+        set({ error: null })
         try {
-          // First, update the task itself
+          // 1. Update the task in IndexedDB
           await dbHelpers.updateTask(id, changes)
 
-          const task = get().tasks.find(t => t.id === id)
-          if (!task) {
-            set({ isLoading: false })
-            return
+          const currentTasks = get().tasks
+          const targetTask = currentTasks.find(t => t.id === id)
+          if (!targetTask) return
+
+          const projectId = targetTask.projectId
+          let allTasks = await dbHelpers.getProjectTasks(projectId)
+          const workingDays = [1, 2, 3, 4, 5]
+
+          // 2. If dates or duration changed, recalculate downstream dependencies immediately
+          const isDateOrDurationChange =
+            changes.startDate !== undefined ||
+            changes.endDate !== undefined ||
+            changes.duration !== undefined
+
+          if (isDateOrDurationChange) {
+            const projectDeps = await dbHelpers.getProjectDependencies(projectId)
+            if (projectDeps.length > 0) {
+              const recalculated = recalculateTaskDates(allTasks, projectDeps, workingDays)
+              
+              // Persist any shifted downstream tasks to IndexedDB
+              const downstreamUpdates: Promise<unknown>[] = []
+              recalculated.forEach(recTask => {
+                const orig = allTasks.find(t => t.id === recTask.id)
+                if (!orig) return
+
+                const startShift = orig.startDate.getTime() !== recTask.startDate.getTime()
+                const endShift = orig.endDate.getTime() !== recTask.endDate.getTime()
+
+                if (startShift || endShift) {
+                  downstreamUpdates.push(
+                    dbHelpers.updateTask(recTask.id, {
+                      startDate: recTask.startDate,
+                      endDate: recTask.endDate,
+                    })
+                  )
+                }
+              })
+
+              if (downstreamUpdates.length > 0) {
+                await Promise.all(downstreamUpdates)
+              }
+              allTasks = recalculated
+            }
           }
 
-          // If this task has a parent, immediately update the parent's dates
-          // to encompass all children BEFORE auto-recalculate triggers
-          if (task.parentId) {
-            // Get all current tasks from DB to have the latest data
-            let allTasks = await dbHelpers.getProjectTasks(task.projectId)
-
-            // Get working days from project config (default Monday-Friday)
-            // TODO: Get actual working days from project config
-            const workingDays = [1, 2, 3, 4, 5]
-
-            // Recursively update parent hierarchy (bottom-up)
-            let currentParentId: string | null = task.parentId
+          // 3. If task has a parent, recursively update parent dates bottom-up
+          if (targetTask.parentId) {
+            let currentParentId: string | null = targetTask.parentId
             while (currentParentId) {
-              // Find all children of the current parent
               const children = allTasks.filter(t => t.parentId === currentParentId)
 
               if (children.length > 0) {
-                // Calculate parent's new dates based on all its children
                 const childStartDates = children.map(t => new Date(t.startDate))
                 const childEndDates = children.map(t => new Date(t.endDate))
 
@@ -105,27 +134,41 @@ export const useTasks = create<TaskState>()(
                 const maxEndDate = new Date(Math.max(...childEndDates.map(d => d.getTime())))
                 const newDuration = calculateBusinessDays(minStartDate, maxEndDate, workingDays)
 
-                // Update parent task
+                // Actual dates rollup from children
+                const childrenWithActual = children.filter(t => t.actualStartDate && t.actualEndDate)
+                let parentActualStart: Date | undefined = undefined
+                let parentActualEnd: Date | undefined = undefined
+                let parentActualDuration: number | undefined = undefined
+
+                if (childrenWithActual.length > 0) {
+                  const childActualStarts = childrenWithActual.map(t => new Date(t.actualStartDate!))
+                  const childActualEnds = childrenWithActual.map(t => new Date(t.actualEndDate!))
+                  parentActualStart = new Date(Math.min(...childActualStarts.map(d => d.getTime())))
+                  parentActualEnd = new Date(Math.max(...childActualEnds.map(d => d.getTime())))
+                  parentActualDuration = calculateBusinessDays(parentActualStart, parentActualEnd, workingDays)
+                }
+
                 await dbHelpers.updateTask(currentParentId, {
                   startDate: minStartDate,
                   endDate: maxEndDate,
-                  duration: newDuration
+                  duration: newDuration,
+                  actualStartDate: parentActualStart,
+                  actualEndDate: parentActualEnd,
+                  actualDuration: parentActualDuration,
                 })
 
-                console.log(`📦 Parent task ${currentParentId} updated: ${minStartDate.toLocaleDateString()} - ${maxEndDate.toLocaleDateString()} (${newDuration} days)`)
-
-                // Update the task in our local array for next iteration
                 const parentIndex = allTasks.findIndex(t => t.id === currentParentId)
                 if (parentIndex !== -1) {
                   allTasks[parentIndex] = {
                     ...allTasks[parentIndex],
                     startDate: minStartDate,
                     endDate: maxEndDate,
-                    duration: newDuration
+                    duration: newDuration,
+                    actualStartDate: parentActualStart,
+                    actualEndDate: parentActualEnd,
+                    actualDuration: parentActualDuration,
                   }
-
-                  // Move up to the next level (parent's parent)
-                  currentParentId = allTasks[parentIndex].parentId
+                  currentParentId = allTasks[parentIndex].parentId || null
                 } else {
                   break
                 }
@@ -135,31 +178,40 @@ export const useTasks = create<TaskState>()(
             }
           }
 
-          // Reload all tasks with updated data
-          const tasks = await dbHelpers.getProjectTasks(task.projectId)
-          tasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
-          set({ tasks, isLoading: false })
+          // 4. Update Zustand state atomically in one single pass
+          allTasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
+          set({ tasks: allTasks })
+
+          // 5. Automatically recalculate linked milestones
+          if (isDateOrDurationChange) {
+            await recalculateLinkedMilestones(projectId, allTasks, workingDays)
+          }
         } catch (error) {
-          set({ error: (error as Error).message, isLoading: false })
+          set({ error: (error as Error).message })
         }
       },
 
       deleteTask: async (id) => {
-        set({ isLoading: true, error: null })
+        set({ error: null })
         try {
           const task = get().tasks.find(t => t.id === id)
-          if (!task) {
-            set({ isLoading: false })
-            return
-          }
+          if (!task) return
 
           await dbHelpers.deleteTask(id)
 
+          try {
+            await supabase.from('tasks').delete().eq('id', id)
+          } catch (cloudErr) {
+            console.warn('Cloud delete task skipped:', cloudErr)
+          }
+
           const tasks = await dbHelpers.getProjectTasks(task.projectId)
           tasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
-          set({ tasks, isLoading: false })
+          set({ tasks })
+
+          await recalculateLinkedMilestones(task.projectId, tasks)
         } catch (error) {
-          set({ error: (error as Error).message, isLoading: false })
+          set({ error: (error as Error).message })
         }
       },
 
@@ -171,13 +223,10 @@ export const useTasks = create<TaskState>()(
         const tasks = get().tasks
         if (tasks.length === 0) return
 
-        console.log('🔄 Recalculando fechas desde store de tareas...')
-
-        // Recalculate task dates
+        // Recalculate task dates using Kahn's topological sort
         const updatedTasks = recalculateTaskDates(tasks, dependencies, workingDays)
 
-        // Update tasks in database that have changed dates
-        const updates: Promise<void>[] = []
+        const updates: Promise<unknown>[] = []
 
         updatedTasks.forEach(updatedTask => {
           const originalTask = tasks.find(t => t.id === updatedTask.id)
@@ -186,13 +235,9 @@ export const useTasks = create<TaskState>()(
           const startChanged = originalTask.startDate.getTime() !== updatedTask.startDate.getTime()
           const endChanged = originalTask.endDate.getTime() !== updatedTask.endDate.getTime()
           const durationChanged = originalTask.duration !== updatedTask.duration
-
-          // Check if this task has children (is a parent task)
           const hasChildren = tasks.some(t => t.parentId === updatedTask.id)
 
           if (startChanged || endChanged || (durationChanged && hasChildren)) {
-            // Only update duration if task is a parent
-            // Leaf tasks keep their user-defined duration
             const updateData: { startDate: Date; endDate: Date; duration?: number } = {
               startDate: updatedTask.startDate,
               endDate: updatedTask.endDate,
@@ -207,16 +252,12 @@ export const useTasks = create<TaskState>()(
         })
 
         if (updates.length > 0) {
-          console.log(`📅 Actualizando ${updates.length} tareas en DB...`)
           await Promise.all(updates)
 
-          // Update local state with new tasks
           updatedTasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
           set({ tasks: updatedTasks })
 
-          console.log('✅ Fechas recalculadas y guardadas')
-        } else {
-          console.log('ℹ️  No hay cambios de fechas')
+          await recalculateLinkedMilestones(tasks[0].projectId, updatedTasks, workingDays)
         }
       },
     }),

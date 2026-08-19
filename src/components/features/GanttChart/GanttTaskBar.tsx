@@ -1,4 +1,4 @@
-import { format, addDays } from 'date-fns'
+import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Zap } from 'lucide-react'
 import type { Task } from '@/types'
@@ -7,9 +7,11 @@ import { useCriticalPath } from '@/hooks/useCriticalPath'
 import { useViewMode } from '@/hooks/useViewMode'
 import { useTasks } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProject'
+import { useAuth } from '@/hooks/useAuth'
 import { useDependencies } from '@/hooks/useDependencies'
 import { calculateTaskProgress } from '@/lib/utils/progress'
 import { addBusinessDays } from '@/lib/calculations/dates'
+import { TaskFormDialog } from '../WBS/TaskFormDialog'
 import { useRef, useState } from 'react'
 
 interface GanttTaskBarProps {
@@ -35,9 +37,14 @@ export function GanttTaskBar({
   const { viewMode } = useViewMode()
   const { tasks, updateTask } = useTasks()
   const { currentProject } = useProject()
+  const { user } = useAuth()
   const { dependencies, updateDependency } = useDependencies()
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+
   const isCritical = isTaskCritical(task.id)
   const taskCPM = getTaskCPM(task.id)
+
+  const isReadOnly = Boolean(user && currentProject?.userId && currentProject.userId !== user.id)
 
   const barHeight = rowHeight * 0.6
   const barTop = (rowHeight - barHeight) / 2
@@ -73,7 +80,7 @@ export function GanttTaskBar({
   const pointerStartRef = useRef<{ clientX: number; originalStartDate: Date; originalDuration: number } | null>(null)
 
   const handleDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (viewMode !== 'plan' || !isLeafTask) return
+    if (viewMode !== 'plan' || !isLeafTask || isReadOnly) return
     if ((e.target as HTMLElement).closest('.resize-handle')) return
 
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -105,35 +112,28 @@ export function GanttTaskBar({
 
     if (finalOffset !== 0) {
       if (hasPredecessors) {
-        // If it has predecessors, shift the lag of those dependencies instead of updating start date directly
         for (const dep of predecessors) {
           const currentLag = dep.lag || 0
           const newLag = Math.max(0, currentLag + finalOffset)
           await updateDependency(dep.id, { lag: newLag })
         }
       } else {
-        // If no predecessors, update task startDate directly
         const originalStart = pointerStartRef.current.originalStartDate
-        const duration = pointerStartRef.current.originalDuration
+        let newStart = addBusinessDays(originalStart, finalOffset, workingDays)
+        const newEnd = addBusinessDays(newStart, task.duration - 1, workingDays)
 
-        const newStartDate = addDays(originalStart, finalOffset)
-        const newEndDate = addBusinessDays(newStartDate, duration - 1, workingDays)
-
-        try {
-          await updateTask(task.id, {
-            startDate: newStartDate,
-            endDate: newEndDate
-          })
-        } catch (err) {
-          console.error('Error updating task date on drag:', err)
-        }
+        await updateTask(task.id, {
+          startDate: newStart,
+          endDate: newEnd,
+        })
       }
     }
     pointerStartRef.current = null
   }
 
+  // Handle right resize (Duration increase/decrease)
   const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (viewMode !== 'plan' || !isLeafTask) return
+    if (viewMode !== 'plan' || !isLeafTask || isReadOnly) return
 
     e.currentTarget.setPointerCapture(e.pointerId)
     pointerStartRef.current = {
@@ -143,7 +143,6 @@ export function GanttTaskBar({
     }
     setIsResizing(true)
     e.stopPropagation()
-    e.preventDefault()
   }
 
   const handleResizeMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -151,14 +150,8 @@ export function GanttTaskBar({
 
     const deltaX = e.clientX - pointerStartRef.current.clientX
     const deltaDays = Math.round(deltaX / dayWidth)
-    
-    const originalDuration = pointerStartRef.current.originalDuration
-    const potentialNewDuration = originalDuration + deltaDays
-    if (potentialNewDuration < 1) {
-      setResizeDeltaDays(1 - originalDuration)
-    } else {
-      setResizeDeltaDays(deltaDays)
-    }
+    const minDelta = -(pointerStartRef.current.originalDuration - 1)
+    setResizeDeltaDays(Math.max(minDelta, deltaDays))
   }
 
   const handleResizeEnd = async (e: React.PointerEvent<HTMLDivElement>) => {
@@ -171,25 +164,22 @@ export function GanttTaskBar({
     setResizeDeltaDays(0)
 
     if (finalDelta !== 0) {
-      const originalStart = pointerStartRef.current.originalStartDate
       const originalDuration = pointerStartRef.current.originalDuration
       const newDuration = Math.max(1, originalDuration + finalDelta)
-      const newEndDate = addBusinessDays(originalStart, newDuration - 1, workingDays)
+      const startDate = new Date(task.startDate)
+      const newEnd = addBusinessDays(startDate, newDuration - 1, workingDays)
 
-      try {
-        await updateTask(task.id, {
-          duration: newDuration,
-          endDate: newEndDate
-        })
-      } catch (err) {
-        console.error('Error updating task duration on resize:', err)
-      }
+      await updateTask(task.id, {
+        duration: newDuration,
+        endDate: newEnd,
+      })
     }
     pointerStartRef.current = null
   }
 
+  // Handle left resize (Start date shift)
   const handleResizeLeftStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (viewMode !== 'plan' || !isLeafTask) return
+    if (viewMode !== 'plan' || !isLeafTask || isReadOnly || hasPredecessors) return
 
     e.currentTarget.setPointerCapture(e.pointerId)
     pointerStartRef.current = {
@@ -199,7 +189,6 @@ export function GanttTaskBar({
     }
     setIsResizingLeft(true)
     e.stopPropagation()
-    e.preventDefault()
   }
 
   const handleResizeLeftMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -207,14 +196,8 @@ export function GanttTaskBar({
 
     const deltaX = e.clientX - pointerStartRef.current.clientX
     const deltaDays = Math.round(deltaX / dayWidth)
-    
-    const originalDuration = pointerStartRef.current.originalDuration
-    const potentialNewDuration = originalDuration - deltaDays
-    if (potentialNewDuration < 1) {
-      setResizeLeftDeltaDays(originalDuration - 1)
-    } else {
-      setResizeLeftDeltaDays(deltaDays)
-    }
+    const maxDelta = pointerStartRef.current.originalDuration - 1
+    setResizeLeftDeltaDays(Math.min(maxDelta, deltaDays))
   }
 
   const handleResizeLeftEnd = async (e: React.PointerEvent<HTMLDivElement>) => {
@@ -229,58 +212,40 @@ export function GanttTaskBar({
     if (finalDelta !== 0) {
       const originalStart = pointerStartRef.current.originalStartDate
       const originalDuration = pointerStartRef.current.originalDuration
+      const newStart = addBusinessDays(originalStart, finalDelta, workingDays)
       const newDuration = Math.max(1, originalDuration - finalDelta)
 
-      try {
-        if (hasPredecessors) {
-          // If task has predecessors, only the duration varies, start date remains anchored (no change to lag)
-          const newEndDate = addBusinessDays(task.startDate, newDuration - 1, workingDays)
-          await updateTask(task.id, {
-            duration: newDuration,
-            endDate: newEndDate
-          })
-        } else {
-          // If no predecessors, shift the start date and reduce/increase duration so the end date remains unchanged
-          const newStartDate = addDays(originalStart, finalDelta)
-          await updateTask(task.id, {
-            startDate: newStartDate,
-            duration: newDuration
-          })
-        }
-      } catch (err) {
-        console.error('Error updating task dates on left resize:', err)
-      }
+      await updateTask(task.id, {
+        startDate: newStart,
+        duration: newDuration,
+      })
     }
     pointerStartRef.current = null
   }
 
-  const currentLeft = plannedLeft + (dragOffsetDays * dayWidth) + (isResizingLeft && !hasPredecessors ? resizeLeftDeltaDays * dayWidth : 0)
-  const currentWidth = Math.max(20, plannedWidth + (resizeDeltaDays * dayWidth) - (isResizingLeft ? resizeLeftDeltaDays * dayWidth : 0))
+  // Compute live visual coordinates with drag / resize deltas
+  const effectiveDragOffset = isDragging ? dragOffsetDays : 0
+  const effectiveResizeDelta = isResizing ? resizeDeltaDays : 0
+  const effectiveResizeLeftDelta = isResizingLeft ? resizeLeftDeltaDays : 0
 
-  // Real-time preview dates for the tooltip
-  const previewStart = isDragging
-    ? addDays(new Date(task.startDate), dragOffsetDays)
-    : isResizingLeft && !hasPredecessors
-    ? addDays(new Date(task.startDate), resizeLeftDeltaDays)
-    : new Date(task.startDate)
+  const currentLeft = plannedLeft + (effectiveDragOffset * dayWidth) + (effectiveResizeLeftDelta * dayWidth)
+  const currentWidth = Math.max(dayWidth, plannedWidth + (effectiveResizeDelta * dayWidth) - (effectiveResizeLeftDelta * dayWidth))
 
-  const previewDuration = isResizing
-    ? Math.max(1, task.duration + resizeDeltaDays)
-    : isResizingLeft
-    ? Math.max(1, task.duration - resizeLeftDeltaDays)
-    : task.duration
-
-  const previewEnd = isDragging || isResizing || isResizingLeft
-    ? addBusinessDays(previewStart, previewDuration - 1, workingDays)
-    : new Date(task.endDate)
+  const previewDuration = Math.max(1, task.duration + effectiveResizeDelta - effectiveResizeLeftDelta)
+  const previewStart = addBusinessDays(new Date(task.startDate), effectiveDragOffset + effectiveResizeLeftDelta, workingDays)
+  const previewEnd = addBusinessDays(previewStart, previewDuration - 1, workingDays)
 
   return (
     <>
-      {/* Planned Task Bar - always positioned at planned location */}
+      {/* Planned Task Bar */}
       <div
         className={cn(
-          "absolute group z-10 select-none",
-          viewMode === 'plan' && isLeafTask ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+          'absolute group z-10',
+          viewMode === 'plan' && isLeafTask && !isReadOnly
+            ? 'cursor-grab active:cursor-grabbing'
+            : isReadOnly
+            ? 'cursor-default'
+            : 'cursor-pointer'
         )}
         style={{
           left: `${currentLeft}px`,
@@ -288,16 +253,23 @@ export function GanttTaskBar({
           minWidth: '20px',
           top: `${barTop}px`,
           height: `${barHeight}px`,
+          transition: isDragging || isResizing || isResizingLeft ? 'none' : 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         onPointerDown={handleDragStart}
         onPointerMove={handleDragMove}
         onPointerUp={handleDragEnd}
+        onDoubleClick={(e) => {
+          e.stopPropagation()
+          if (!isReadOnly) {
+            setIsEditDialogOpen(true)
+          }
+        }}
+        title="Doble clic para editar detalles"
       >
         <div
           className={cn(
             'h-full rounded-md shadow-sm transition-all flex relative overflow-hidden',
             viewMode === 'actual' && 'opacity-40',
-            // Border color: green if 100% complete, critical if incomplete and critical, otherwise default
             progress === 100
               ? 'border-2 border-autumn-progress/20'
               : isCritical
@@ -321,8 +293,8 @@ export function GanttTaskBar({
               {/* Task Name in completed portion - only if wide enough and in plan mode */}
               {viewMode === 'plan' && (currentWidth * progress / 100) > 100 && (
                 <div className="px-2 flex items-center gap-1 w-full">
-                  {isCritical && progress < 100 && <Zap className="h-3 w-3" style={{ fill: 'white', color: 'white' }} />}
-                  <span className="text-xs font-medium truncate" style={{ color: 'white' }}>
+                  {isCritical && progress < 100 && <Zap className="h-3 w-3 fill-white text-white" />}
+                  <span className="text-xs font-medium truncate text-white">
                     {task.name}
                   </span>
                 </div>
@@ -345,8 +317,8 @@ export function GanttTaskBar({
               {/* Task Name in remaining portion - only if completed portion is too small or progress is 0 */}
               {viewMode === 'plan' && currentWidth > 100 && (progress === 0 || (currentWidth * progress / 100) <= 100) && (
                 <div className="px-2 flex items-center gap-1 w-full">
-                  {isCritical && <Zap className="h-3 w-3" style={{ fill: 'white', color: 'white' }} />}
-                  <span className="text-xs font-medium truncate" style={{ color: 'white' }}>
+                  {isCritical && <Zap className="h-3 w-3 fill-white text-white" />}
+                  <span className="text-xs font-medium truncate text-white">
                     {task.name}
                   </span>
                 </div>
@@ -354,8 +326,8 @@ export function GanttTaskBar({
             </div>
           )}
 
-          {/* Left Resize handle (only for leaf tasks in plan view) */}
-          {viewMode === 'plan' && isLeafTask && (
+          {/* Left Resize handle (only for leaf tasks in plan view when not readOnly) */}
+          {viewMode === 'plan' && isLeafTask && !isReadOnly && (
             <div
               className="resize-handle absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 active:bg-white/50 rounded-l-md transition-colors z-20 animate-pulse"
               onPointerDown={handleResizeLeftStart}
@@ -364,8 +336,8 @@ export function GanttTaskBar({
             />
           )}
 
-          {/* Right Resize handle (only for leaf tasks in plan view) */}
-          {viewMode === 'plan' && isLeafTask && (
+          {/* Right Resize handle (only for leaf tasks in plan view when not readOnly) */}
+          {viewMode === 'plan' && isLeafTask && !isReadOnly && (
             <div
               className="resize-handle absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 active:bg-white/50 rounded-r-md transition-colors z-20 animate-pulse"
               onPointerDown={handleResizeStart}
@@ -428,12 +400,12 @@ export function GanttTaskBar({
             minWidth: '20px',
             top: `${barTop}px`,
             height: `${barHeight}px`,
+            transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
           <div
             className={cn(
               'h-full rounded-md shadow-sm transition-all flex',
-              // Border color: green if 100% complete, critical if incomplete and critical, otherwise default
               progress === 100
                 ? 'border-2 border-autumn-progress/20'
                 : isCritical
@@ -448,102 +420,20 @@ export function GanttTaskBar({
                 style={{
                   width: `${progress}%`,
                   backgroundColor: 'hsl(153 98% 10%)',
-                  borderTopLeftRadius: '0.375rem',
-                  borderBottomLeftRadius: '0.375rem',
-                  borderTopRightRadius: progress === 100 ? '0.375rem' : '0',
-                  borderBottomRightRadius: progress === 100 ? '0.375rem' : '0'
+                  borderRadius: '0.375rem'
                 }}
-              >
-                {/* Task Name in completed portion - only if wide enough */}
-                {(actualWidth * progress / 100) > 100 && (
-                  <div className="px-2 flex items-center gap-1 w-full">
-                    {isCritical && progress < 100 && <Zap className="h-3 w-3" style={{ fill: 'white', color: 'white' }} />}
-                    <span className="text-xs font-medium truncate" style={{ color: 'white' }}>
-                      {task.name}
-                    </span>
-                  </div>
-                )}
-              </div>
+              />
             )}
-
-            {/* Remaining portion - only show if not 100% complete */}
-            {progress < 100 && (
-              <div
-                className="h-full transition-colors flex items-center flex-grow"
-                style={{
-                  backgroundColor: isCritical ? 'hsl(9 55% 14%)' : 'hsl(38 92% 50%)',
-                  borderTopLeftRadius: progress === 0 ? '0.375rem' : '0',
-                  borderBottomLeftRadius: progress === 0 ? '0.375rem' : '0',
-                  borderTopRightRadius: '0.375rem',
-                  borderBottomRightRadius: '0.375rem'
-                }}
-              >
-                {/* Task Name in remaining portion - only if completed portion is too small or progress is 0 */}
-                {actualWidth > 100 && (progress === 0 || (actualWidth * progress / 100) <= 100) && (
-                  <div className="px-2 flex items-center gap-1 w-full">
-                    {isCritical && <Zap className="h-3 w-3" style={{ fill: 'white', color: 'white' }} />}
-                    <span className="text-xs font-medium truncate" style={{ color: 'white' }}>
-                      {task.name}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Tooltip - only on actual bar */}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-            <div className="bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-lg border text-sm whitespace-nowrap">
-              <div className="font-semibold flex items-center gap-1">
-                {isCritical && progress < 100 && <Zap className="h-3 w-3 text-autumn-critical fill-autumn-critical" />}
-                {task.wbsCode} - {task.name}
-                {isCritical && progress < 100 && <span className="text-autumn-critical ml-1">(CRÍTICO)</span>}
-              </div>
-              {task.actualStartDate && task.actualEndDate ? (
-                <>
-                  <div className="text-muted-foreground text-xs mt-1">
-                    <span className="font-medium">Real: </span>
-                    {format(task.actualStartDate, 'dd MMM', { locale: es })} - {format(task.actualEndDate, 'dd MMM yyyy', { locale: es })}
-                  </div>
-                  {task.actualDuration !== undefined && (
-                    <div className="text-muted-foreground text-xs">
-                      Duración: {task.actualDuration} {task.actualDuration === 1 ? 'día' : 'días'}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="text-muted-foreground text-xs mt-1">
-                    <span className="font-medium">Planificado: </span>
-                    {format(task.startDate, 'dd MMM', { locale: es })} - {format(task.endDate, 'dd MMM yyyy', { locale: es })}
-                  </div>
-                  <div className="text-muted-foreground text-xs">
-                    Duración: {task.duration} {task.duration === 1 ? 'día' : 'días'}
-                  </div>
-                </>
-              )}
-              {progress > 0 && (
-                <div className="text-autumn-progress text-xs font-medium">
-                  Progreso: {progress}%
-                </div>
-              )}
-              {hasActualDuration && task.actualDuration !== undefined && task.actualDuration !== task.duration && (
-                <div className={cn(
-                  "text-xs font-medium",
-                  task.actualDuration > task.duration ? "text-autumn-critical" : "text-autumn-progress"
-                )}>
-                  Variación: {task.actualDuration > task.duration ? '+' : ''}{task.actualDuration - task.duration} {Math.abs(task.actualDuration - task.duration) === 1 ? 'día' : 'días'}
-                </div>
-              )}
-              {taskCPM && (
-                <div className="text-muted-foreground text-xs">
-                  Holgura: {taskCPM.totalFloat} {taskCPM.totalFloat === 1 ? 'día' : 'días'}
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}
+
+      {/* Double-click edit modal directly from Gantt bar */}
+      <TaskFormDialog
+        task={task}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+      />
     </>
   )
 }

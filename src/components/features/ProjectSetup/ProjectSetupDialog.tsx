@@ -10,13 +10,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useProject } from '@/hooks/useProject'
+import { useAuth } from '@/hooks/useAuth'
 import { useGlobalHolidays } from '@/hooks/useGlobalHolidays'
+import { PremiumPricingModal } from '../Premium/PremiumPricingModal'
+import { toast } from 'sonner'
 import type { ProjectConfig, Holiday } from '@/types'
 
 interface ProjectFormData {
@@ -29,7 +31,9 @@ interface ProjectFormData {
 
 export function ProjectSetupDialog() {
   const [open, setOpen] = useState(false)
-  const { createProject } = useProject()
+  const [isPricingOpen, setIsPricingOpen] = useState(false)
+  const { projects, createProject } = useProject()
+  const { user } = useAuth()
   const { holidays: globalHolidays, loadAllHolidays } = useGlobalHolidays()
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ProjectFormData>({
     defaultValues: {
@@ -123,15 +127,27 @@ export function ProjectSetupDialog() {
     }
   }
 
+  const handleOpenAttempt = () => {
+    if (!user && projects.length >= 3) {
+      toast.warning('Límite alcanzado en la versión gratuita', {
+        description: 'Has alcanzado el límite de 3 proyectos en modo local. Pásate a Premium para crear proyectos ilimitados y sincronizar en la nube.',
+        duration: 5000,
+      })
+      setIsPricingOpen(true)
+      return
+    }
+    setOpen(true)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nuevo Proyecto
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+    <>
+      <Button onClick={handleOpenAttempt} className="gap-2">
+        <Plus className="h-4 w-4" />
+        Nuevo Proyecto
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -422,5 +438,7 @@ export function ProjectSetupDialog() {
         </form>
       </DialogContent>
     </Dialog>
+    <PremiumPricingModal open={isPricingOpen} onOpenChange={setIsPricingOpen} />
+  </>
   )
 }

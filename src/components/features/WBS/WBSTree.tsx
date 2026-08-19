@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { List, ChevronsDown, ChevronsUp } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { LevelFilter } from './LevelFilter'
 import { useTasks } from '@/hooks/useTasks'
 import { useLevelFilter } from '@/hooks/useLevelFilter'
 import { useProject } from '@/hooks/useProject'
+import { useAuth } from '@/hooks/useAuth'
 import { useResources } from '@/hooks/useResources'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import type { Task } from '@/types'
@@ -15,10 +16,14 @@ import type { Task } from '@/types'
 export function WBSTree() {
   const { tasks, loadTasks, isLoading } = useTasks()
   const { currentProject } = useProject()
+  const { user } = useAuth()
   const { maxDisplayLevel, setMaxDisplayLevel } = useLevelFilter()
   const { loadAllResources } = useResources()
   const { loadAllAssignments } = useResourceAssignments()
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set())
+  const hasInitializedExpansionRef = useRef<string | null>(null)
+
+  const isReadOnly = Boolean(user && currentProject?.userId && currentProject.userId !== user.id)
 
   useEffect(() => {
     if (currentProject) {
@@ -26,7 +31,17 @@ export function WBSTree() {
       loadAllResources()
       loadAllAssignments()
     }
-  }, [currentProject, loadTasks, loadAllResources, loadAllAssignments])
+  }, [currentProject?.id, loadTasks, loadAllResources, loadAllAssignments])
+
+  // Auto-expand all parent tasks ONCE when entering a project
+  useEffect(() => {
+    if (currentProject && tasks.length > 0 && hasInitializedExpansionRef.current !== currentProject.id) {
+      hasInitializedExpansionRef.current = currentProject.id
+      const parentTaskIds = tasks.filter(t => tasks.some(child => child.parentId === t.id)).map(t => t.id)
+      setExpandedTasks(new Set(parentTaskIds))
+    }
+  }, [currentProject?.id, tasks])
+
 
   const toggleExpand = (taskId: string) => {
     setExpandedTasks((prev) => {
@@ -38,10 +53,6 @@ export function WBSTree() {
       }
       return next
     })
-  }
-
-  const getChildTasks = (parentId: string | undefined): Task[] => {
-    return tasks.filter((task) => task.parentId === parentId)
   }
 
   const hasChildren = (taskId: string): boolean => {
@@ -71,8 +82,6 @@ export function WBSTree() {
     )
   }
 
-  const rootTasks = getChildTasks(undefined)
-
   // Calculate max level in tasks
   const maxLevel = Math.max(...tasks.map(t => t.level || 0), 0)
 
@@ -88,8 +97,6 @@ export function WBSTree() {
 
   const filteredRootTasks = getFilteredChildTasks(undefined)
 
-  // Get all task IDs for expand/collapse all functionality
-  const allTaskIds = tasks.map(t => t.id)
   const hasAnyExpanded = expandedTasks.size > 0
   const allTasksWithChildren = tasks.filter(t => hasChildren(t.id)).map(t => t.id)
 
@@ -150,7 +157,7 @@ export function WBSTree() {
                 )}
               </Button>
             )}
-            <TaskFormDialog />
+            {!isReadOnly && <TaskFormDialog />}
           </div>
         </div>
       </CardHeader>
@@ -158,7 +165,7 @@ export function WBSTree() {
         {filteredRootTasks.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <p className="mb-4">No hay tareas creadas</p>
-            <TaskFormDialog />
+            {!isReadOnly && <TaskFormDialog />}
           </div>
         ) : (
           <div>
@@ -168,10 +175,12 @@ export function WBSTree() {
               <div className="w-5" /> {/* Critical path indicator */}
               <div className="w-20">WBS</div>
               <div className="flex-1">Tarea</div>
+              <div className="w-32">Recursos</div>
               <div className="w-16 text-center">Duración</div>
               <div className="w-40">Fechas</div>
               <div className="w-28">Acciones</div>
             </div>
+
 
             {/* Tasks - scrollable container */}
             <div className="overflow-y-auto scrollbar-hide max-h-[40vh]">

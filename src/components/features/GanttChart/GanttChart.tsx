@@ -9,6 +9,7 @@ import { GanttDependencyLines } from './GanttDependencyLines'
 import { GanttMilestone } from './GanttMilestone'
 import { ProjectStatistics } from './ProjectStatistics'
 import { LevelFilter } from '../WBS/LevelFilter'
+import { ProjectStartDateDialog } from '../ProjectSetup/ProjectStartDateDialog'
 import { TaskDebugExport } from '../Debug/TaskDebugExport'
 import { RecalculateAllButton } from '../Debug/RecalculateAllButton'
 import { useTasks } from '@/hooks/useTasks'
@@ -66,7 +67,7 @@ export function GanttChart() {
     }
   }, []) // Run only once on mount
 
-  if (isLoading) {
+  if (isLoading && tasks.length === 0) {
     return (
       <Card>
         <CardContent className="py-8">
@@ -199,18 +200,10 @@ export function GanttChart() {
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            <div>
-              <CardTitle>Diagrama de Gantt</CardTitle>
-              <CardDescription>
-                {tasks.length} {tasks.length === 1 ? 'tarea' : 'tareas'}
-              </CardDescription>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
+      <CardHeader className="py-3 px-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ProjectStatistics />
+          <div className="flex items-center gap-3 flex-wrap">
             {/* View Mode (Plan / Real) */}
             <ToggleGroup
               type="single"
@@ -244,6 +237,8 @@ export function GanttChart() {
               </ToggleGroupItem>
             </ToggleGroup>
 
+            <ProjectStartDateDialog />
+
             <LevelFilter
               maxLevel={maxLevel}
               currentMaxLevel={maxDisplayLevel}
@@ -254,26 +249,25 @@ export function GanttChart() {
           </div>
         </div>
       </CardHeader>
-      <ProjectStatistics />
       <CardContent className="p-0">
         <div className="flex border-b">
           {/* Left panel - Task names */}
           <div className="w-64 flex-shrink-0 border-r bg-muted/30">
-            <div className="h-14 border-b flex items-center px-4 font-medium text-sm sticky top-0 bg-muted/50 z-20">
+            <div className="h-[60px] border-b flex items-center px-4 font-semibold text-xs text-muted-foreground uppercase tracking-wider sticky top-0 bg-muted/50 z-20 box-border">
               Tarea
             </div>
             <div>
               {visibleTasks.map((task) => (
                 <div
                   key={task.id}
-                  className="border-b px-4 flex items-center"
-                  style={{ height: ROW_HEIGHT }}
+                  className="border-b px-4 flex items-center box-border h-10 max-h-10 min-h-10 shrink-0 overflow-hidden"
+                  style={{ height: `${ROW_HEIGHT}px` }}
                 >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                     <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
                       {task.wbsCode}
                     </span>
-                    <span className="text-sm truncate" style={{ marginLeft: task.level * 12 }}>
+                    <span className="text-sm truncate select-none" style={{ marginLeft: task.level * 12 }} title={task.name}>
                       {task.name}
                     </span>
                   </div>
@@ -379,8 +373,8 @@ export function GanttChart() {
                   return (
                     <div
                       key={task.id}
-                      className="border-b relative"
-                      style={{ height: ROW_HEIGHT }}
+                      className="border-b relative box-border h-10 max-h-10 min-h-10 shrink-0"
+                      style={{ height: `${ROW_HEIGHT}px` }}
                     >
                       <GanttTaskBar
                         task={task}

@@ -40,10 +40,21 @@ export function useCriticalPath() {
     }))
   }, [tasks, viewMode])
 
+  // Prepare dependencies with actual lag when in actual mode
+  const adjustedDependencies = useMemo(() => {
+    if (viewMode === 'actual') {
+      return dependencies.map(dep => ({
+        ...dep,
+        lag: (dep.actualLag !== undefined && dep.actualLag !== null) ? dep.actualLag : (dep.lag || 0)
+      }))
+    }
+    return dependencies
+  }, [dependencies, viewMode])
+
   // Calculate CPM whenever tasks, dependencies, or view mode change
   const tasksWithCPM = useMemo(() => {
-    return calculateCriticalPath(adjustedTasks, dependencies)
-  }, [adjustedTasks, dependencies])
+    return calculateCriticalPath(adjustedTasks, adjustedDependencies)
+  }, [adjustedTasks, adjustedDependencies])
 
   // Get critical tasks
   const criticalTasks = useMemo(() => {
@@ -52,8 +63,8 @@ export function useCriticalPath() {
 
   // Get critical path sequence
   const criticalPathSequence = useMemo(() => {
-    return getCriticalPathSequence(tasksWithCPM, dependencies)
-  }, [tasksWithCPM, dependencies])
+    return getCriticalPathSequence(tasksWithCPM, adjustedDependencies)
+  }, [tasksWithCPM, adjustedDependencies])
 
   // Get project duration
   const projectDuration = useMemo(() => {

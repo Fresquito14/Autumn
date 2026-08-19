@@ -7,14 +7,18 @@ import { ScheduleRecalculateButton } from './ScheduleRecalculateButton'
 import { useDependencies } from '@/hooks/useDependencies'
 import { useTasks } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProject'
+import { useAuth } from '@/hooks/useAuth'
 import type { Dependency } from '@/types'
 
 export function DependencyList() {
   const { dependencies, loadDependencies, deleteDependency, isLoading } = useDependencies()
   const { tasks } = useTasks()
   const { currentProject } = useProject()
+  const { user } = useAuth()
   const [editingDependency, setEditingDependency] = useState<Dependency | undefined>(undefined)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+
+  const isReadOnly = Boolean(user && currentProject?.userId && currentProject.userId !== user.id)
 
   useEffect(() => {
     if (currentProject) {
@@ -28,12 +32,14 @@ export function DependencyList() {
   }
 
   const handleDelete = async (id: string) => {
+    if (isReadOnly) return
     if (confirm('¿Eliminar esta dependencia?')) {
       await deleteDependency(id)
     }
   }
 
   const handleDoubleClick = (dep: Dependency) => {
+    if (isReadOnly) return
     setEditingDependency(dep)
     setIsEditDialogOpen(true)
   }
@@ -43,7 +49,7 @@ export function DependencyList() {
     setEditingDependency(undefined)
   }
 
-  if (isLoading) {
+  if (isLoading && dependencies.length === 0) {
     return (
       <Card>
         <CardContent className="py-8">
@@ -65,14 +71,16 @@ export function DependencyList() {
           </div>
           <div className="flex items-center gap-2">
             <ScheduleRecalculateButton />
-            <DependencyDialog
-              dependency={editingDependency}
-              open={isEditDialogOpen}
-              onOpenChange={(open) => {
-                setIsEditDialogOpen(open)
-                if (!open) handleEditDialogClose()
-              }}
-            />
+            {!isReadOnly && (
+              <DependencyDialog
+                dependency={editingDependency}
+                open={isEditDialogOpen}
+                onOpenChange={(open) => {
+                  setIsEditDialogOpen(open)
+                  if (!open) handleEditDialogClose()
+                }}
+              />
+            )}
           </div>
         </div>
       </CardHeader>
@@ -100,7 +108,7 @@ export function DependencyList() {
                   key={dep.id}
                   className="flex items-center gap-2 p-2 border rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
                   onDoubleClick={() => handleDoubleClick(dep)}
-                  title="Doble clic para editar"
+                  title={isReadOnly ? undefined : "Doble clic para editar"}
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">
@@ -119,17 +127,19 @@ export function DependencyList() {
                     </span>
                   </div>
                   <div className="w-8 flex-shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDelete(dep.id)
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    {!isReadOnly && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(dep.id)
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

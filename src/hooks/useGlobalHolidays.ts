@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { GlobalHoliday } from '@/types'
 import { dbHelpers } from '@/lib/storage/db'
+import { supabaseSyncService } from '@/lib/supabase/db_service'
 
 interface GlobalHolidayState {
   holidays: GlobalHoliday[]
@@ -18,7 +19,7 @@ interface GlobalHolidayState {
 
 export const useGlobalHolidays = create<GlobalHolidayState>()(
   devtools(
-    (set, get) => ({
+    (set) => ({
       holidays: [],
       isLoading: false,
       error: null,
@@ -26,12 +27,21 @@ export const useGlobalHolidays = create<GlobalHolidayState>()(
       loadAllHolidays: async () => {
         set({ isLoading: true, error: null })
         try {
-          const holidays = await dbHelpers.getAllGlobalHolidays()
-          set({ holidays, isLoading: false })
+          const localHolidays = await dbHelpers.getAllGlobalHolidays()
+          set({ holidays: localHolidays, isLoading: false })
+
+          try {
+            await supabaseSyncService.fetchGlobalHolidaysFromCloud()
+            const updatedHolidays = await dbHelpers.getAllGlobalHolidays()
+            set({ holidays: updatedHolidays })
+          } catch (cloudErr) {
+            console.warn('Could not sync global holidays from Supabase:', cloudErr)
+          }
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })
         }
       },
+
 
       createHoliday: async (holidayData) => {
         set({ isLoading: true, error: null })

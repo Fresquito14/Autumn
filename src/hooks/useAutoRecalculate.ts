@@ -2,112 +2,78 @@ import { useEffect, useRef } from 'react'
 import { useTasks } from './useTasks'
 import { useDependencies } from './useDependencies'
 import { useProject } from './useProject'
-import { useViewMode } from './useViewMode'
 import { calculateActualDates } from '@/lib/calculations/dates'
-import { useSchedule } from './useSchedule'
+import { dbHelpers } from '@/lib/storage/db'
 
 /**
- * Hook that automatically recalculates task schedules when relevant data changes
- * Listens to changes in tasks, dependencies, and view mode
- * Debounces calculations to avoid excessive updates
+ * Hook that automatically recalculates task schedules when dependencies change
+ * Debounces calculations to avoid excessive updates and renders
  */
 export function useAutoRecalculate() {
-  const { tasks, updateTask } = useTasks()
   const { dependencies } = useDependencies()
   const { currentProject } = useProject()
-  const { viewMode } = useViewMode()
-  const { recalculateSchedule } = useSchedule()
+  const { recalculateDatesFromDependencies } = useTasks()
 
-  const isInitialMount = useRef(true)
   const recalculationTimeoutRef = useRef<number | null>(null)
+  const isCalculatingRef = useRef(false)
 
   useEffect(() => {
-    // Skip on initial mount to avoid unnecessary calculations
-    if (isInitialMount.current) {
-      isInitialMount.current = false
-      return
-    }
+    if (!currentProject) return
 
-    // Skip if no project or no tasks
-    if (!currentProject || tasks.length === 0) {
-      return
-    }
-
-    // Clear any pending recalculation
     if (recalculationTimeoutRef.current) {
       clearTimeout(recalculationTimeoutRef.current)
     }
 
-    // Debounce the recalculation (300ms)
     recalculationTimeoutRef.current = window.setTimeout(async () => {
-      console.log('🔄 Auto-recalculate triggered')
-      console.log('   - View mode:', viewMode)
-      console.log('   - Tasks:', tasks.length)
-      console.log('   - Dependencies:', dependencies.length)
-
+      if (isCalculatingRef.current) return
       try {
-        // Always recalculate planned dates
-        await recalculateSchedule()
-
-        // Also calculate actual dates
+        isCalculatingRef.current = true
         const workingDays = currentProject.config?.workingDays || [1, 2, 3, 4, 5]
-        const updatedTasksWithActualDates = calculateActualDates(
-          tasks,
-          dependencies,
-          workingDays
-        )
 
-        // Update tasks that have changes in actual dates
-        const tasksToUpdate: Array<{ id: string; actualStartDate?: Date; actualEndDate?: Date }> = []
+        // 1. Atomically recalculate planned dates
+        await recalculateDatesFromDependencies(dependencies, workingDays)
 
-        updatedTasksWithActualDates.forEach(updatedTask => {
-          const originalTask = tasks.find(t => t.id === updatedTask.id)
-          if (!originalTask) return
+        // 2. Atomically calculate actual dates
+        const currentTasks = useTasks.getState().tasks
+        if (currentTasks.length > 0) {
+          const updatedWithActual = calculateActualDates(currentTasks, dependencies, workingDays)
+          const actualUpdates: Promise<unknown>[] = []
 
-          const actualStartChanged =
-            updatedTask.actualStartDate?.getTime() !== originalTask.actualStartDate?.getTime()
-          const actualEndChanged =
-            updatedTask.actualEndDate?.getTime() !== originalTask.actualEndDate?.getTime()
+          updatedWithActual.forEach(updated => {
+            const original = currentTasks.find(t => t.id === updated.id)
+            if (!original) return
 
-          if (actualStartChanged || actualEndChanged) {
-            tasksToUpdate.push({
-              id: updatedTask.id,
-              actualStartDate: updatedTask.actualStartDate,
-              actualEndDate: updatedTask.actualEndDate,
-            })
+            const startChanged = updated.actualStartDate?.getTime() !== original.actualStartDate?.getTime()
+            const endChanged = updated.actualEndDate?.getTime() !== original.actualEndDate?.getTime()
+
+            if (startChanged || endChanged) {
+              actualUpdates.push(
+                dbHelpers.updateTask(updated.id, {
+                  actualStartDate: updated.actualStartDate,
+                  actualEndDate: updated.actualEndDate,
+                })
+              )
+            }
+          })
+
+          if (actualUpdates.length > 0) {
+            await Promise.all(actualUpdates)
+            useTasks.setState({ tasks: updatedWithActual })
           }
-        })
-
-        // Update actual dates in batch if needed
-        if (tasksToUpdate.length > 0) {
-          console.log('📅 Actualizando fechas reales de', tasksToUpdate.length, 'tareas')
-
-          await Promise.all(
-            tasksToUpdate.map(task =>
-              updateTask(task.id, {
-                actualStartDate: task.actualStartDate,
-                actualEndDate: task.actualEndDate,
-              })
-            )
-          )
-
-          console.log('✅ Fechas reales actualizadas')
-        } else {
-          console.log('ℹ️ No hay cambios de fechas reales necesarios')
         }
       } catch (error) {
-        console.error('❌ Error en auto-recalculate:', error)
+        console.error('Error in useAutoRecalculate:', error)
+      } finally {
+        isCalculatingRef.current = false
       }
-    }, 300) // 300ms debounce
+    }, 150)
 
-    // Cleanup timeout on unmount
     return () => {
       if (recalculationTimeoutRef.current) {
         clearTimeout(recalculationTimeoutRef.current)
       }
     }
-  }, [tasks, dependencies, viewMode, currentProject, recalculateSchedule, updateTask])
+  }, [dependencies, currentProject, recalculateDatesFromDependencies])
 
-  // Return nothing - this is a side-effect only hook
   return null
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { Plus, Edit, CheckSquare } from 'lucide-react'
+import { CheckSquare, Link2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,7 @@ interface TaskFormData {
   startDate: string
   predecessorId: string
   lag: number
+  actualLag?: number
 }
 
 interface TaskFormDialogProps {
@@ -45,7 +46,7 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
   const [internalOpen, setInternalOpen] = useState(false)
   const [checklist, setChecklist] = useState<ChecklistItem[]>(task?.checklist || [])
   const { createTask, updateTask, tasks } = useTasks()
-  const { createDependency, validateDependency } = useDependencies()
+  const { dependencies, createDependency, updateDependency } = useDependencies()
   const { currentProject } = useProject()
 
   // Use controlled state if provided, otherwise use internal state
@@ -54,6 +55,19 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
 
   const isEditing = !!task
   const isCreatingChild = !!parentTask
+  const isLeafTask = task ? !tasks.some(t => t.parentId === task.id) : !isCreatingChild
+
+  // Incoming dependencies for the task being edited
+  const incomingDependencies = isEditing && task
+    ? dependencies.filter(d => d.successorId === task.id)
+    : []
+
+  // Local state for editing incoming dependency lags
+  const [dependencyLags, setDependencyLags] = useState<Record<string, { lag: number; actualLag?: number }>>({})
+
+  const hasActual = Boolean(task?.actualDuration !== undefined && task?.actualDuration !== null)
+  const [isCompleted, setIsCompleted] = useState<boolean>(hasActual)
+  const [actualDuration, setActualDuration] = useState<number>(task?.actualDuration || task?.duration || 1)
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<TaskFormData>({
     defaultValues: {
@@ -67,10 +81,12 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
         : new Date().toISOString().split('T')[0],
       predecessorId: '',
       lag: 0,
+      actualLag: undefined,
     }
   })
 
   const predecessorId = watch('predecessorId')
+  const plannedDuration = watch('duration') || 1
 
   useEffect(() => {
     if (task) {
@@ -79,10 +95,28 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
         description: task.description || '',
         duration: task.duration,
         startDate: new Date(task.startDate).toISOString().split('T')[0],
+        predecessorId: '',
+        lag: 0,
+        actualLag: undefined,
       })
       setChecklist(task.checklist || [])
+      const hasActualData = task.actualDuration !== undefined && task.actualDuration !== null
+      setIsCompleted(hasActualData)
+      const actDur = hasActualData ? task.actualDuration! : task.duration
+      setActualDuration(actDur)
+
+      // Initialize dependency lags
+      const incoming = dependencies.filter(d => d.successorId === task.id)
+      const initialLags: Record<string, { lag: number; actualLag?: number }> = {}
+      incoming.forEach(dep => {
+        initialLags[dep.id] = {
+          lag: dep.lag || 0,
+          actualLag: dep.actualLag,
+        }
+      })
+      setDependencyLags(initialLags)
     }
-  }, [task, reset])
+  }, [task, dependencies, reset])
 
   // Checklist handlers
   const handleAddChecklistItem = (text: string) => {
@@ -110,13 +144,26 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
     ))
   }
 
-  // Check if task is a leaf task
-  const isLeafTask = task ? !tasks.some(t => t.parentId === task.id) : !isCreatingChild
+  // Predecessor date calculation for new task creation
+  useEffect(() => {
+    if (predecessorId && !isEditing) {
+      const predecessor = tasks.find((t) => t.id === predecessorId)
+      if (predecessor && currentProject) {
+        const workingDays = currentProject.config?.workingDays || [1, 2, 3, 4, 5]
+        const lagDays = watch('lag') || 0
+        const calculatedStartDate = addBusinessDays(
+          new Date(predecessor.endDate),
+          lagDays + 1,
+          workingDays
+        )
+        setValue('startDate', calculatedStartDate.toISOString().split('T')[0])
+      }
+    }
+  }, [predecessorId, watch('lag'), tasks, isEditing, currentProject, setValue, watch])
 
   const onSubmit = async (data: TaskFormData) => {
     if (!currentProject) return
 
-    // Ensure start date is a working day
     let startDate = new Date(data.startDate)
     const workingDays = currentProject.config?.workingDays || [1, 2, 3, 4, 5]
 
@@ -127,8 +174,65 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
       safetyCounter++
     }
 
-    // Calculate end date using business days
+    // Calculate planned end date using business days
     const endDate = addBusinessDays(startDate, data.duration - 1, workingDays)
+
+    // Update incoming dependencies if their lags were modified
+    if (isEditing && incomingDependencies.length > 0) {
+      for (const dep of incomingDependencies) {
+        const currentLagState = dependencyLags[dep.id]
+        if (currentLagState) {
+          if (currentLagState.lag !== dep.lag || currentLagState.actualLag !== dep.actualLag) {
+            await updateDependency(dep.id, {
+              lag: currentLagState.lag,
+              actualLag: currentLagState.actualLag,
+            })
+          }
+        }
+      }
+    }
+
+    // Determine actualStartDate based on predecessors + actualLag
+    let actualStartDate: Date | undefined = undefined
+    let actualEndDate: Date | undefined = undefined
+    let finalActualDuration: number | undefined = undefined
+
+    const relevantDeps = isEditing && task
+      ? incomingDependencies
+      : []
+
+    if (relevantDeps.length > 0) {
+      let earliestActualStart: Date | null = null
+
+      relevantDeps.forEach(dep => {
+        const pred = tasks.find(t => t.id === dep.predecessorId)
+        if (pred) {
+          const predEnd = pred.actualEndDate || pred.endDate
+          const lagToUse = dependencyLags[dep.id]?.actualLag !== undefined
+            ? dependencyLags[dep.id]?.actualLag!
+            : (dependencyLags[dep.id]?.lag ?? dep.lag ?? 0)
+
+          const predCalculatedStart = addBusinessDays(new Date(predEnd), lagToUse + 1, workingDays)
+          if (!earliestActualStart || predCalculatedStart.getTime() > earliestActualStart.getTime()) {
+            earliestActualStart = predCalculatedStart
+          }
+        }
+      })
+
+      if (earliestActualStart) {
+        actualStartDate = earliestActualStart
+      }
+    } else {
+      actualStartDate = task?.actualStartDate || startDate
+    }
+
+    if (isCompleted && isLeafTask) {
+      finalActualDuration = actualDuration
+      const start = actualStartDate || startDate
+      actualEndDate = addBusinessDays(start, finalActualDuration - 1, workingDays)
+    } else if (actualStartDate) {
+      actualEndDate = addBusinessDays(actualStartDate, data.duration - 1, workingDays)
+    }
 
     if (isEditing && task) {
       // Update existing task
@@ -139,6 +243,9 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
         startDate,
         endDate,
         checklist,
+        actualDuration: isCompleted ? finalActualDuration : undefined,
+        actualStartDate,
+        actualEndDate: isCompleted ? actualEndDate : undefined,
       })
     } else {
       // Create new task
@@ -153,6 +260,10 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
       const wbsCode = generateWbsCode(parentWbsCode, siblings.length)
       const level = getWbsLevel(wbsCode)
 
+      const parsedActualLag = typeof data.actualLag === 'number' && !isNaN(data.actualLag)
+        ? data.actualLag
+        : undefined
+
       const newTask = await createTask({
         projectId: currentProject.id,
         name: data.name,
@@ -165,6 +276,9 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
         endDate,
         assignedTo: [],
         checklist,
+        actualDuration: isCompleted ? finalActualDuration : undefined,
+        actualStartDate,
+        actualEndDate: isCompleted ? actualEndDate : undefined,
       })
 
       // Create dependency if predecessor is selected
@@ -176,6 +290,7 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
             successorId: newTask.id,
             type: 'FS',
             lag: data.lag || 0,
+            actualLag: parsedActualLag,
           })
         } catch (err) {
           console.error('Error al crear la dependencia:', err)
@@ -185,56 +300,50 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
 
     setOpen(false)
     reset()
-    setChecklist([])
     onSuccess?.()
   }
 
-  // Filter available predecessors (exclude parent tasks)
-  const isParentTask = (taskId: string) => {
-    return tasks.some(t => t.parentId === taskId)
-  }
-
-  const availablePredecessors = tasks.filter(t =>
-    !isParentTask(t.id) && t.projectId === currentProject?.id
-  )
-
-  const defaultTrigger = (
-    <Button variant={isEditing ? 'ghost' : 'default'} size={isEditing ? 'sm' : 'default'}>
-      {isEditing ? (
-        <Edit className="h-4 w-4" />
-      ) : isCreatingChild ? (
-        <Plus className="h-4 w-4" />
-      ) : (
-        <>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Tarea
-        </>
-      )}
-    </Button>
-  )
+  // Filter tasks to show only valid predecessors (exclude children, self, and parent tasks)
+  const availablePredecessors = tasks.filter((t) => {
+    if (task && t.id === task.id) return false
+    const isParent = tasks.some(child => child.parentId === t.id)
+    if (isParent) return false
+    return true
+  })
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || defaultTrigger}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[525px]">
+      {trigger && (
+        <DialogTrigger asChild onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+          {trigger}
+        </DialogTrigger>
+      )}
+      <DialogContent
+        className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckSquare className="h-5 w-5" />
-              {isEditing ? 'Editar Tarea' : isCreatingChild ? 'Nueva Subtarea' : 'Nueva Tarea'}
+              {isEditing
+                ? `Editar Tarea ${task?.wbsCode || ''}`
+                : isCreatingChild
+                ? `Nueva Subtarea de ${parentTask?.wbsCode}`
+                : 'Nueva Tarea'}
             </DialogTitle>
             <DialogDescription>
               {isEditing
-                ? 'Modifica los detalles de la tarea'
+                ? 'Modifica los detalles, dependencias, retraso real o avance de la tarea'
                 : isCreatingChild
-                ? `Crear una subtarea bajo "${parentTask?.name}"`
+                ? `Creando subtarea bajo ${parentTask?.wbsCode} - ${parentTask?.name}`
                 : 'Crea una nueva tarea en tu proyecto'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            {/* Task Name */}
             <div className="grid gap-2">
               <Label htmlFor="name">
                 Nombre de la Tarea <span className="text-destructive">*</span>
@@ -249,6 +358,7 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
               )}
             </div>
 
+            {/* Description */}
             <div className="grid gap-2">
               <Label htmlFor="description">Descripción</Label>
               <Input
@@ -258,6 +368,240 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
               />
             </div>
 
+            {/* Duration & Start Date */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="duration">
+                  Duración Planificada (días) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  min="1"
+                  {...register('duration', {
+                    required: 'La duración es requerida',
+                    min: { value: 1, message: 'Mínimo 1 día' },
+                    valueAsNumber: true,
+                  })}
+                />
+                {errors.duration && (
+                  <p className="text-sm text-destructive">{errors.duration.message}</p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="startDate">
+                  Fecha de Inicio Planificada <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  {...register('startDate', { required: 'La fecha es requerida' })}
+                />
+                {errors.startDate && (
+                  <p className="text-sm text-destructive">{errors.startDate.message}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Predecessor Dependencies & Actual Start Delay (When Editing) */}
+            {isEditing && incomingDependencies.length > 0 && (
+              <div className="border rounded-xl p-3.5 bg-muted/20 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Link2 className="h-4 w-4 text-primary shrink-0" />
+                  <span className="font-semibold text-xs text-foreground">
+                    Dependencias de Inicio (Predecesoras y Retraso Real)
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Controla el desfase planificado y el retraso real con el que se inicia la tarea respecto al fin de cada predecesora.
+                </p>
+
+                {incomingDependencies.map(dep => {
+                  const pred = tasks.find(t => t.id === dep.predecessorId)
+                  const lagState = dependencyLags[dep.id] || { lag: dep.lag || 0, actualLag: dep.actualLag }
+
+                  return (
+                    <div key={dep.id} className="p-2.5 rounded-lg border bg-card/60 space-y-2">
+                      <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                        <span>{pred ? `${pred.wbsCode} - ${pred.name}` : 'Predecesora'}</span>
+                        <span className="text-[10px] font-normal text-muted-foreground">Tipo: Finish-to-Start (FS)</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-1">
+                          <Label className="text-[11px] text-muted-foreground">Retraso Planificado (días)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={lagState.lag}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10) || 0
+                              setDependencyLags(prev => ({
+                                ...prev,
+                                [dep.id]: { ...prev[dep.id], lag: val }
+                              }))
+                            }}
+                          />
+                        </div>
+
+                        <div className="grid gap-1">
+                          <Label className="text-[11px] text-muted-foreground font-semibold text-primary">
+                            Retraso Real de Inicio (días)
+                          </Label>
+                          <Input
+                            type="number"
+                            placeholder="Ej: 2 (retraso), -1 (adelanto)"
+                            value={lagState.actualLag !== undefined ? lagState.actualLag : ''}
+                            onChange={(e) => {
+                              const raw = e.target.value
+                              const val = raw === '' ? undefined : parseInt(raw, 10)
+                              setDependencyLags(prev => ({
+                                ...prev,
+                                [dep.id]: { ...prev[dep.id], actualLag: val }
+                              }))
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {lagState.actualLag !== undefined && (
+                        <p className="text-[11px] text-foreground/80 font-medium bg-muted/40 px-2 py-1 rounded">
+                          {lagState.actualLag > (lagState.lag || 0) ? (
+                            <span className="text-rose-600 dark:text-rose-400">
+                              ⚠️ Inicio retrasado en +{lagState.actualLag - (lagState.lag || 0)}d respecto al desfase planificado
+                            </span>
+                          ) : lagState.actualLag < (lagState.lag || 0) ? (
+                            <span className="text-emerald-600 dark:text-emerald-400">
+                              ✨ Inicio adelantado en {Math.abs(lagState.actualLag - (lagState.lag || 0))}d respecto al plan
+                            </span>
+                          ) : (
+                            <span>✅ Iniciada exactamente con el desfase planificado ({lagState.actualLag}d)</span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Predecessors (Only on creation) */}
+            {!isEditing && availablePredecessors.length > 0 && (
+              <div className="grid gap-3 border rounded-xl p-3.5 bg-muted/20">
+                <div className="grid gap-2">
+                  <Label htmlFor="predecessorId">Tarea Predecesora (Opcional)</Label>
+                  <select
+                    id="predecessorId"
+                    {...register('predecessorId')}
+                    className="w-full flex h-9 rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">Sin predecesora</option>
+                    {availablePredecessors.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.wbsCode} - {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {predecessorId && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="lag" className="text-xs font-medium">Retraso Planificado (días)</Label>
+                      <Input
+                        id="lag"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        {...register('lag', { valueAsNumber: true })}
+                      />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="actualLag" className="text-xs font-medium">Retraso Real de Inicio (días)</Label>
+                      <Input
+                        id="actualLag"
+                        type="number"
+                        placeholder="Opcional"
+                        {...register('actualLag', { valueAsNumber: true })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Actual Progress / Completion Section (for leaf tasks) */}
+            {isLeafTask && (
+              <div className="grid gap-3 border rounded-xl p-3.5 bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="isCompleted" className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      id="isCompleted"
+                      checked={isCompleted}
+                      onChange={(e) => {
+                        const checked = e.target.checked
+                        setIsCompleted(checked)
+                        if (checked && (!actualDuration || actualDuration === 0)) {
+                          setActualDuration(plannedDuration)
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer"
+                    />
+                    <span className="font-semibold text-xs text-foreground">
+                      Marcar tarea como completada (100% Avance)
+                    </span>
+                  </label>
+                  {isCompleted && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      100% Completada
+                    </span>
+                  )}
+                </div>
+
+                {isCompleted && (
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="actualDuration" className="text-xs font-medium">
+                        Duración Real (días laborables)
+                      </Label>
+                      <Input
+                        id="actualDuration"
+                        type="number"
+                        min="1"
+                        value={actualDuration}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10) || 1
+                          setActualDuration(val)
+                        }}
+                      />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs font-medium">Desvío de Ejecución</Label>
+                      <div className="flex items-center text-xs h-9 px-3 rounded-md border bg-card font-semibold">
+                        {actualDuration - plannedDuration > 0 ? (
+                          <span className="text-rose-600 dark:text-rose-400">
+                            +{actualDuration - plannedDuration}d ejecución
+                          </span>
+                        ) : actualDuration - plannedDuration < 0 ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            {actualDuration - plannedDuration}d ejecución
+                          </span>
+                        ) : (
+                          <span className="text-foreground/80 font-normal">
+                            Duración exacta ({actualDuration}d)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Checklist - only for leaf tasks */}
             {isLeafTask && (
               <TaskChecklist
@@ -266,7 +610,7 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
                 onToggleItem={handleToggleChecklistItem}
                 onDeleteItem={handleDeleteChecklistItem}
                 onUpdateItem={handleUpdateChecklistItem}
-                hasActualDuration={false}
+                hasActualDuration={isCompleted}
               />
             )}
 
@@ -282,89 +626,6 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
                 )}
                 workingDaysPerWeek={currentProject.config?.workingDays || [1, 2, 3, 4, 5]}
               />
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="startDate">
-                  Fecha de Inicio <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  {...register('startDate', { required: 'La fecha es requerida' })}
-                />
-                {errors.startDate && (
-                  <p className="text-sm text-destructive">{errors.startDate.message}</p>
-                )}
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="duration">
-                  Duración (días) <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  min="1"
-                  {...register('duration', {
-                    valueAsNumber: true,
-                    required: 'La duración es requerida',
-                    min: { value: 1, message: 'Mínimo 1 día' },
-                  })}
-                />
-                {errors.duration && (
-                  <p className="text-sm text-destructive">{errors.duration.message}</p>
-                )}
-              </div>
-            </div>
-
-            {!isEditing && (
-              <>
-                <div className="grid gap-2">
-                  <Label htmlFor="predecessorId">Predecesor (opcional)</Label>
-                  <select
-                    id="predecessorId"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                    {...register('predecessorId')}
-                  >
-                    <option value="">Sin predecesor</option>
-                    {availablePredecessors.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.wbsCode} - {t.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    Esta tarea iniciará después de que termine la tarea predecesora
-                  </p>
-                </div>
-
-                {predecessorId && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="lag">Retraso (días)</Label>
-                    <Input
-                      id="lag"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      {...register('lag', { valueAsNumber: true, min: 0 })}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Días de espera adicionales después de terminar el predecesor
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
-
-            {parentTask && (
-              <div className="bg-muted p-3 rounded-md text-sm">
-                <p className="font-medium">Tarea Padre:</p>
-                <p className="text-muted-foreground">
-                  {parentTask.wbsCode} - {parentTask.name}
-                </p>
-              </div>
             )}
           </div>
 

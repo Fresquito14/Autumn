@@ -34,8 +34,8 @@ export function CopyTaskBlockDialog({ task, trigger }: CopyTaskBlockDialogProps)
   const [open, setOpen] = useState(false)
   const [targetParentId, setTargetParentId] = useState<string | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(false)
-  const { tasks, createTask } = useTasks()
-  const { dependencies, createDependency } = useDependencies()
+  const { tasks } = useTasks()
+  const { dependencies } = useDependencies()
   const { currentProject } = useProject()
 
   // Get descendant count for display

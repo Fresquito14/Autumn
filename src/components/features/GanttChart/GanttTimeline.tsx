@@ -39,9 +39,9 @@ export function GanttTimeline({ startDate, endDate, width, zoomLevel }: GanttTim
   }
 
   return (
-    <div className="border-b bg-muted/30 sticky top-0 z-10" style={{ width: `${width}px` }}>
+    <div className="border-b bg-muted/30 sticky top-0 z-10 box-border h-[60px]" style={{ width: `${width}px` }}>
       {/* Top scale (Weeks or Months) */}
-      <div className="flex h-10 border-b">
+      <div className="flex h-8 border-b box-border">
         {scaleItems.map((item, index) => (
           <div
             key={index}
@@ -54,7 +54,7 @@ export function GanttTimeline({ startDate, endDate, width, zoomLevel }: GanttTim
       </div>
 
       {/* Day grid (with labels if space allows) */}
-      <div className="h-5 flex">
+      <div className="h-7 flex box-border">
         {days.map((day, i) => (
           <div
             key={i}

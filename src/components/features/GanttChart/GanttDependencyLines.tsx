@@ -1,5 +1,4 @@
 import { useCriticalPath } from '@/hooks/useCriticalPath'
-import { useTasks } from '@/hooks/useTasks'
 import { calculateTaskProgress } from '@/lib/utils/progress'
 import type { Dependency, Task } from '@/types'
 
@@ -16,8 +15,8 @@ interface GanttDependencyLinesProps {
 export function GanttDependencyLines({
   dependencies,
   tasks,
-  timelineStart,
-  timelineEnd,
+  timelineStart: _timelineStart,
+  timelineEnd: _timelineEnd,
   containerWidth,
   rowHeight,
   getTaskPosition,

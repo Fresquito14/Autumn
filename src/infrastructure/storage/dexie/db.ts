@@ -1,0 +1,360 @@
+import Dexie, { type EntityTable } from 'dexie'
+import type {
+  Project,
+  Task,
+  Milestone,
+  Dependency,
+  Resource,
+  TimeEntry,
+  Baseline,
+  TaskResourceAssignment,
+  GlobalHoliday,
+} from '@/domain/models'
+
+// Database class extending Dexie
+class AutumnDatabase extends Dexie {
+  // Declare tables
+  projects!: EntityTable<Project, 'id'>
+  tasks!: EntityTable<Task, 'id'>
+  milestones!: EntityTable<Milestone, 'id'>
+  dependencies!: EntityTable<Dependency, 'id'>
+  resources!: EntityTable<Resource, 'id'>
+  taskResourceAssignments!: EntityTable<TaskResourceAssignment, 'id'>
+  timeEntries!: EntityTable<TimeEntry, 'id'>
+  baselines!: EntityTable<Baseline, 'id'>
+  globalHolidays!: EntityTable<GlobalHoliday, 'id'>
+
+  constructor() {
+    super('AutumnDB')
+
+    // Version 1: Initial schema with project-scoped resources
+    this.version(1).stores({
+      projects: 'id, name, createdAt, updatedAt',
+      tasks: 'id, projectId, wbsCode, parentId, level, startDate, endDate, createdAt, updatedAt, [projectId+wbsCode]',
+      milestones: 'id, projectId, date, linkedTaskId',
+      dependencies: 'id, projectId, predecessorId, successorId, [projectId+predecessorId], [projectId+successorId]',
+      resources: 'id, projectId, name',
+      timeEntries: 'id, taskId, resourceId, date, [taskId+resourceId]',
+      baselines: 'id, projectId, createdAt',
+    })
+
+    // Version 2: Global resources + task resource assignments
+    this.version(2).stores({
+      projects: 'id, name, createdAt, updatedAt',
+      tasks: 'id, projectId, wbsCode, parentId, level, startDate, endDate, createdAt, updatedAt, [projectId+wbsCode]',
+      milestones: 'id, projectId, date, linkedTaskId',
+      dependencies: 'id, projectId, predecessorId, successorId, [projectId+predecessorId], [projectId+successorId]',
+      resources: 'id, name, email', // Removed projectId - resources are now global
+      taskResourceAssignments: 'id, taskId, resourceId, [taskId+resourceId]', // New table for assignments
+      timeEntries: 'id, taskId, resourceId, date, [taskId+resourceId]',
+      baselines: 'id, projectId, createdAt',
+    }).upgrade(async (trans) => {
+      const resources = await trans.table('resources').toArray()
+      await trans.table('resources').clear()
+      await trans.table('resources').bulkAdd(resources.map(r => {
+        const { projectId, ...rest } = r as any
+        return rest
+      }))
+    })
+
+    // Version 3: Global holidays + updated project config
+    this.version(3).stores({
+      projects: 'id, name, createdAt, updatedAt',
+      tasks: 'id, projectId, wbsCode, parentId, level, startDate, endDate, createdAt, updatedAt, [projectId+wbsCode]',
+      milestones: 'id, projectId, date, linkedTaskId',
+      dependencies: 'id, projectId, predecessorId, successorId, [projectId+predecessorId], [projectId+successorId]',
+      resources: 'id, name, email',
+      taskResourceAssignments: 'id, taskId, resourceId, [taskId+resourceId]',
+      timeEntries: 'id, taskId, resourceId, date, [taskId+resourceId]',
+      baselines: 'id, projectId, createdAt',
+      globalHolidays: 'id, name, date, createdAt, updatedAt', // New table for global holidays
+    }).upgrade(async (trans) => {
+      const projects = await trans.table('projects').toArray()
+      const globalHolidaysToAdd: GlobalHoliday[] = []
+      const seenHolidays = new Map<string, string>()
+
+      for (const project of projects as any[]) {
+        if (project.config?.holidays && Array.isArray(project.config.holidays)) {
+          for (const holiday of project.config.holidays) {
+            const key = `${holiday.date.toISOString()}-${holiday.name}`
+
+            if (!seenHolidays.has(key)) {
+              const globalHoliday: GlobalHoliday = {
+                id: holiday.id,
+                name: holiday.name,
+                date: holiday.date,
+                description: holiday.description,
+                appliesTo: holiday.appliesTo,
+                isRecurring: false,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              }
+              globalHolidaysToAdd.push(globalHoliday)
+              seenHolidays.set(key, holiday.id)
+            }
+          }
+
+          await trans.table('projects').update(project.id, {
+            config: {
+              ...project.config,
+              useGlobalHolidays: true,
+              excludedGlobalHolidayIds: [],
+              projectSpecificHolidays: [],
+              skipHolidaysInScheduling: true,
+            }
+          })
+        }
+      }
+
+      if (globalHolidaysToAdd.length > 0) {
+        await trans.table('globalHolidays').bulkAdd(globalHolidaysToAdd)
+      }
+    })
+  }
+}
+
+// Export singleton instance
+export const db = new AutumnDatabase()
+
+// Helper functions for common operations
+export const dbHelpers = {
+  // Projects
+  async getAllProjects() {
+    return await db.projects.toArray()
+  },
+
+  async getProject(id: string) {
+    return await db.projects.get(id)
+  },
+
+  async createProject(project: Project) {
+    return await db.projects.add(project)
+  },
+
+  async updateProject(id: string, changes: Partial<Project>) {
+    return await db.projects.update(id, {
+      ...changes,
+      updatedAt: new Date(),
+    })
+  },
+
+  async deleteProject(id: string) {
+    await db.transaction('rw', [db.projects, db.tasks, db.milestones, db.dependencies, db.taskResourceAssignments, db.timeEntries, db.baselines], async () => {
+      const projectTasks = await db.tasks.where('projectId').equals(id).toArray()
+      const taskIds = projectTasks.map(t => t.id)
+
+      for (const taskId of taskIds) {
+        await db.taskResourceAssignments.where('taskId').equals(taskId).delete()
+        await db.timeEntries.where('taskId').equals(taskId).delete()
+      }
+
+      await db.tasks.where('projectId').equals(id).delete()
+      await db.milestones.where('projectId').equals(id).delete()
+      await db.dependencies.where('projectId').equals(id).delete()
+      await db.baselines.where('projectId').equals(id).delete()
+
+      await db.projects.delete(id)
+    })
+  },
+
+  // Tasks
+  async getProjectTasks(projectId: string) {
+    return await db.tasks.where('projectId').equals(projectId).toArray()
+  },
+
+  async getTask(id: string) {
+    return await db.tasks.get(id)
+  },
+
+  async createTask(task: Task) {
+    return await db.tasks.add(task)
+  },
+
+  async updateTask(id: string, changes: Partial<Task>) {
+    return await db.tasks.update(id, {
+      ...changes,
+      updatedAt: new Date(),
+    })
+  },
+
+  async deleteTask(id: string) {
+    await db.transaction('rw', [db.tasks, db.dependencies, db.taskResourceAssignments, db.timeEntries], async () => {
+      await db.dependencies.where('predecessorId').equals(id).delete()
+      await db.dependencies.where('successorId').equals(id).delete()
+      await db.taskResourceAssignments.where('taskId').equals(id).delete()
+      await db.timeEntries.where('taskId').equals(id).delete()
+      await db.tasks.delete(id)
+    })
+  },
+
+  // Dependencies
+  async getProjectDependencies(projectId: string) {
+    return await db.dependencies.where('projectId').equals(projectId).toArray()
+  },
+
+  async getTaskDependencies(taskId: string) {
+    const predecessors = await db.dependencies.where('successorId').equals(taskId).toArray()
+    const successors = await db.dependencies.where('predecessorId').equals(taskId).toArray()
+    return { predecessors, successors }
+  },
+
+  async createDependency(dependency: Dependency) {
+    return await db.dependencies.add(dependency)
+  },
+
+  async updateDependency(id: string, dependency: Dependency) {
+    return await db.dependencies.update(id, dependency)
+  },
+
+  async deleteDependency(id: string) {
+    return await db.dependencies.delete(id)
+  },
+
+  // Resources (Global)
+  async getAllResources() {
+    return await db.resources.toArray()
+  },
+
+  async getResource(id: string) {
+    return await db.resources.get(id)
+  },
+
+  async createResource(resource: Resource) {
+    return await db.resources.add(resource)
+  },
+
+  async updateResource(id: string, changes: Partial<Resource>) {
+    return await db.resources.update(id, changes)
+  },
+
+  async deleteResource(id: string) {
+    await db.transaction('rw', [db.resources, db.taskResourceAssignments], async () => {
+      await db.taskResourceAssignments.where('resourceId').equals(id).delete()
+      await db.resources.delete(id)
+    })
+  },
+
+  async getProjectResources(projectId: string) {
+    const tasks = await db.tasks.where('projectId').equals(projectId).toArray()
+    const taskIds = tasks.map(t => t.id)
+    const assignments = await db.taskResourceAssignments.where('taskId').anyOf(taskIds).toArray()
+    const resourceIds = [...new Set(assignments.map(a => a.resourceId))]
+    return await db.resources.where('id').anyOf(resourceIds).toArray()
+  },
+
+  // Task Resource Assignments
+  async getAllAssignments() {
+    return await db.taskResourceAssignments.toArray()
+  },
+
+  async getTaskAssignments(taskId: string) {
+    return await db.taskResourceAssignments.where('taskId').equals(taskId).toArray()
+  },
+
+  async getResourceAssignments(resourceId: string) {
+    return await db.taskResourceAssignments.where('resourceId').equals(resourceId).toArray()
+  },
+
+  async createTaskAssignment(assignment: TaskResourceAssignment) {
+    return await db.taskResourceAssignments.add(assignment)
+  },
+
+  async updateTaskAssignment(id: string, changes: Partial<TaskResourceAssignment>) {
+    return await db.taskResourceAssignments.update(id, changes)
+  },
+
+  async deleteTaskAssignment(id: string) {
+    return await db.taskResourceAssignments.delete(id)
+  },
+
+  // Milestones
+  async getProjectMilestones(projectId: string) {
+    return await db.milestones.where('projectId').equals(projectId).toArray()
+  },
+
+  async createMilestone(milestone: Milestone) {
+    return await db.milestones.add(milestone)
+  },
+
+  async updateMilestone(id: string, changes: Partial<Milestone>) {
+    return await db.milestones.update(id, changes)
+  },
+
+  async deleteMilestone(id: string) {
+    return await db.milestones.delete(id)
+  },
+
+  // Time Entries
+  async getTaskTimeEntries(taskId: string) {
+    return await db.timeEntries.where('taskId').equals(taskId).toArray()
+  },
+
+  async createTimeEntry(entry: TimeEntry) {
+    return await db.timeEntries.add(entry)
+  },
+
+  async deleteTimeEntry(id: string) {
+    return await db.timeEntries.delete(id)
+  },
+
+  // Baselines
+  async getProjectBaselines(projectId: string) {
+    return await db.baselines.where('projectId').equals(projectId).toArray()
+  },
+
+  async createBaseline(baseline: Baseline) {
+    return await db.baselines.add(baseline)
+  },
+
+  async getBaseline(id: string) {
+    return await db.baselines.get(id)
+  },
+
+  async deleteBaseline(id: string) {
+    return await db.baselines.delete(id)
+  },
+
+  // Global Holidays
+  async getAllGlobalHolidays() {
+    return await db.globalHolidays.toArray()
+  },
+
+  async getGlobalHoliday(id: string) {
+    return await db.globalHolidays.get(id)
+  },
+
+  async createGlobalHoliday(holiday: GlobalHoliday) {
+    return await db.globalHolidays.add(holiday)
+  },
+
+  async updateGlobalHoliday(id: string, changes: Partial<GlobalHoliday>) {
+    return await db.globalHolidays.update(id, {
+      ...changes,
+      updatedAt: new Date(),
+    })
+  },
+
+  async deleteGlobalHoliday(id: string) {
+    return await db.globalHolidays.delete(id)
+  },
+
+  // Development/Debug utilities
+  async clearAllData() {
+    await db.transaction('rw', [db.projects, db.tasks, db.milestones, db.dependencies, db.resources, db.taskResourceAssignments, db.timeEntries, db.baselines, db.globalHolidays], async () => {
+      await db.projects.clear()
+      await db.tasks.clear()
+      await db.milestones.clear()
+      await db.dependencies.clear()
+      await db.resources.clear()
+      await db.taskResourceAssignments.clear()
+      await db.timeEntries.clear()
+      await db.baselines.clear()
+      await db.globalHolidays.clear()
+    })
+  },
+
+  async deleteDatabase() {
+    await db.delete()
+    window.location.reload()
+  },
+}

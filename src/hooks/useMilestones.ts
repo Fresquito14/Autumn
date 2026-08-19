@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { Milestone } from '@/types'
 import { dbHelpers } from '@/lib/storage/db'
+import { supabase } from '@/lib/supabase/client'
 
 interface MilestoneState {
   milestones: Milestone[]
@@ -28,7 +29,6 @@ export const useMilestones = create<MilestoneState>()(
         set({ isLoading: true, error: null })
         try {
           const milestones = await dbHelpers.getProjectMilestones(projectId)
-          // Sort by date
           milestones.sort((a, b) => a.date.getTime() - b.date.getTime())
           set({ milestones, isLoading: false })
         } catch (error) {
@@ -41,7 +41,7 @@ export const useMilestones = create<MilestoneState>()(
       },
 
       createMilestone: async (milestoneData) => {
-        set({ isLoading: true, error: null })
+        set({ error: null })
         try {
           const milestone: Milestone = {
             ...milestoneData,
@@ -52,17 +52,17 @@ export const useMilestones = create<MilestoneState>()(
 
           const milestones = await dbHelpers.getProjectMilestones(milestone.projectId)
           milestones.sort((a, b) => a.date.getTime() - b.date.getTime())
-          set({ milestones, isLoading: false })
+          set({ milestones })
 
           return milestone
         } catch (error) {
-          set({ error: (error as Error).message, isLoading: false })
+          set({ error: (error as Error).message })
           throw error
         }
       },
 
       updateMilestone: async (id, changes) => {
-        set({ isLoading: true, error: null })
+        set({ error: null })
         try {
           await dbHelpers.updateMilestone(id, changes)
 
@@ -70,31 +70,32 @@ export const useMilestones = create<MilestoneState>()(
           if (milestone) {
             const milestones = await dbHelpers.getProjectMilestones(milestone.projectId)
             milestones.sort((a, b) => a.date.getTime() - b.date.getTime())
-            set({ milestones, isLoading: false })
-          } else {
-            set({ isLoading: false })
+            set({ milestones })
           }
         } catch (error) {
-          set({ error: (error as Error).message, isLoading: false })
+          set({ error: (error as Error).message })
         }
       },
 
       deleteMilestone: async (id) => {
-        set({ isLoading: true, error: null })
+        set({ error: null })
         try {
           const milestone = get().milestones.find(m => m.id === id)
-          if (!milestone) {
-            set({ isLoading: false })
-            return
-          }
+          if (!milestone) return
 
           await dbHelpers.deleteMilestone(id)
 
+          try {
+            await supabase.from('milestones').delete().eq('id', id)
+          } catch (cloudErr) {
+            console.warn('Cloud delete milestone skipped:', cloudErr)
+          }
+
           const milestones = await dbHelpers.getProjectMilestones(milestone.projectId)
           milestones.sort((a, b) => a.date.getTime() - b.date.getTime())
-          set({ milestones, isLoading: false })
+          set({ milestones })
         } catch (error) {
-          set({ error: (error as Error).message, isLoading: false })
+          set({ error: (error as Error).message })
         }
       },
 

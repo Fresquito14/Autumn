@@ -10,6 +10,8 @@ import { useTasks } from '@/hooks/useTasks'
 import { useCriticalPath } from '@/hooks/useCriticalPath'
 import { useResources } from '@/hooks/useResources'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
+import { useAuth } from '@/hooks/useAuth'
+import { useProject } from '@/hooks/useProject'
 import { calculateTaskProgress } from '@/lib/utils/progress'
 import type { Task, Resource } from '@/types'
 import { cn } from '@/lib/utils'
@@ -27,8 +29,12 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
   const { isTaskCritical, getTaskCPM } = useCriticalPath()
   const { resources } = useResources()
   const { assignments } = useResourceAssignments()
+  const { user } = useAuth()
+  const { currentProject } = useProject()
   const [isHovered, setIsHovered] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+
+  const isReadOnly = Boolean(user && currentProject?.userId && currentProject.userId !== user.id)
 
   const isCritical = isTaskCritical(task.id)
   const taskCPM = getTaskCPM(task.id)
@@ -42,25 +48,17 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
     .map(a => resources.find(r => r.id === a.resourceId))
     .filter((r): r is Resource => !!r)
 
-  // Helper to get initials
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase()
-  }
-
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (isReadOnly) return
     if (confirm(`¿Eliminar tarea "${task.name}"?${hasChildren ? '\n\nEsto también eliminará todas las subtareas.' : ''}`)) {
       await deleteTask(task.id)
     }
   }
 
   const handleDoubleClick = (e: React.MouseEvent) => {
-    // Don't trigger if clicking on buttons
-    if ((e.target as HTMLElement).closest('button')) {
+    if (isReadOnly) return
+    if ((e.target as HTMLElement).closest('button, input, select, .dialog-trigger, [role="dialog"]')) {
       return
     }
     setIsEditDialogOpen(true)
@@ -73,7 +71,6 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
       className={cn(
         'group border-b hover:bg-muted/50 transition-colors cursor-pointer relative overflow-hidden',
         isHovered && 'bg-muted/30',
-        // Border left: green if 100% complete, critical if incomplete and critical
         progress === 100
           ? 'border-l-4 border-l-autumn-progress'
           : isCritical && 'border-l-4 border-l-autumn-critical'
@@ -81,12 +78,12 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onDoubleClick={handleDoubleClick}
-      title="Doble clic para editar"
+      title="Doble clic para editar tarea"
     >
       {/* Progress background gradient */}
       {progress > 0 && (
         <div
-          className="absolute inset-0 bg-gradient-to-r from-autumn-progress/10 to-transparent transition-all duration-300"
+          className="absolute inset-0 bg-gradient-to-r from-autumn-progress/10 to-transparent transition-all duration-300 pointer-events-none"
           style={{ width: `${progress}%` }}
         />
       )}
@@ -96,7 +93,7 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
         <div style={{ width: indentWidth }} />
 
         {/* Expand/Collapse */}
-        <div className="w-5 flex-shrink-0">
+        <div className="w-5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
           {hasChildren && (
             <Button
               variant="ghost"
@@ -151,30 +148,29 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
               </span>
             )}
           </div>
-          {(task.description || assignedResources.length > 0) && (
-            <div className="flex items-center gap-2 mt-0.5">
-              {task.description && (
-                <span className="text-xs text-muted-foreground truncate max-w-[150px]">
-                  {task.description}
-                </span>
-              )}
-              {task.description && assignedResources.length > 0 && (
-                <span className="text-muted-foreground/30 text-xs">|</span>
-              )}
-              {assignedResources.length > 0 && (
-                <div className="flex -space-x-1 items-center">
-                  {assignedResources.map(r => (
-                    <span
-                      key={r.id}
-                      className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[9px] font-semibold bg-primary/10 text-primary border border-background ring-1 ring-background"
-                      title={r.name}
-                    >
-                      {getInitials(r.name)}
-                    </span>
-                  ))}
-                </div>
-              )}
+          {task.description && (
+            <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+              {task.description}
             </div>
+          )}
+        </div>
+
+        {/* Assigned Resources Column */}
+        <div className="w-32 flex-shrink-0 flex items-center gap-1 overflow-hidden">
+          {assignedResources.length > 0 ? (
+            <div className="flex items-center gap-1 flex-wrap max-h-6 overflow-hidden">
+              {assignedResources.map(r => (
+                <span
+                  key={r.id}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 truncate max-w-[110px]"
+                  title={`${r.name} (${r.email || 'Sin email'})`}
+                >
+                  {r.name}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-[10px] text-muted-foreground/50 italic">Sin asignar</span>
           )}
         </div>
 
@@ -192,30 +188,38 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
           </span>
         </div>
 
-        {/* Actions */}
-        <div className={cn(
-          'w-28 flex gap-0.5 transition-opacity',
-          isHovered ? 'opacity-100' : 'opacity-0'
-        )}>
-          <ActualProgressDialog key={`progress-${task.id}`} task={task} />
-          <CopyTaskBlockDialog key={`copy-${task.id}`} task={task} />
-          <TaskFormDialog
-            task={task}
-            trigger={<Button variant="ghost" size="sm" className="h-6 w-6 p-0"><span className="sr-only">Editar</span></Button>}
-            open={isEditDialogOpen}
-            onOpenChange={setIsEditDialogOpen}
-          />
-          <TaskFormDialog parentTask={task} />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={handleDelete}
+        {/* Actions - Strictly isolated from double-click bubbling */}
+        {!isReadOnly && (
+          <div
+            className={cn(
+              'flex items-center gap-0.5 transition-opacity',
+              isHovered ? 'opacity-100' : 'opacity-0'
+            )}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
           >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
+            <ActualProgressDialog key={`progress-${task.id}`} task={task} />
+            <CopyTaskBlockDialog key={`copy-${task.id}`} task={task} />
+            <TaskFormDialog parentTask={task} />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:text-destructive hover:bg-destructive/10"
+              onClick={handleDelete}
+              title="Eliminar tarea"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
       </div>
+
+      {/* Edit dialog triggered via double-click */}
+      <TaskFormDialog
+        task={task}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+      />
     </div>
   )
 }

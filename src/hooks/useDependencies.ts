@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { Dependency } from '@/types'
 import { dbHelpers } from '@/lib/storage/db'
-import { recalculateTaskDates } from '@/lib/calculations/dates'
+import { supabase } from '@/lib/supabase/client'
 
 interface DependencyState {
   dependencies: Dependency[]
@@ -44,7 +44,7 @@ export const useDependencies = create<DependencyState>()(
       },
 
       createDependency: async (dependencyData) => {
-        set({ isLoading: true, error: null })
+        set({ error: null })
         try {
           // Validate: no circular dependencies
           const isValid = get().validateDependency(
@@ -66,17 +66,17 @@ export const useDependencies = create<DependencyState>()(
           await dbHelpers.createDependency(dependency)
 
           const dependencies = await dbHelpers.getProjectDependencies(dependency.projectId)
-          set({ dependencies, isLoading: false })
+          set({ dependencies })
 
           return dependency.id
         } catch (error) {
-          set({ error: (error as Error).message, isLoading: false })
+          set({ error: (error as Error).message })
           throw error
         }
       },
 
       updateDependency: async (id, updates) => {
-        set({ isLoading: true, error: null })
+        set({ error: null })
         try {
           const dependency = get().dependencies.find(d => d.id === id)
           if (!dependency) {
@@ -102,28 +102,31 @@ export const useDependencies = create<DependencyState>()(
           await dbHelpers.updateDependency(id, updatedDependency)
 
           const dependencies = await dbHelpers.getProjectDependencies(dependency.projectId)
-          set({ dependencies, isLoading: false })
+          set({ dependencies })
         } catch (error) {
-          set({ error: (error as Error).message, isLoading: false })
+          set({ error: (error as Error).message })
           throw error
         }
       },
 
       deleteDependency: async (id) => {
-        set({ isLoading: true, error: null })
+        set({ error: null })
         try {
           const dependency = get().dependencies.find(d => d.id === id)
-          if (!dependency) {
-            set({ isLoading: false })
-            return
-          }
+          if (!dependency) return
 
           await dbHelpers.deleteDependency(id)
 
+          try {
+            await supabase.from('dependencies').delete().eq('id', id)
+          } catch (cloudErr) {
+            console.warn('Cloud delete dependency skipped:', cloudErr)
+          }
+
           const dependencies = await dbHelpers.getProjectDependencies(dependency.projectId)
-          set({ dependencies, isLoading: false })
+          set({ dependencies })
         } catch (error) {
-          set({ error: (error as Error).message, isLoading: false })
+          set({ error: (error as Error).message })
         }
       },
 
@@ -132,10 +135,8 @@ export const useDependencies = create<DependencyState>()(
       },
 
       validateDependency: (predecessorId: string, successorId: string) => {
-        // Check if adding this dependency would create a cycle
         const deps = get().dependencies
 
-        // Build adjacency list
         const graph = new Map<string, string[]>()
         deps.forEach(dep => {
           if (!graph.has(dep.predecessorId)) {
@@ -144,37 +145,50 @@ export const useDependencies = create<DependencyState>()(
           graph.get(dep.predecessorId)!.push(dep.successorId)
         })
 
-        // Add the new dependency temporarily
         if (!graph.has(predecessorId)) {
           graph.set(predecessorId, [])
         }
         graph.get(predecessorId)!.push(successorId)
 
-        // DFS to detect cycle
         const visited = new Set<string>()
-        const recursionStack = new Set<string>()
+        const recStack = new Set<string>()
 
-        function hasCycle(node: string): boolean {
-          if (!visited.has(node)) {
-            visited.add(node)
-            recursionStack.add(node)
+        function isCyclic(nodeId: string): boolean {
+          visited.add(nodeId)
+          recStack.add(nodeId)
 
-            const neighbors = graph.get(node) || []
-            for (const neighbor of neighbors) {
-              if (!visited.has(neighbor) && hasCycle(neighbor)) {
-                return true
-              } else if (recursionStack.has(neighbor)) {
+          const neighbors = graph.get(nodeId) || []
+          for (const neighbor of neighbors) {
+            if (!visited.has(neighbor)) {
+              if (isCyclic(neighbor)) {
                 return true
               }
+            } else if (recStack.has(neighbor)) {
+              return true
             }
           }
 
-          recursionStack.delete(node)
+          recStack.delete(nodeId)
           return false
         }
 
-        // Check for cycles starting from the predecessor
-        return !hasCycle(predecessorId)
+        const allNodes = new Set<string>()
+        deps.forEach(d => {
+          allNodes.add(d.predecessorId)
+          allNodes.add(d.successorId)
+        })
+        allNodes.add(predecessorId)
+        allNodes.add(successorId)
+
+        for (const node of allNodes) {
+          if (!visited.has(node)) {
+            if (isCyclic(node)) {
+              return false // Cycle found
+            }
+          }
+        }
+
+        return true // No cycles
       },
     }),
     { name: 'DependencyStore' }

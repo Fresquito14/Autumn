@@ -1,838 +1,2158 @@
 [
   {
     "version": "1.0-Bulbasaur",
-    "exportedAt": "2026-07-29T00:00:00.000Z",
     "project": {
-      "id": "proj-erp-0001",
+      "id": "1660f379-317f-40fc-9d9e-629edd31168e",
       "name": "Migración de ERP",
       "description": "Migración completa del ERP corporativo SAP a la nube.",
-      "startDate": "2026-08-03T00:00:00.000Z",
-      "status": "active",
-      "progress": 0,
+      "startDate": "2026-08-03",
+      "endDate": "2026-12-31",
       "config": {
-        "workingDays": [1, 2, 3, 4, 5],
+        "workingDays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
         "hoursPerDay": 8,
-        "holidays": []
+        "useGlobalHolidays": true,
+        "skipHolidaysInScheduling": true,
+        "defaultDuration": 5
       }
     },
+    "resources": [
+      {
+        "id": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "name": "Sofía Castro",
+        "email": "sofia@autumn.com",
+        "tags": [
+          "Gestión",
+          "Senior"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 50,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "name": "Mateo Díaz",
+        "email": "mateo@autumn.com",
+        "tags": [
+          "Desarrollo",
+          "Backend"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 35,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "name": "Valentina Silva",
+        "email": "valentina@autumn.com",
+        "tags": [
+          "Diseño",
+          "UI/UX"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 40,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "name": "Lucas Torres",
+        "email": "lucas@autumn.com",
+        "tags": [
+          "Desarrollo",
+          "Frontend"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 35,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      }
+    ],
     "tasks": [
       {
-        "id": "task-erp-p1",
-        "projectId": "proj-erp-0001",
+        "id": "32bc309d-fc0d-462c-9000-a39351fb8845",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Pipeline",
+        "description": "",
         "wbsCode": "1",
-        "startDate": "2026-08-03T00:00:00.000Z",
-        "endDate": "2026-08-21T00:00:00.000Z",
+        "level": 0,
         "duration": 15,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-08-03",
+        "endDate": "2026-08-21",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-erp-t11",
-        "projectId": "proj-erp-0001",
-        "parentId": "task-erp-p1",
+        "id": "8015f5c9-9b4d-4217-87ef-56471e24c8fc",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Análisis F.I.T",
+        "description": "",
         "wbsCode": "1.1",
-        "startDate": "2026-08-03T00:00:00.000Z",
-        "endDate": "2026-08-14T00:00:00.000Z",
+        "parentId": "32bc309d-fc0d-462c-9000-a39351fb8845",
+        "level": 1,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2026-08-03",
+        "endDate": "2026-08-14",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-erp-t12",
-        "projectId": "proj-erp-0001",
-        "parentId": "task-erp-p1",
+        "id": "b50057a0-babd-44ad-bd6f-023e0e4de1ad",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Diseño de Arquitectura Cloud",
+        "description": "",
         "wbsCode": "1.2",
-        "startDate": "2026-08-17T00:00:00.000Z",
-        "endDate": "2026-08-21T00:00:00.000Z",
+        "parentId": "32bc309d-fc0d-462c-9000-a39351fb8845",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-valentina-3333"]
+        "startDate": "2026-08-17",
+        "endDate": "2026-08-21",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-erp-p2",
-        "projectId": "proj-erp-0001",
+        "id": "121c486e-f905-4c41-a2d9-7e44ff18a374",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Development",
+        "description": "",
         "wbsCode": "2",
-        "startDate": "2026-08-24T00:00:00.000Z",
-        "endDate": "2026-10-09T00:00:00.000Z",
+        "level": 0,
         "duration": 35,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-08-24",
+        "endDate": "2026-10-09",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-erp-t21",
-        "projectId": "proj-erp-0001",
-        "parentId": "task-erp-p2",
+        "id": "0e26531e-fc76-4c6d-9420-a2682d11e5aa",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Modelado de Datos",
+        "description": "",
         "wbsCode": "2.1",
-        "startDate": "2026-08-24T00:00:00.000Z",
-        "endDate": "2026-09-11T00:00:00.000Z",
+        "parentId": "121c486e-f905-4c41-a2d9-7e44ff18a374",
+        "level": 1,
         "duration": 15,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-mateo-2222"]
+        "startDate": "2026-08-24",
+        "endDate": "2026-09-11",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "4e68a094-c767-4adc-b3ba-3b73f876fdb6"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-erp-t22",
-        "projectId": "proj-erp-0001",
-        "parentId": "task-erp-p2",
+        "id": "defd0d5a-a436-4c58-b33e-cc67e2db37f3",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Migración de Datos Históricos",
+        "description": "",
         "wbsCode": "2.2",
-        "startDate": "2026-09-14T00:00:00.000Z",
-        "endDate": "2026-10-09T00:00:00.000Z",
+        "parentId": "121c486e-f905-4c41-a2d9-7e44ff18a374",
+        "level": 1,
         "duration": 20,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-lucas-4444"]
+        "startDate": "2026-09-14",
+        "endDate": "2026-10-09",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "ca929daf-40fc-46d8-b967-c58b4d71454b"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-erp-p3",
-        "projectId": "proj-erp-0001",
+        "id": "ec74940c-0fa1-438b-bb71-57df46e7b675",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Validation",
+        "description": "",
         "wbsCode": "3",
-        "startDate": "2026-10-12T00:00:00.000Z",
-        "endDate": "2026-11-06T00:00:00.000Z",
+        "level": 0,
         "duration": 20,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-10-12",
+        "endDate": "2026-11-06",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-erp-t31",
-        "projectId": "proj-erp-0001",
-        "parentId": "task-erp-p3",
+        "id": "184cb982-5ea0-4a60-bbe8-d52a501c16a5",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "UAT (Pruebas de Usuario)",
+        "description": "",
         "wbsCode": "3.1",
-        "startDate": "2026-10-12T00:00:00.000Z",
-        "endDate": "2026-10-30T00:00:00.000Z",
+        "parentId": "ec74940c-0fa1-438b-bb71-57df46e7b675",
+        "level": 1,
         "duration": 15,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2026-10-12",
+        "endDate": "2026-10-30",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-erp-t32",
-        "projectId": "proj-erp-0001",
-        "parentId": "task-erp-p3",
+        "id": "76116a4b-fc09-47ce-b331-c1cea4446773",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Corrección de Defectos",
+        "description": "",
         "wbsCode": "3.2",
-        "startDate": "2026-11-02T00:00:00.000Z",
-        "endDate": "2026-11-06T00:00:00.000Z",
+        "parentId": "ec74940c-0fa1-438b-bb71-57df46e7b675",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-mateo-2222"]
+        "startDate": "2026-11-02",
+        "endDate": "2026-11-06",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "4e68a094-c767-4adc-b3ba-3b73f876fdb6"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-erp-p4",
-        "projectId": "proj-erp-0001",
+        "id": "e4a1c468-ebc5-49aa-84ef-36aecdaf321a",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Closing",
+        "description": "",
         "wbsCode": "4",
-        "startDate": "2026-11-09T00:00:00.000Z",
-        "endDate": "2026-11-20T00:00:00.000Z",
+        "level": 0,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-11-09",
+        "endDate": "2026-11-20",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-erp-t41",
-        "projectId": "proj-erp-0001",
-        "parentId": "task-erp-p4",
+        "id": "564b0473-c6ae-44a7-b7af-03163bcce388",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Cierre Técnico",
+        "description": "",
         "wbsCode": "4.1",
-        "startDate": "2026-11-09T00:00:00.000Z",
-        "endDate": "2026-11-13T00:00:00.000Z",
+        "parentId": "e4a1c468-ebc5-49aa-84ef-36aecdaf321a",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2026-11-09",
+        "endDate": "2026-11-13",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-erp-t42",
-        "projectId": "proj-erp-0001",
-        "parentId": "task-erp-p4",
+        "id": "b5d83363-caa4-4124-be97-659563a9b83e",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
         "name": "Soporte Post Go-Live",
+        "description": "",
         "wbsCode": "4.2",
-        "startDate": "2026-11-16T00:00:00.000Z",
-        "endDate": "2026-11-20T00:00:00.000Z",
+        "parentId": "e4a1c468-ebc5-49aa-84ef-36aecdaf321a",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-mateo-2222"]
+        "startDate": "2026-11-16",
+        "endDate": "2026-11-20",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "4e68a094-c767-4adc-b3ba-3b73f876fdb6"
+        ],
+        "checklist": []
       }
     ],
     "dependencies": [
-      { "id": "dep-erp-1", "projectId": "proj-erp-0001", "predecessorId": "task-erp-t11", "successorId": "task-erp-t12", "type": "FS", "lag": 0 },
-      { "id": "dep-erp-2", "projectId": "proj-erp-0001", "predecessorId": "task-erp-t12", "successorId": "task-erp-t21", "type": "FS", "lag": 0 },
-      { "id": "dep-erp-3", "projectId": "proj-erp-0001", "predecessorId": "task-erp-t21", "successorId": "task-erp-t22", "type": "FS", "lag": 0 },
-      { "id": "dep-erp-4", "projectId": "proj-erp-0001", "predecessorId": "task-erp-t22", "successorId": "task-erp-t31", "type": "FS", "lag": 0 },
-      { "id": "dep-erp-5", "projectId": "proj-erp-0001", "predecessorId": "task-erp-t31", "successorId": "task-erp-t32", "type": "FS", "lag": 0 },
-      { "id": "dep-erp-6", "projectId": "proj-erp-0001", "predecessorId": "task-erp-t32", "successorId": "task-erp-t41", "type": "FS", "lag": 0 },
-      { "id": "dep-erp-7", "projectId": "proj-erp-0001", "predecessorId": "task-erp-t41", "successorId": "task-erp-t42", "type": "FS", "lag": 0 }
-    ],
-    "resources": [
-      { "id": "res-sofia-1111", "name": "Sofía Castro", "email": "sofia@autumn.com", "tags": ["Gestión", "Senior"], "maxHoursPerWeek": 40, "costPerHour": 50, "calendar": { "vacations": [] } },
-      { "id": "res-mateo-2222", "name": "Mateo Díaz", "email": "mateo@autumn.com", "tags": ["Desarrollo", "Backend"], "maxHoursPerWeek": 40, "costPerHour": 35, "calendar": { "vacations": [] } },
-      { "id": "res-valentina-3333", "name": "Valentina Silva", "email": "valentina@autumn.com", "tags": ["Diseño", "UI/UX"], "maxHoursPerWeek": 40, "costPerHour": 40, "calendar": { "vacations": [] } },
-      { "id": "res-lucas-4444", "name": "Lucas Torres", "email": "lucas@autumn.com", "tags": ["Desarrollo", "Frontend"], "maxHoursPerWeek": 40, "costPerHour": 35, "calendar": { "vacations": [] } }
+      {
+        "id": "ca31535a-f9d1-47d5-87b5-a2502194c9bc",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
+        "predecessorId": "8015f5c9-9b4d-4217-87ef-56471e24c8fc",
+        "successorId": "b50057a0-babd-44ad-bd6f-023e0e4de1ad",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "de9dc4b4-83d9-4254-80ad-812e6ae7dc45",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
+        "predecessorId": "b50057a0-babd-44ad-bd6f-023e0e4de1ad",
+        "successorId": "0e26531e-fc76-4c6d-9420-a2682d11e5aa",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "8305ca72-b34b-4ce2-ad35-63c96e951dac",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
+        "predecessorId": "0e26531e-fc76-4c6d-9420-a2682d11e5aa",
+        "successorId": "defd0d5a-a436-4c58-b33e-cc67e2db37f3",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "697d3aba-cf06-4516-b576-a9583c56293d",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
+        "predecessorId": "defd0d5a-a436-4c58-b33e-cc67e2db37f3",
+        "successorId": "184cb982-5ea0-4a60-bbe8-d52a501c16a5",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "ff95468c-a1e0-4e55-9661-33856f6570fc",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
+        "predecessorId": "184cb982-5ea0-4a60-bbe8-d52a501c16a5",
+        "successorId": "76116a4b-fc09-47ce-b331-c1cea4446773",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "a8787f37-7faf-415d-90f2-819c37643026",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
+        "predecessorId": "76116a4b-fc09-47ce-b331-c1cea4446773",
+        "successorId": "564b0473-c6ae-44a7-b7af-03163bcce388",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "90b67c5c-3628-4271-b594-02f953139351",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
+        "predecessorId": "564b0473-c6ae-44a7-b7af-03163bcce388",
+        "successorId": "b5d83363-caa4-4124-be97-659563a9b83e",
+        "type": "FS",
+        "lag": 0
+      }
     ],
     "milestones": [
-      { "id": "ms-erp-1", "projectId": "proj-erp-0001", "name": "Arquitectura Aprobada", "date": "2026-08-21T00:00:00.000Z", "reached": false, "linkedTaskId": "task-erp-t12" },
-      { "id": "ms-erp-2", "projectId": "proj-erp-0001", "name": "ERP Go-Live", "date": "2026-11-20T00:00:00.000Z", "reached": false, "linkedTaskId": "task-erp-t42" }
+      {
+        "id": "12da3804-936b-4b7a-b052-bcd6cada44e7",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
+        "name": "Arquitectura Aprobada",
+        "date": "2026-08-21",
+        "linkedTaskId": "b50057a0-babd-44ad-bd6f-023e0e4de1ad",
+        "description": ""
+      },
+      {
+        "id": "27e301b3-f843-4e3d-af96-214ebb81a6d5",
+        "projectId": "1660f379-317f-40fc-9d9e-629edd31168e",
+        "name": "ERP Go-Live",
+        "date": "2026-11-20",
+        "linkedTaskId": "b5d83363-caa4-4124-be97-659563a9b83e",
+        "description": ""
+      }
     ],
-    "baselines": [],
+    "assignments": [
+      {
+        "id": "191c0db4-b7e8-43f6-b336-068657f5cb46",
+        "taskId": "8015f5c9-9b4d-4217-87ef-56471e24c8fc",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "e871f6b3-c44f-48a4-b0fe-0e83b2d8f043",
+        "taskId": "b50057a0-babd-44ad-bd6f-023e0e4de1ad",
+        "resourceId": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "c5a245d9-641f-4b72-a1b1-2a4ee9b95959",
+        "taskId": "0e26531e-fc76-4c6d-9420-a2682d11e5aa",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 120,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "55ac9ac6-e7aa-4c5e-963e-e80afa8d44e9",
+        "taskId": "defd0d5a-a436-4c58-b33e-cc67e2db37f3",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 160,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "46a0c3d5-aa75-48d5-af02-202629f36fe1",
+        "taskId": "184cb982-5ea0-4a60-bbe8-d52a501c16a5",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 120,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "2e0e41d0-79e6-4837-90af-d6845619fa29",
+        "taskId": "76116a4b-fc09-47ce-b331-c1cea4446773",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "580f82c4-2086-4a1c-a700-d9217a0dcc4a",
+        "taskId": "564b0473-c6ae-44a7-b7af-03163bcce388",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "42e3cf37-6a5f-44da-b90e-d383ac1f40ca",
+        "taskId": "b5d83363-caa4-4124-be97-659563a9b83e",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      }
+    ],
     "taskResourceAssignments": [
-      { "id": "as-erp-1", "taskId": "task-erp-t11", "resourceId": "res-sofia-1111", "plannedHours": 40, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-08-03T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-08-10T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] },
-      { "id": "as-erp-2", "taskId": "task-erp-t12", "resourceId": "res-valentina-3333", "plannedHours": 20, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-08-17T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] },
-      { "id": "as-erp-3", "taskId": "task-erp-t21", "resourceId": "res-mateo-2222", "plannedHours": 60, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-08-24T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-08-31T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-09-07T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] },
-      { "id": "as-erp-4", "taskId": "task-erp-t22", "resourceId": "res-lucas-4444", "plannedHours": 80, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-09-14T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-09-21T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-09-28T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-10-05T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] },
-      { "id": "as-erp-5", "taskId": "task-erp-t31", "resourceId": "res-sofia-1111", "plannedHours": 40, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-10-12T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 15 }, { "weekStart": "2026-10-19T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 15 }, { "weekStart": "2026-10-26T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 10 }] },
-      { "id": "as-erp-6", "taskId": "task-erp-t32", "resourceId": "res-mateo-2222", "plannedHours": 20, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-11-02T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] },
-      { "id": "as-erp-7", "taskId": "task-erp-t41", "resourceId": "res-sofia-1111", "plannedHours": 20, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-11-09T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] },
-      { "id": "as-erp-8", "taskId": "task-erp-t42", "resourceId": "res-mateo-2222", "plannedHours": 20, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-11-16T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] }
+      {
+        "id": "191c0db4-b7e8-43f6-b336-068657f5cb46",
+        "taskId": "8015f5c9-9b4d-4217-87ef-56471e24c8fc",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "e871f6b3-c44f-48a4-b0fe-0e83b2d8f043",
+        "taskId": "b50057a0-babd-44ad-bd6f-023e0e4de1ad",
+        "resourceId": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "c5a245d9-641f-4b72-a1b1-2a4ee9b95959",
+        "taskId": "0e26531e-fc76-4c6d-9420-a2682d11e5aa",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 120,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "55ac9ac6-e7aa-4c5e-963e-e80afa8d44e9",
+        "taskId": "defd0d5a-a436-4c58-b33e-cc67e2db37f3",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 160,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "46a0c3d5-aa75-48d5-af02-202629f36fe1",
+        "taskId": "184cb982-5ea0-4a60-bbe8-d52a501c16a5",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 120,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "2e0e41d0-79e6-4837-90af-d6845619fa29",
+        "taskId": "76116a4b-fc09-47ce-b331-c1cea4446773",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "580f82c4-2086-4a1c-a700-d9217a0dcc4a",
+        "taskId": "564b0473-c6ae-44a7-b7af-03163bcce388",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "42e3cf37-6a5f-44da-b90e-d383ac1f40ca",
+        "taskId": "b5d83363-caa4-4124-be97-659563a9b83e",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      }
     ]
   },
   {
     "version": "1.0-Bulbasaur",
-    "exportedAt": "2026-07-29T00:00:00.000Z",
     "project": {
-      "id": "proj-dem-0002",
+      "id": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
       "name": "Desarrollo de herramientas de demanda",
       "description": "Implementación de modelos analíticos y predicción de demanda logística.",
-      "startDate": "2026-09-01T00:00:00.000Z",
-      "status": "active",
-      "progress": 0,
+      "startDate": "2026-09-01",
+      "endDate": "2026-12-31",
       "config": {
-        "workingDays": [1, 2, 3, 4, 5],
+        "workingDays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
         "hoursPerDay": 8,
-        "holidays": []
+        "useGlobalHolidays": true,
+        "skipHolidaysInScheduling": true,
+        "defaultDuration": 5
       }
     },
+    "resources": [
+      {
+        "id": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "name": "Sofía Castro",
+        "email": "sofia@autumn.com",
+        "tags": [
+          "Gestión",
+          "Senior"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 50,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "name": "Mateo Díaz",
+        "email": "mateo@autumn.com",
+        "tags": [
+          "Desarrollo",
+          "Backend"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 35,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "name": "Valentina Silva",
+        "email": "valentina@autumn.com",
+        "tags": [
+          "Diseño",
+          "UI/UX"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 40,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "name": "Lucas Torres",
+        "email": "lucas@autumn.com",
+        "tags": [
+          "Desarrollo",
+          "Frontend"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 35,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      }
+    ],
     "tasks": [
       {
-        "id": "task-dem-p1",
-        "projectId": "proj-dem-0002",
+        "id": "db87d851-c7a9-4f2b-a561-357e1f78bb76",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Pipeline",
+        "description": "",
         "wbsCode": "1",
-        "startDate": "2026-09-01T00:00:00.000Z",
-        "endDate": "2026-09-18T00:00:00.000Z",
+        "level": 0,
         "duration": 14,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-18",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-dem-t11",
-        "projectId": "proj-dem-0002",
-        "parentId": "task-dem-p1",
+        "id": "521fde99-8c51-4cf8-8269-5ecfc07769c1",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Recopilación de Requisitos",
+        "description": "",
         "wbsCode": "1.1",
-        "startDate": "2026-09-01T00:00:00.000Z",
-        "endDate": "2026-09-11T00:00:00.000Z",
+        "parentId": "db87d851-c7a9-4f2b-a561-357e1f78bb76",
+        "level": 1,
         "duration": 9,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-11",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-dem-t12",
-        "projectId": "proj-dem-0002",
-        "parentId": "task-dem-p1",
+        "id": "1729577a-9eca-4f56-8e6c-90fca6f4caba",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Diseño UX/UI de Dashboards",
+        "description": "",
         "wbsCode": "1.2",
-        "startDate": "2026-09-14T00:00:00.000Z",
-        "endDate": "2026-09-18T00:00:00.000Z",
+        "parentId": "db87d851-c7a9-4f2b-a561-357e1f78bb76",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-valentina-3333"]
+        "startDate": "2026-09-14",
+        "endDate": "2026-09-18",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-dem-p2",
-        "projectId": "proj-dem-0002",
+        "id": "0dc8d19d-aa22-4e0f-a5c3-6bc1fbd8deab",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Development",
+        "description": "",
         "wbsCode": "2",
-        "startDate": "2026-09-21T00:00:00.000Z",
-        "endDate": "2026-11-13T00:00:00.000Z",
+        "level": 0,
         "duration": 40,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-09-21",
+        "endDate": "2026-11-13",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-dem-t21",
-        "projectId": "proj-dem-0002",
-        "parentId": "task-dem-p2",
+        "id": "1cb577ef-4899-4d6d-8407-2b7f8f314909",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Desarrollo de API de Previsión",
+        "description": "",
         "wbsCode": "2.1",
-        "startDate": "2026-09-21T00:00:00.000Z",
-        "endDate": "2026-10-16T00:00:00.000Z",
+        "parentId": "0dc8d19d-aa22-4e0f-a5c3-6bc1fbd8deab",
+        "level": 1,
         "duration": 20,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-mateo-2222"]
+        "startDate": "2026-09-21",
+        "endDate": "2026-10-16",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "4e68a094-c767-4adc-b3ba-3b73f876fdb6"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-dem-t22",
-        "projectId": "proj-dem-0002",
-        "parentId": "task-dem-p2",
+        "id": "4adc5afa-0ac9-45d9-9f02-4c307e4bc74f",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Frontend de Visualización",
+        "description": "",
         "wbsCode": "2.2",
-        "startDate": "2026-10-19T00:00:00.000Z",
-        "endDate": "2026-11-13T00:00:00.000Z",
+        "parentId": "0dc8d19d-aa22-4e0f-a5c3-6bc1fbd8deab",
+        "level": 1,
         "duration": 20,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-lucas-4444"]
+        "startDate": "2026-10-19",
+        "endDate": "2026-11-13",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "ca929daf-40fc-46d8-b967-c58b4d71454b"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-dem-p3",
-        "projectId": "proj-dem-0002",
+        "id": "bcad4dc7-d8fd-4797-a272-2392ebc88736",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Validation",
+        "description": "",
         "wbsCode": "3",
-        "startDate": "2026-11-16T00:00:00.000Z",
-        "endDate": "2026-12-04T00:00:00.000Z",
+        "level": 0,
         "duration": 15,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-11-16",
+        "endDate": "2026-12-04",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-dem-t31",
-        "projectId": "proj-dem-0002",
-        "parentId": "task-dem-p3",
+        "id": "6465f684-f9a5-4197-8c87-9cf81c5b88ea",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Pruebas de Integración ERP",
+        "description": "",
         "wbsCode": "3.1",
-        "startDate": "2026-11-16T00:00:00.000Z",
-        "endDate": "2026-11-27T00:00:00.000Z",
+        "parentId": "bcad4dc7-d8fd-4797-a272-2392ebc88736",
+        "level": 1,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-mateo-2222"]
+        "startDate": "2026-11-16",
+        "endDate": "2026-11-27",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "4e68a094-c767-4adc-b3ba-3b73f876fdb6"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-dem-t32",
-        "projectId": "proj-dem-0002",
-        "parentId": "task-dem-p3",
+        "id": "c7e604c5-1248-4568-9cb4-e966e2c2a1e8",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Pruebas de Carga",
+        "description": "",
         "wbsCode": "3.2",
-        "startDate": "2026-11-30T00:00:00.000Z",
-        "endDate": "2026-12-04T00:00:00.000Z",
+        "parentId": "bcad4dc7-d8fd-4797-a272-2392ebc88736",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-lucas-4444"]
+        "startDate": "2026-11-30",
+        "endDate": "2026-12-04",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "ca929daf-40fc-46d8-b967-c58b4d71454b"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-dem-p4",
-        "projectId": "proj-dem-0002",
+        "id": "82457118-ddf4-41b5-9a2d-dceb664c8914",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Closing",
+        "description": "",
         "wbsCode": "4",
-        "startDate": "2026-12-07T00:00:00.000Z",
-        "endDate": "2026-12-18T00:00:00.000Z",
+        "level": 0,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-12-07",
+        "endDate": "2026-12-18",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-dem-t41",
-        "projectId": "proj-dem-0002",
-        "parentId": "task-dem-p4",
+        "id": "e9dba9db-1cc5-4b18-b7d4-ae12b02b1467",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Firma de Aceptación",
+        "description": "",
         "wbsCode": "4.1",
-        "startDate": "2026-12-07T00:00:00.000Z",
-        "endDate": "2026-12-11T00:00:00.000Z",
+        "parentId": "82457118-ddf4-41b5-9a2d-dceb664c8914",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2026-12-07",
+        "endDate": "2026-12-11",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-dem-t42",
-        "projectId": "proj-dem-0002",
-        "parentId": "task-dem-p4",
+        "id": "8badd9c5-b464-4e86-a5ca-141449f73aa9",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
         "name": "Despliegue a Producción",
+        "description": "",
         "wbsCode": "4.2",
-        "startDate": "2026-12-14T00:00:00.000Z",
-        "endDate": "2026-12-18T00:00:00.000Z",
+        "parentId": "82457118-ddf4-41b5-9a2d-dceb664c8914",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-mateo-2222"]
+        "startDate": "2026-12-14",
+        "endDate": "2026-12-18",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "4e68a094-c767-4adc-b3ba-3b73f876fdb6"
+        ],
+        "checklist": []
       }
     ],
     "dependencies": [
-      { "id": "dep-dem-1", "projectId": "proj-dem-0002", "predecessorId": "task-dem-t11", "successorId": "task-dem-t12", "type": "FS", "lag": 0 },
-      { "id": "dep-dem-2", "projectId": "proj-dem-0002", "predecessorId": "task-dem-t12", "successorId": "task-dem-t21", "type": "FS", "lag": 0 },
-      { "id": "dep-dem-3", "projectId": "proj-dem-0002", "predecessorId": "task-dem-t21", "successorId": "task-dem-t22", "type": "FS", "lag": 0 },
-      { "id": "dep-dem-4", "projectId": "proj-dem-0002", "predecessorId": "task-dem-t22", "successorId": "task-dem-t31", "type": "FS", "lag": 0 },
-      { "id": "dep-dem-5", "projectId": "proj-dem-0002", "predecessorId": "task-dem-t31", "successorId": "task-dem-t32", "type": "FS", "lag": 0 },
-      { "id": "dep-dem-6", "projectId": "proj-dem-0002", "predecessorId": "task-dem-t32", "successorId": "task-dem-t41", "type": "FS", "lag": 0 },
-      { "id": "dep-dem-7", "projectId": "proj-dem-0002", "predecessorId": "task-dem-t41", "successorId": "task-dem-t42", "type": "FS", "lag": 0 }
-    ],
-    "resources": [
-      { "id": "res-sofia-1111", "name": "Sofía Castro", "email": "sofia@autumn.com", "tags": ["Gestión", "Senior"], "maxHoursPerWeek": 40, "costPerHour": 50, "calendar": { "vacations": [] } },
-      { "id": "res-mateo-2222", "name": "Mateo Díaz", "email": "mateo@autumn.com", "tags": ["Desarrollo", "Backend"], "maxHoursPerWeek": 40, "costPerHour": 35, "calendar": { "vacations": [] } },
-      { "id": "res-valentina-3333", "name": "Valentina Silva", "email": "valentina@autumn.com", "tags": ["Diseño", "UI/UX"], "maxHoursPerWeek": 40, "costPerHour": 40, "calendar": { "vacations": [] } },
-      { "id": "res-lucas-4444", "name": "Lucas Torres", "email": "lucas@autumn.com", "tags": ["Desarrollo", "Frontend"], "maxHoursPerWeek": 40, "costPerHour": 35, "calendar": { "vacations": [] } }
+      {
+        "id": "835e1f9d-bac8-47e1-8269-94b2a043e16b",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
+        "predecessorId": "521fde99-8c51-4cf8-8269-5ecfc07769c1",
+        "successorId": "1729577a-9eca-4f56-8e6c-90fca6f4caba",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "47fe5fd4-cdf5-409e-88fc-a7513b7b5621",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
+        "predecessorId": "1729577a-9eca-4f56-8e6c-90fca6f4caba",
+        "successorId": "1cb577ef-4899-4d6d-8407-2b7f8f314909",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "895fc284-6542-4eb7-a533-b74c6dbc75a8",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
+        "predecessorId": "1cb577ef-4899-4d6d-8407-2b7f8f314909",
+        "successorId": "4adc5afa-0ac9-45d9-9f02-4c307e4bc74f",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "fa455710-b7ab-4699-b47c-6d01526a131d",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
+        "predecessorId": "4adc5afa-0ac9-45d9-9f02-4c307e4bc74f",
+        "successorId": "6465f684-f9a5-4197-8c87-9cf81c5b88ea",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "6e2a9601-2ebd-4921-8891-f4e76a11054e",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
+        "predecessorId": "6465f684-f9a5-4197-8c87-9cf81c5b88ea",
+        "successorId": "c7e604c5-1248-4568-9cb4-e966e2c2a1e8",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "5b675359-4200-4212-844a-544fd7de0f13",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
+        "predecessorId": "c7e604c5-1248-4568-9cb4-e966e2c2a1e8",
+        "successorId": "e9dba9db-1cc5-4b18-b7d4-ae12b02b1467",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "80e18219-f8cb-4ad3-9b24-9574930aef81",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
+        "predecessorId": "e9dba9db-1cc5-4b18-b7d4-ae12b02b1467",
+        "successorId": "8badd9c5-b464-4e86-a5ca-141449f73aa9",
+        "type": "FS",
+        "lag": 0
+      }
     ],
     "milestones": [
-      { "id": "ms-dem-1", "projectId": "proj-dem-0002", "name": "UX Aceptada", "date": "2026-09-18T00:00:00.000Z", "reached": false, "linkedTaskId": "task-dem-t12" },
-      { "id": "ms-dem-2", "projectId": "proj-dem-0002", "name": "Previsión en Producción", "date": "2026-12-18T00:00:00.000Z", "reached": false, "linkedTaskId": "task-dem-t42" }
+      {
+        "id": "13cbaca9-ffa3-42df-92d5-42b84730ad7a",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
+        "name": "UX Aceptada",
+        "date": "2026-09-18",
+        "linkedTaskId": "1729577a-9eca-4f56-8e6c-90fca6f4caba",
+        "description": ""
+      },
+      {
+        "id": "0446094e-54f6-4809-8caf-221b3f0bf90f",
+        "projectId": "0e9afc02-9524-40da-a7b3-b837981b6ed8",
+        "name": "Previsión en Producción",
+        "date": "2026-12-18",
+        "linkedTaskId": "8badd9c5-b464-4e86-a5ca-141449f73aa9",
+        "description": ""
+      }
     ],
-    "baselines": [],
+    "assignments": [
+      {
+        "id": "88d01400-e158-47f4-b986-e2fc229a0415",
+        "taskId": "521fde99-8c51-4cf8-8269-5ecfc07769c1",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 72,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "b1cc649b-e393-4d61-af0a-3754cf1bdd77",
+        "taskId": "1729577a-9eca-4f56-8e6c-90fca6f4caba",
+        "resourceId": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "f5631a35-0c50-43fc-8cdd-82c4ed2894b8",
+        "taskId": "1cb577ef-4899-4d6d-8407-2b7f8f314909",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 160,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "067797e8-f069-4909-a083-20d4729edcf7",
+        "taskId": "4adc5afa-0ac9-45d9-9f02-4c307e4bc74f",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 160,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "7e5a378b-1f3e-43af-aeb6-8e7affb72799",
+        "taskId": "6465f684-f9a5-4197-8c87-9cf81c5b88ea",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "4926ac48-bc7d-44a4-a774-a9c7418b0263",
+        "taskId": "c7e604c5-1248-4568-9cb4-e966e2c2a1e8",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "6389dae2-6fe7-4fd0-b4c5-c9ccf5fe65d1",
+        "taskId": "e9dba9db-1cc5-4b18-b7d4-ae12b02b1467",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "3d24eb89-22cd-49f5-94b1-de4087d1bc29",
+        "taskId": "8badd9c5-b464-4e86-a5ca-141449f73aa9",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      }
+    ],
     "taskResourceAssignments": [
-      { "id": "as-dem-1", "taskId": "task-dem-t11", "resourceId": "res-sofia-1111", "plannedHours": 30, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-08-31T00:00:00.000Z", "workingDaysInWeek": 4, "plannedHours": 15 }, { "weekStart": "2026-09-07T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 15 }] },
-      { "id": "as-dem-2", "taskId": "task-dem-t12", "resourceId": "res-valentina-3333", "plannedHours": 20, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-09-14T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] },
-      { "id": "as-dem-3", "taskId": "task-dem-t21", "resourceId": "res-mateo-2222", "plannedHours": 80, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-09-21T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-09-28T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-10-05T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-10-12T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] },
-      { "id": "as-dem-4", "taskId": "task-dem-t22", "resourceId": "res-lucas-4444", "plannedHours": 80, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-10-19T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-10-26T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-11-02T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-11-09T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] }
+      {
+        "id": "88d01400-e158-47f4-b986-e2fc229a0415",
+        "taskId": "521fde99-8c51-4cf8-8269-5ecfc07769c1",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 72,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "b1cc649b-e393-4d61-af0a-3754cf1bdd77",
+        "taskId": "1729577a-9eca-4f56-8e6c-90fca6f4caba",
+        "resourceId": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "f5631a35-0c50-43fc-8cdd-82c4ed2894b8",
+        "taskId": "1cb577ef-4899-4d6d-8407-2b7f8f314909",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 160,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "067797e8-f069-4909-a083-20d4729edcf7",
+        "taskId": "4adc5afa-0ac9-45d9-9f02-4c307e4bc74f",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 160,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "7e5a378b-1f3e-43af-aeb6-8e7affb72799",
+        "taskId": "6465f684-f9a5-4197-8c87-9cf81c5b88ea",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "4926ac48-bc7d-44a4-a774-a9c7418b0263",
+        "taskId": "c7e604c5-1248-4568-9cb4-e966e2c2a1e8",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "6389dae2-6fe7-4fd0-b4c5-c9ccf5fe65d1",
+        "taskId": "e9dba9db-1cc5-4b18-b7d4-ae12b02b1467",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "3d24eb89-22cd-49f5-94b1-de4087d1bc29",
+        "taskId": "8badd9c5-b464-4e86-a5ca-141449f73aa9",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      }
     ]
   },
   {
     "version": "1.0-Bulbasaur",
-    "exportedAt": "2026-07-29T00:00:00.000Z",
     "project": {
-      "id": "proj-devbiz-0003",
+      "id": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
       "name": "Desarrollo de herramienta de desarrollo de negocio",
       "description": "Plataforma de inteligencia de ventas y recomendación automatizada de leads.",
-      "startDate": "2026-10-05T00:00:00.000Z",
-      "status": "active",
-      "progress": 0,
+      "startDate": "2026-10-05",
+      "endDate": "2026-12-31",
       "config": {
-        "workingDays": [1, 2, 3, 4, 5],
+        "workingDays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
         "hoursPerDay": 8,
-        "holidays": []
+        "useGlobalHolidays": true,
+        "skipHolidaysInScheduling": true,
+        "defaultDuration": 5
       }
     },
+    "resources": [
+      {
+        "id": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "name": "Sofía Castro",
+        "email": "sofia@autumn.com",
+        "tags": [
+          "Gestión",
+          "Senior"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 50,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "name": "Mateo Díaz",
+        "email": "mateo@autumn.com",
+        "tags": [
+          "Desarrollo",
+          "Backend"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 35,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "name": "Valentina Silva",
+        "email": "valentina@autumn.com",
+        "tags": [
+          "Diseño",
+          "UI/UX"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 40,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "name": "Lucas Torres",
+        "email": "lucas@autumn.com",
+        "tags": [
+          "Desarrollo",
+          "Frontend"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 35,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      }
+    ],
     "tasks": [
       {
-        "id": "task-devbiz-p1",
-        "projectId": "proj-devbiz-0003",
+        "id": "406380b1-ff21-4b5c-8ce5-4ec5510b0a26",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Pipeline",
+        "description": "",
         "wbsCode": "1",
-        "startDate": "2026-10-05T00:00:00.000Z",
-        "endDate": "2026-10-30T00:00:00.000Z",
+        "level": 0,
         "duration": 20,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-10-05",
+        "endDate": "2026-10-30",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-t11",
-        "projectId": "proj-devbiz-0003",
-        "parentId": "task-devbiz-p1",
+        "id": "0d7622a3-e358-47c5-a3f0-7ba9b2f66e68",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Estudio de Viabilidad",
+        "description": "",
         "wbsCode": "1.1",
-        "startDate": "2026-10-05T00:00:00.000Z",
-        "endDate": "2026-10-16T00:00:00.000Z",
+        "parentId": "406380b1-ff21-4b5c-8ce5-4ec5510b0a26",
+        "level": 1,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2026-10-05",
+        "endDate": "2026-10-16",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-t12",
-        "projectId": "proj-devbiz-0003",
-        "parentId": "task-devbiz-p1",
+        "id": "202fa2c4-b9d6-4956-a990-f9ffadc76ded",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Prototipado Rápido UI",
+        "description": "",
         "wbsCode": "1.2",
-        "startDate": "2026-10-19T00:00:00.000Z",
-        "endDate": "2026-10-30T00:00:00.000Z",
+        "parentId": "406380b1-ff21-4b5c-8ce5-4ec5510b0a26",
+        "level": 1,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-valentina-3333"]
+        "startDate": "2026-10-19",
+        "endDate": "2026-10-30",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-p2",
-        "projectId": "proj-devbiz-0003",
+        "id": "ffdbabd9-b0ff-41cc-be3d-decc94378b79",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Development",
+        "description": "",
         "wbsCode": "2",
-        "startDate": "2026-11-02T00:00:00.000Z",
-        "endDate": "2027-01-08T00:00:00.000Z",
+        "level": 0,
         "duration": 50,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-11-02",
+        "endDate": "2027-01-08",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-t21",
-        "projectId": "proj-devbiz-0003",
-        "parentId": "task-devbiz-p2",
+        "id": "4e53755f-583f-4be7-9a62-74d5e13b0603",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "API de Recomendación & Machine Learning",
+        "description": "",
         "wbsCode": "2.1",
-        "startDate": "2026-11-02T00:00:00.000Z",
-        "endDate": "2026-12-04T00:00:00.000Z",
+        "parentId": "ffdbabd9-b0ff-41cc-be3d-decc94378b79",
+        "level": 1,
         "duration": 25,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-mateo-2222"]
+        "startDate": "2026-11-02",
+        "endDate": "2026-12-04",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "4e68a094-c767-4adc-b3ba-3b73f876fdb6"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-t22",
-        "projectId": "proj-devbiz-0003",
-        "parentId": "task-devbiz-p2",
+        "id": "ac2680cc-919c-4de7-a79a-f5a9bfbdd5ac",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Frontend Web Application",
+        "description": "",
         "wbsCode": "2.2",
-        "startDate": "2026-12-07T00:00:00.000Z",
-        "endDate": "2027-01-08T00:00:00.000Z",
+        "parentId": "ffdbabd9-b0ff-41cc-be3d-decc94378b79",
+        "level": 1,
         "duration": 25,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-lucas-4444"]
+        "startDate": "2026-12-07",
+        "endDate": "2027-01-08",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "ca929daf-40fc-46d8-b967-c58b4d71454b"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-p3",
-        "projectId": "proj-devbiz-0003",
+        "id": "abd4f197-b908-4f8e-9972-95f5af671200",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Validation",
+        "description": "",
         "wbsCode": "3",
-        "startDate": "2027-01-11T00:00:00.000Z",
-        "endDate": "2027-02-05T00:00:00.000Z",
+        "level": 0,
         "duration": 20,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2027-01-11",
+        "endDate": "2027-02-05",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-t31",
-        "projectId": "proj-devbiz-0003",
-        "parentId": "task-devbiz-p3",
+        "id": "8b0c3f3e-a062-430a-ad3a-5bf9905457b3",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Auditoría de Seguridad & OWASP",
+        "description": "",
         "wbsCode": "3.1",
-        "startDate": "2027-01-11T00:00:00.000Z",
-        "endDate": "2027-01-22T00:00:00.000Z",
+        "parentId": "abd4f197-b908-4f8e-9972-95f5af671200",
+        "level": 1,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-mateo-2222"]
+        "startDate": "2027-01-11",
+        "endDate": "2027-01-22",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "4e68a094-c767-4adc-b3ba-3b73f876fdb6"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-t32",
-        "projectId": "proj-devbiz-0003",
-        "parentId": "task-devbiz-p3",
+        "id": "45ab6561-a170-4042-b9d0-899cb354ff49",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Beta Cerrada Clientes",
+        "description": "",
         "wbsCode": "3.2",
-        "startDate": "2027-01-25T00:00:00.000Z",
-        "endDate": "2027-02-05T00:00:00.000Z",
+        "parentId": "abd4f197-b908-4f8e-9972-95f5af671200",
+        "level": 1,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2027-01-25",
+        "endDate": "2027-02-05",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-p4",
-        "projectId": "proj-devbiz-0003",
+        "id": "8c1b696b-cf44-40e8-a8cd-c2946c67ff6d",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Closing",
+        "description": "",
         "wbsCode": "4",
-        "startDate": "2027-02-08T00:00:00.000Z",
-        "endDate": "2027-02-19T00:00:00.000Z",
+        "level": 0,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2027-02-08",
+        "endDate": "2027-02-19",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-t41",
-        "projectId": "proj-devbiz-0003",
-        "parentId": "task-devbiz-p4",
+        "id": "3eec9306-c925-47e5-a6be-bdd4ffe3962c",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Formación y Transferencia",
+        "description": "",
         "wbsCode": "4.1",
-        "startDate": "2027-02-08T00:00:00.000Z",
-        "endDate": "2027-02-12T00:00:00.000Z",
+        "parentId": "8c1b696b-cf44-40e8-a8cd-c2946c67ff6d",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-lucas-4444"]
+        "startDate": "2027-02-08",
+        "endDate": "2027-02-12",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "ca929daf-40fc-46d8-b967-c58b4d71454b"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-devbiz-t42",
-        "projectId": "proj-devbiz-0003",
-        "parentId": "task-devbiz-p4",
+        "id": "8c4bdf7c-f8ab-4f66-bfe0-9f922ef19ead",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
         "name": "Lanzamiento Comercial",
+        "description": "",
         "wbsCode": "4.2",
-        "startDate": "2027-02-15T00:00:00.000Z",
-        "endDate": "2027-02-19T00:00:00.000Z",
+        "parentId": "8c1b696b-cf44-40e8-a8cd-c2946c67ff6d",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2027-02-15",
+        "endDate": "2027-02-19",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       }
     ],
     "dependencies": [
-      { "id": "dep-dbiz-1", "projectId": "proj-devbiz-0003", "predecessorId": "task-devbiz-t11", "successorId": "task-devbiz-t12", "type": "FS", "lag": 0 },
-      { "id": "dep-dbiz-2", "projectId": "proj-devbiz-0003", "predecessorId": "task-devbiz-t12", "successorId": "task-devbiz-t21", "type": "FS", "lag": 0 },
-      { "id": "dep-dbiz-3", "projectId": "proj-devbiz-0003", "predecessorId": "task-devbiz-t21", "successorId": "task-devbiz-t22", "type": "FS", "lag": 0 },
-      { "id": "dep-dbiz-4", "projectId": "proj-devbiz-0003", "predecessorId": "task-devbiz-t22", "successorId": "task-devbiz-t31", "type": "FS", "lag": 0 },
-      { "id": "dep-dbiz-5", "projectId": "proj-devbiz-0003", "predecessorId": "task-devbiz-t31", "successorId": "task-devbiz-t32", "type": "FS", "lag": 0 },
-      { "id": "dep-dbiz-6", "projectId": "proj-devbiz-0003", "predecessorId": "task-devbiz-t32", "successorId": "task-devbiz-t41", "type": "FS", "lag": 0 },
-      { "id": "dep-dbiz-7", "projectId": "proj-devbiz-0003", "predecessorId": "task-devbiz-t41", "successorId": "task-devbiz-t42", "type": "FS", "lag": 0 }
-    ],
-    "resources": [
-      { "id": "res-sofia-1111", "name": "Sofía Castro", "email": "sofia@autumn.com", "tags": ["Gestión", "Senior"], "maxHoursPerWeek": 40, "costPerHour": 50, "calendar": { "vacations": [] } },
-      { "id": "res-mateo-2222", "name": "Mateo Díaz", "email": "mateo@autumn.com", "tags": ["Desarrollo", "Backend"], "maxHoursPerWeek": 40, "costPerHour": 35, "calendar": { "vacations": [] } },
-      { "id": "res-valentina-3333", "name": "Valentina Silva", "email": "valentina@autumn.com", "tags": ["Diseño", "UI/UX"], "maxHoursPerWeek": 40, "costPerHour": 40, "calendar": { "vacations": [] } },
-      { "id": "res-lucas-4444", "name": "Lucas Torres", "email": "lucas@autumn.com", "tags": ["Desarrollo", "Frontend"], "maxHoursPerWeek": 40, "costPerHour": 35, "calendar": { "vacations": [] } }
+      {
+        "id": "ed95505e-6a71-49f6-91f1-c681654589f2",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
+        "predecessorId": "0d7622a3-e358-47c5-a3f0-7ba9b2f66e68",
+        "successorId": "202fa2c4-b9d6-4956-a990-f9ffadc76ded",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "b1d48d33-99ff-4cfc-9410-d9562ca76502",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
+        "predecessorId": "202fa2c4-b9d6-4956-a990-f9ffadc76ded",
+        "successorId": "4e53755f-583f-4be7-9a62-74d5e13b0603",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "1a8e5052-d369-4aa7-a8af-c9b31878bff5",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
+        "predecessorId": "4e53755f-583f-4be7-9a62-74d5e13b0603",
+        "successorId": "ac2680cc-919c-4de7-a79a-f5a9bfbdd5ac",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "43328272-a424-4b19-b0d7-e3dd20ed5fe8",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
+        "predecessorId": "ac2680cc-919c-4de7-a79a-f5a9bfbdd5ac",
+        "successorId": "8b0c3f3e-a062-430a-ad3a-5bf9905457b3",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "5d403205-3369-457a-8807-73bdb7f57a23",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
+        "predecessorId": "8b0c3f3e-a062-430a-ad3a-5bf9905457b3",
+        "successorId": "45ab6561-a170-4042-b9d0-899cb354ff49",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "5f301326-1739-41fc-97eb-d898d8f4f0c7",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
+        "predecessorId": "45ab6561-a170-4042-b9d0-899cb354ff49",
+        "successorId": "3eec9306-c925-47e5-a6be-bdd4ffe3962c",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "1979a5f0-40dd-4869-904d-e63ea89ccb5e",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
+        "predecessorId": "3eec9306-c925-47e5-a6be-bdd4ffe3962c",
+        "successorId": "8c4bdf7c-f8ab-4f66-bfe0-9f922ef19ead",
+        "type": "FS",
+        "lag": 0
+      }
     ],
     "milestones": [
-      { "id": "ms-dbiz-1", "projectId": "proj-devbiz-0003", "name": "Lanzamiento Beta", "date": "2027-02-05T00:00:00.000Z", "reached": false, "linkedTaskId": "task-devbiz-t32" },
-      { "id": "ms-dbiz-2", "projectId": "proj-devbiz-0003", "name": "Lanzamiento Oficial", "date": "2027-02-19T00:00:00.000Z", "reached": false, "linkedTaskId": "task-devbiz-t42" }
+      {
+        "id": "d63b606b-8ddf-4c71-b71e-e3d929e36f9d",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
+        "name": "Lanzamiento Beta",
+        "date": "2027-02-05",
+        "linkedTaskId": "45ab6561-a170-4042-b9d0-899cb354ff49",
+        "description": ""
+      },
+      {
+        "id": "07e1b465-f235-4ae8-be8b-6b2237b3eed7",
+        "projectId": "f8cbe742-d22c-4b45-b7ee-d41d30a87640",
+        "name": "Lanzamiento Oficial",
+        "date": "2027-02-19",
+        "linkedTaskId": "8c4bdf7c-f8ab-4f66-bfe0-9f922ef19ead",
+        "description": ""
+      }
     ],
-    "baselines": [],
+    "assignments": [
+      {
+        "id": "7cb8e8db-01f0-4adc-9e2e-2554d2be25f3",
+        "taskId": "0d7622a3-e358-47c5-a3f0-7ba9b2f66e68",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "533576e8-04d6-4803-80ad-89a77f7f3bc1",
+        "taskId": "202fa2c4-b9d6-4956-a990-f9ffadc76ded",
+        "resourceId": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "79fbad66-76cd-4ce4-8714-8b79a911ee20",
+        "taskId": "4e53755f-583f-4be7-9a62-74d5e13b0603",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 200,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "9a9f5271-1136-4d97-9976-f0aff969b6d9",
+        "taskId": "ac2680cc-919c-4de7-a79a-f5a9bfbdd5ac",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 200,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "c91c4d8a-26cf-4ba8-95da-328915e0959b",
+        "taskId": "8b0c3f3e-a062-430a-ad3a-5bf9905457b3",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "bfe548cc-710b-4a14-ab68-87ac364c57a6",
+        "taskId": "45ab6561-a170-4042-b9d0-899cb354ff49",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "483e4324-c2d6-4a4f-8d61-1d978a905ab6",
+        "taskId": "3eec9306-c925-47e5-a6be-bdd4ffe3962c",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "d4bb0d02-2a8e-405c-9ed5-ea1798f56a12",
+        "taskId": "8c4bdf7c-f8ab-4f66-bfe0-9f922ef19ead",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      }
+    ],
     "taskResourceAssignments": [
-      { "id": "as-dbiz-1", "taskId": "task-devbiz-t11", "resourceId": "res-sofia-1111", "plannedHours": 40, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-10-05T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-10-12T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] },
-      { "id": "as-dbiz-2", "taskId": "task-devbiz-t12", "resourceId": "res-valentina-3333", "plannedHours": 40, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-10-19T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }, { "weekStart": "2026-10-26T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 20 }] }
+      {
+        "id": "7cb8e8db-01f0-4adc-9e2e-2554d2be25f3",
+        "taskId": "0d7622a3-e358-47c5-a3f0-7ba9b2f66e68",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "533576e8-04d6-4803-80ad-89a77f7f3bc1",
+        "taskId": "202fa2c4-b9d6-4956-a990-f9ffadc76ded",
+        "resourceId": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "79fbad66-76cd-4ce4-8714-8b79a911ee20",
+        "taskId": "4e53755f-583f-4be7-9a62-74d5e13b0603",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 200,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "9a9f5271-1136-4d97-9976-f0aff969b6d9",
+        "taskId": "ac2680cc-919c-4de7-a79a-f5a9bfbdd5ac",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 200,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "c91c4d8a-26cf-4ba8-95da-328915e0959b",
+        "taskId": "8b0c3f3e-a062-430a-ad3a-5bf9905457b3",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "bfe548cc-710b-4a14-ab68-87ac364c57a6",
+        "taskId": "45ab6561-a170-4042-b9d0-899cb354ff49",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "483e4324-c2d6-4a4f-8d61-1d978a905ab6",
+        "taskId": "3eec9306-c925-47e5-a6be-bdd4ffe3962c",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "d4bb0d02-2a8e-405c-9ed5-ea1798f56a12",
+        "taskId": "8c4bdf7c-f8ab-4f66-bfe0-9f922ef19ead",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      }
     ]
   },
   {
     "version": "1.0-Bulbasaur",
-    "exportedAt": "2026-07-29T00:00:00.000Z",
     "project": {
-      "id": "proj-miami-0004",
+      "id": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
       "name": "Mejoras en Miami",
       "description": "Ampliación de las infraestructuras de la oficina regional y equipamiento en Miami.",
-      "startDate": "2026-11-02T00:00:00.000Z",
-      "status": "active",
-      "progress": 0,
+      "startDate": "2026-11-02",
+      "endDate": "2026-12-31",
       "config": {
-        "workingDays": [1, 2, 3, 4, 5],
+        "workingDays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
         "hoursPerDay": 8,
-        "holidays": []
+        "useGlobalHolidays": true,
+        "skipHolidaysInScheduling": true,
+        "defaultDuration": 5
       }
     },
+    "resources": [
+      {
+        "id": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "name": "Sofía Castro",
+        "email": "sofia@autumn.com",
+        "tags": [
+          "Gestión",
+          "Senior"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 50,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "name": "Mateo Díaz",
+        "email": "mateo@autumn.com",
+        "tags": [
+          "Desarrollo",
+          "Backend"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 35,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "name": "Valentina Silva",
+        "email": "valentina@autumn.com",
+        "tags": [
+          "Diseño",
+          "UI/UX"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 40,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      },
+      {
+        "id": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "name": "Lucas Torres",
+        "email": "lucas@autumn.com",
+        "tags": [
+          "Desarrollo",
+          "Frontend"
+        ],
+        "maxHoursPerWeek": 40,
+        "costPerHour": 35,
+        "calendar": {
+          "workingDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "vacations": []
+        }
+      }
+    ],
     "tasks": [
       {
-        "id": "task-miami-p1",
-        "projectId": "proj-miami-0004",
+        "id": "4523b44f-2cac-4025-ac89-805dbdfb029e",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Pipeline",
+        "description": "",
         "wbsCode": "1",
-        "startDate": "2026-11-02T00:00:00.000Z",
-        "endDate": "2026-11-27T00:00:00.000Z",
+        "level": 0,
         "duration": 20,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-11-02",
+        "endDate": "2026-11-27",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-miami-t11",
-        "projectId": "proj-miami-0004",
-        "parentId": "task-miami-p1",
+        "id": "cd1222ae-b5f6-4232-a207-72ad77d5b3ef",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Análisis Legal y Fiscal",
+        "description": "",
         "wbsCode": "1.1",
-        "startDate": "2026-11-02T00:00:00.000Z",
-        "endDate": "2026-11-13T00:00:00.000Z",
+        "parentId": "4523b44f-2cac-4025-ac89-805dbdfb029e",
+        "level": 1,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2026-11-02",
+        "endDate": "2026-11-13",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-miami-t12",
-        "projectId": "proj-miami-0004",
-        "parentId": "task-miami-p1",
+        "id": "604f2088-1c47-4dab-87bc-cb768e68348d",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Diseño de Planos de Oficina",
+        "description": "",
         "wbsCode": "1.2",
-        "startDate": "2026-11-16T00:00:00.000Z",
-        "endDate": "2026-11-27T00:00:00.000Z",
+        "parentId": "4523b44f-2cac-4025-ac89-805dbdfb029e",
+        "level": 1,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-valentina-3333"]
+        "startDate": "2026-11-16",
+        "endDate": "2026-11-27",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-miami-p2",
-        "projectId": "proj-miami-0004",
+        "id": "98404703-93b0-4ae0-99ac-f32967929a2f",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Development",
+        "description": "",
         "wbsCode": "2",
-        "startDate": "2026-11-30T00:00:00.000Z",
-        "endDate": "2027-02-12T00:00:00.000Z",
+        "level": 0,
         "duration": 55,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2026-11-30",
+        "endDate": "2027-02-12",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-miami-t21",
-        "projectId": "proj-miami-0004",
-        "parentId": "task-miami-p2",
+        "id": "c1ed32e4-e18a-479f-b055-480f6e805964",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Obras y Adecuación Física",
+        "description": "",
         "wbsCode": "2.1",
-        "startDate": "2026-11-30T00:00:00.000Z",
-        "endDate": "2027-01-15T00:00:00.000Z",
+        "parentId": "98404703-93b0-4ae0-99ac-f32967929a2f",
+        "level": 1,
         "duration": 35,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-mateo-2222"]
+        "startDate": "2026-11-30",
+        "endDate": "2027-01-15",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "4e68a094-c767-4adc-b3ba-3b73f876fdb6"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-miami-t22",
-        "projectId": "proj-miami-0004",
-        "parentId": "task-miami-p2",
+        "id": "b0375d3d-77da-4729-8ad2-67bc88987354",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Instalación de Redes y Sistemas",
+        "description": "",
         "wbsCode": "2.2",
-        "startDate": "2027-01-18T00:00:00.000Z",
-        "endDate": "2027-02-12T00:00:00.000Z",
+        "parentId": "98404703-93b0-4ae0-99ac-f32967929a2f",
+        "level": 1,
         "duration": 20,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-lucas-4444"]
+        "startDate": "2027-01-18",
+        "endDate": "2027-02-12",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "ca929daf-40fc-46d8-b967-c58b4d71454b"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-miami-p3",
-        "projectId": "proj-miami-0004",
+        "id": "dbab3894-caa7-45f5-a115-ca1ecc3388ec",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Validation",
+        "description": "",
         "wbsCode": "3",
-        "startDate": "2027-02-15T00:00:00.000Z",
-        "endDate": "2027-03-12T00:00:00.000Z",
+        "level": 0,
         "duration": 20,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2027-02-15",
+        "endDate": "2027-03-12",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-miami-t31",
-        "projectId": "proj-miami-0004",
-        "parentId": "task-miami-p3",
+        "id": "765d900e-08da-45f3-8430-9c39584b8535",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Inspecciones y Licencias locales",
+        "description": "",
         "wbsCode": "3.1",
-        "startDate": "2027-02-15T00:00:00.000Z",
-        "endDate": "2027-02-26T00:00:00.000Z",
+        "parentId": "dbab3894-caa7-45f5-a115-ca1ecc3388ec",
+        "level": 1,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2027-02-15",
+        "endDate": "2027-02-26",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-miami-t32",
-        "projectId": "proj-miami-0004",
-        "parentId": "task-miami-p3",
+        "id": "c561e5eb-ae1d-4861-8ae7-f39a00261f26",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Pruebas de Conectividad & IT",
+        "description": "",
         "wbsCode": "3.2",
-        "startDate": "2027-03-01T00:00:00.000Z",
-        "endDate": "2027-03-12T00:00:00.000Z",
+        "parentId": "dbab3894-caa7-45f5-a115-ca1ecc3388ec",
+        "level": 1,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-lucas-4444"]
+        "startDate": "2027-03-01",
+        "endDate": "2027-03-12",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "ca929daf-40fc-46d8-b967-c58b4d71454b"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-miami-p4",
-        "projectId": "proj-miami-0004",
+        "id": "09a6b59d-ba28-45f8-948c-44df2f3c0ed7",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Closing",
+        "description": "",
         "wbsCode": "4",
-        "startDate": "2027-03-15T00:00:00.000Z",
-        "endDate": "2027-03-26T00:00:00.000Z",
+        "level": 0,
         "duration": 10,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": []
+        "startDate": "2027-03-15",
+        "endDate": "2027-03-26",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [],
+        "checklist": []
       },
       {
-        "id": "task-miami-t41",
-        "projectId": "proj-miami-0004",
-        "parentId": "task-miami-p4",
+        "id": "1b980fee-50d4-40ad-9e3e-e9469f0de88c",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Mudanza e Integración",
+        "description": "",
         "wbsCode": "4.1",
-        "startDate": "2027-03-15T00:00:00.000Z",
-        "endDate": "2027-03-19T00:00:00.000Z",
+        "parentId": "09a6b59d-ba28-45f8-948c-44df2f3c0ed7",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-valentina-3333"]
+        "startDate": "2027-03-15",
+        "endDate": "2027-03-19",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2"
+        ],
+        "checklist": []
       },
       {
-        "id": "task-miami-t42",
-        "projectId": "proj-miami-0004",
-        "parentId": "task-miami-p4",
+        "id": "10a00f51-c798-488c-bc7e-56149b78195c",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
         "name": "Apertura Oficial",
+        "description": "",
         "wbsCode": "4.2",
-        "startDate": "2027-03-22T00:00:00.000Z",
-        "endDate": "2027-03-26T00:00:00.000Z",
+        "parentId": "09a6b59d-ba28-45f8-948c-44df2f3c0ed7",
+        "level": 1,
         "duration": 5,
-        "progress": 0,
-        "status": "pending",
-        "checklist": [],
-        "assignedTo": ["res-sofia-1111"]
+        "startDate": "2027-03-22",
+        "endDate": "2027-03-26",
+        "constraintType": "ASAP",
+        "percentComplete": 0,
+        "assignedTo": [
+          "18c2137f-1ffa-4292-a6f4-9b048092a152"
+        ],
+        "checklist": []
       }
     ],
     "dependencies": [
-      { "id": "dep-miami-1", "projectId": "proj-miami-0004", "predecessorId": "task-miami-t11", "successorId": "task-miami-t12", "type": "FS", "lag": 0 },
-      { "id": "dep-miami-2", "projectId": "proj-miami-0004", "predecessorId": "task-miami-t12", "successorId": "task-miami-t21", "type": "FS", "lag": 0 },
-      { "id": "dep-miami-3", "projectId": "proj-miami-0004", "predecessorId": "task-miami-t21", "successorId": "task-miami-t22", "type": "FS", "lag": 0 },
-      { "id": "dep-miami-4", "projectId": "proj-miami-0004", "predecessorId": "task-miami-t22", "successorId": "task-miami-t31", "type": "FS", "lag": 0 },
-      { "id": "dep-miami-5", "projectId": "proj-miami-0004", "predecessorId": "task-miami-t31", "successorId": "task-miami-t32", "type": "FS", "lag": 0 },
-      { "id": "dep-miami-6", "projectId": "proj-miami-0004", "predecessorId": "task-miami-t32", "successorId": "task-miami-t41", "type": "FS", "lag": 0 },
-      { "id": "dep-miami-7", "projectId": "proj-miami-0004", "predecessorId": "task-miami-t41", "successorId": "task-miami-t42", "type": "FS", "lag": 0 }
-    ],
-    "resources": [
-      { "id": "res-sofia-1111", "name": "Sofía Castro", "email": "sofia@autumn.com", "tags": ["Gestión", "Senior"], "maxHoursPerWeek": 40, "costPerHour": 50, "calendar": { "vacations": [] } },
-      { "id": "res-mateo-2222", "name": "Mateo Díaz", "email": "mateo@autumn.com", "tags": ["Desarrollo", "Backend"], "maxHoursPerWeek": 40, "costPerHour": 35, "calendar": { "vacations": [] } },
-      { "id": "res-valentina-3333", "name": "Valentina Silva", "email": "valentina@autumn.com", "tags": ["Diseño", "UI/UX"], "maxHoursPerWeek": 40, "costPerHour": 40, "calendar": { "vacations": [] } },
-      { "id": "res-lucas-4444", "name": "Lucas Torres", "email": "lucas@autumn.com", "tags": ["Desarrollo", "Frontend"], "maxHoursPerWeek": 40, "costPerHour": 35, "calendar": { "vacations": [] } }
+      {
+        "id": "001eebc2-ba53-4e9c-9a70-a5904d35801e",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
+        "predecessorId": "cd1222ae-b5f6-4232-a207-72ad77d5b3ef",
+        "successorId": "604f2088-1c47-4dab-87bc-cb768e68348d",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "7541af85-66f5-40a2-bd75-767ec91b124f",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
+        "predecessorId": "604f2088-1c47-4dab-87bc-cb768e68348d",
+        "successorId": "c1ed32e4-e18a-479f-b055-480f6e805964",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "f8704683-e49f-4407-83db-2114bccc157e",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
+        "predecessorId": "c1ed32e4-e18a-479f-b055-480f6e805964",
+        "successorId": "b0375d3d-77da-4729-8ad2-67bc88987354",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "e7a3ea8f-8d88-4050-93cc-807a7ed11019",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
+        "predecessorId": "b0375d3d-77da-4729-8ad2-67bc88987354",
+        "successorId": "765d900e-08da-45f3-8430-9c39584b8535",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "e95399a0-cb96-4172-9de0-43eda177b351",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
+        "predecessorId": "765d900e-08da-45f3-8430-9c39584b8535",
+        "successorId": "c561e5eb-ae1d-4861-8ae7-f39a00261f26",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "f82bb956-7a05-42bd-bc2a-d46a78ded496",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
+        "predecessorId": "c561e5eb-ae1d-4861-8ae7-f39a00261f26",
+        "successorId": "1b980fee-50d4-40ad-9e3e-e9469f0de88c",
+        "type": "FS",
+        "lag": 0
+      },
+      {
+        "id": "f0af90a4-850e-465b-b7af-3ec4d20d663a",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
+        "predecessorId": "1b980fee-50d4-40ad-9e3e-e9469f0de88c",
+        "successorId": "10a00f51-c798-488c-bc7e-56149b78195c",
+        "type": "FS",
+        "lag": 0
+      }
     ],
     "milestones": [
-      { "id": "ms-miami-1", "projectId": "proj-miami-0004", "name": "Oficina mudable", "date": "2027-03-12T00:00:00.000Z", "reached": false, "linkedTaskId": "task-miami-t32" },
-      { "id": "ms-miami-2", "projectId": "proj-miami-0004", "name": "Oficina Inaugurada", "date": "2027-03-26T00:00:00.000Z", "reached": false, "linkedTaskId": "task-miami-t42" }
+      {
+        "id": "326244a5-27a6-4533-9499-2df5e2651727",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
+        "name": "Oficina mudable",
+        "date": "2027-03-12",
+        "linkedTaskId": "c561e5eb-ae1d-4861-8ae7-f39a00261f26",
+        "description": ""
+      },
+      {
+        "id": "27250a09-9fd8-411c-b5fc-4c5b58380e97",
+        "projectId": "d01e5496-adae-4ee7-975b-bd0a9fef4943",
+        "name": "Oficina Inaugurada",
+        "date": "2027-03-26",
+        "linkedTaskId": "10a00f51-c798-488c-bc7e-56149b78195c",
+        "description": ""
+      }
     ],
-    "baselines": [],
+    "assignments": [
+      {
+        "id": "1488839b-74f8-4ac9-8660-fbfb78fbf39d",
+        "taskId": "cd1222ae-b5f6-4232-a207-72ad77d5b3ef",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "a8d3c7c8-36ca-4189-9ae2-ed20359152df",
+        "taskId": "604f2088-1c47-4dab-87bc-cb768e68348d",
+        "resourceId": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "40abaaa9-b120-4c4e-8367-0a05e52bef93",
+        "taskId": "c1ed32e4-e18a-479f-b055-480f6e805964",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 280,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "3f393b6c-d8f6-46cc-8912-c3f91f1383d0",
+        "taskId": "b0375d3d-77da-4729-8ad2-67bc88987354",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 160,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "58cf468d-8a38-4d9f-a003-7e0f1aec0bd3",
+        "taskId": "765d900e-08da-45f3-8430-9c39584b8535",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "2a3b6e1b-b8ad-4585-b7ac-a5ba6b9ce0d6",
+        "taskId": "c561e5eb-ae1d-4861-8ae7-f39a00261f26",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "8800124b-0d75-43fc-bfc8-9097711ace1f",
+        "taskId": "1b980fee-50d4-40ad-9e3e-e9469f0de88c",
+        "resourceId": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "f15c9eb2-34da-4f1e-bf7b-fb4c42e6af86",
+        "taskId": "10a00f51-c798-488c-bc7e-56149b78195c",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      }
+    ],
     "taskResourceAssignments": [
-      { "id": "as-miami-1", "taskId": "task-miami-t11", "resourceId": "res-sofia-1111", "plannedHours": 30, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-11-02T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 15 }, { "weekStart": "2026-11-09T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 15 }] },
-      { "id": "as-miami-2", "taskId": "task-miami-t12", "resourceId": "res-valentina-3333", "plannedHours": 45, "isManualDistribution": false, "weeklyDistribution": [{ "weekStart": "2026-11-16T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 22.5 }, { "weekStart": "2026-11-23T00:00:00.000Z", "workingDaysInWeek": 5, "plannedHours": 22.5 }] }
+      {
+        "id": "1488839b-74f8-4ac9-8660-fbfb78fbf39d",
+        "taskId": "cd1222ae-b5f6-4232-a207-72ad77d5b3ef",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "a8d3c7c8-36ca-4189-9ae2-ed20359152df",
+        "taskId": "604f2088-1c47-4dab-87bc-cb768e68348d",
+        "resourceId": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "40abaaa9-b120-4c4e-8367-0a05e52bef93",
+        "taskId": "c1ed32e4-e18a-479f-b055-480f6e805964",
+        "resourceId": "4e68a094-c767-4adc-b3ba-3b73f876fdb6",
+        "plannedHours": 280,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "3f393b6c-d8f6-46cc-8912-c3f91f1383d0",
+        "taskId": "b0375d3d-77da-4729-8ad2-67bc88987354",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 160,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "58cf468d-8a38-4d9f-a003-7e0f1aec0bd3",
+        "taskId": "765d900e-08da-45f3-8430-9c39584b8535",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "2a3b6e1b-b8ad-4585-b7ac-a5ba6b9ce0d6",
+        "taskId": "c561e5eb-ae1d-4861-8ae7-f39a00261f26",
+        "resourceId": "ca929daf-40fc-46d8-b967-c58b4d71454b",
+        "plannedHours": 80,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "8800124b-0d75-43fc-bfc8-9097711ace1f",
+        "taskId": "1b980fee-50d4-40ad-9e3e-e9469f0de88c",
+        "resourceId": "37c20e1c-3e28-41ce-b2be-56c74fc4b6b2",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      },
+      {
+        "id": "f15c9eb2-34da-4f1e-bf7b-fb4c42e6af86",
+        "taskId": "10a00f51-c798-488c-bc7e-56149b78195c",
+        "resourceId": "18c2137f-1ffa-4292-a6f4-9b048092a152",
+        "plannedHours": 40,
+        "actualHours": 0,
+        "weeklyDistribution": [],
+        "isManualDistribution": false
+      }
     ]
   }
 ]

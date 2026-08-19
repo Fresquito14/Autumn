@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Link2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -33,19 +33,26 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
   const [open, setOpen] = useState(false)
   const taskIdRef = useRef(task.id)
   const { tasks, updateTask, getTask } = useTasks()
-  const { dependencies } = useDependencies()
+  const { dependencies, updateDependency } = useDependencies()
   const { currentProject } = useProject()
 
   // Get fresh task data from store
   const currentTask = getTask(task.id) || task
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ActualProgressFormData>({
+  const incomingDependencies = dependencies.filter(d => d.successorId === currentTask.id)
+  const [dependencyLags, setDependencyLags] = useState<Record<string, { lag: number; actualLag?: number }>>({})
+
+  const [actualDuration, setActualDuration] = useState<number>(
+    currentTask.actualDuration || currentTask.duration
+  )
+
+  const { handleSubmit, reset, setValue } = useForm<ActualProgressFormData>({
     defaultValues: {
       actualDuration: currentTask.actualDuration || currentTask.duration,
     }
   })
 
-  // Close dialog if task ID changes (shouldn't happen, but safety measure)
+  // Close dialog if task ID changes
   useEffect(() => {
     if (task.id !== taskIdRef.current) {
       setOpen(false)
@@ -53,12 +60,22 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
     }
   }, [task.id])
 
-  // Update form default value when currentTask changes
+  // Update form default value when currentTask or dependencies change
   useEffect(() => {
-    if (currentTask.actualDuration) {
-      setValue('actualDuration', currentTask.actualDuration)
-    }
-  }, [currentTask.actualDuration, setValue])
+    const actDur = currentTask.actualDuration || currentTask.duration
+    setValue('actualDuration', actDur)
+    setActualDuration(actDur)
+
+    const incoming = dependencies.filter(d => d.successorId === currentTask.id)
+    const initialLags: Record<string, { lag: number; actualLag?: number }> = {}
+    incoming.forEach(dep => {
+      initialLags[dep.id] = {
+        lag: dep.lag || 0,
+        actualLag: dep.actualLag,
+      }
+    })
+    setDependencyLags(initialLags)
+  }, [currentTask.actualDuration, currentTask.duration, currentTask.id, dependencies, setValue])
 
   // Check if task is a leaf task (no children)
   const isLeafTask = !tasks.some(t => t.parentId === currentTask.id)
@@ -106,7 +123,6 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
   }
 
   const handleAllChecklistCompleted = () => {
-    // Auto-focus on actual duration field
     const durationInput = document.getElementById('actualDuration')
     if (durationInput) {
       setTimeout(() => {
@@ -117,49 +133,53 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
 
   const onSubmit = async (data: ActualProgressFormData) => {
     try {
-      // Calculate actual dates based on actualDuration
       const workingDays = currentProject?.config?.workingDays || [1, 2, 3, 4, 5]
+      const finalDuration = actualDuration || data.actualDuration
 
-      // Find predecessor dependencies
-      const predecessors = dependencies.filter(dep => dep.successorId === task.id)
+      // Update incoming dependencies if actualLag was changed
+      if (incomingDependencies.length > 0) {
+        for (const dep of incomingDependencies) {
+          const lagState = dependencyLags[dep.id]
+          if (lagState && (lagState.lag !== dep.lag || lagState.actualLag !== dep.actualLag)) {
+            await updateDependency(dep.id, {
+              lag: lagState.lag,
+              actualLag: lagState.actualLag,
+            })
+          }
+        }
+      }
 
       // Determine actualStartDate
       let actualStartDate: Date
 
-      if (predecessors.length === 0) {
-        // No predecessors - use planned start date or existing actualStartDate
-        actualStartDate = task.actualStartDate || task.startDate
+      if (incomingDependencies.length === 0) {
+        actualStartDate = currentTask.actualStartDate || currentTask.startDate
       } else {
-        // Has predecessors - use the latest predecessor's actualEndDate
-        let latestPredecessorEnd: Date | null = null
+        let earliestActualStart: Date | null = null
 
-        predecessors.forEach(dep => {
+        incomingDependencies.forEach(dep => {
           const predecessor = tasks.find(t => t.id === dep.predecessorId)
           if (!predecessor) return
 
-          // Use predecessor's actualEndDate if available, otherwise fall back to planned endDate
           const predecessorEnd = predecessor.actualEndDate || predecessor.endDate
+          const lagToUse = dependencyLags[dep.id]?.actualLag !== undefined
+            ? dependencyLags[dep.id]?.actualLag!
+            : (dependencyLags[dep.id]?.lag ?? dep.lag ?? 0)
 
-          if (!latestPredecessorEnd || predecessorEnd > latestPredecessorEnd) {
-            latestPredecessorEnd = predecessorEnd
+          const predCalculatedStart = addBusinessDays(new Date(predecessorEnd), lagToUse + 1, workingDays)
+          if (!earliestActualStart || predCalculatedStart.getTime() > earliestActualStart.getTime()) {
+            earliestActualStart = predCalculatedStart
           }
         })
 
-        if (latestPredecessorEnd) {
-          // Start the day after predecessor ends
-          actualStartDate = new Date(latestPredecessorEnd)
-          actualStartDate.setDate(actualStartDate.getDate() + 1)
-        } else {
-          // Fallback to planned start date
-          actualStartDate = task.actualStartDate || task.startDate
-        }
+        actualStartDate = earliestActualStart || currentTask.actualStartDate || currentTask.startDate
       }
 
       // Calculate actualEndDate from actualStartDate + actualDuration
-      const actualEndDate = addBusinessDays(actualStartDate, data.actualDuration - 1, workingDays)
+      const actualEndDate = addBusinessDays(actualStartDate, finalDuration - 1, workingDays)
 
       await updateTask(task.id, {
-        actualDuration: data.actualDuration,
+        actualDuration: finalDuration,
         actualStartDate,
         actualEndDate,
       })
@@ -193,7 +213,7 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
     </Button>
   )
 
-  const variance = currentTask.actualDuration ? currentTask.actualDuration - currentTask.duration : 0
+  const executionVariance = actualDuration - currentTask.duration
 
   // Stable onOpenChange handler
   const handleOpenChange = useCallback((newOpen: boolean) => {
@@ -205,12 +225,12 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[450px]">
+      <DialogContent className="sm:max-w-[480px]">
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5" />
-              Registrar Avance Real
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              Seguimiento y Retraso Real de Inicio
             </DialogTitle>
             <DialogDescription>
               {task.wbsCode} - {task.name}
@@ -231,47 +251,114 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
               />
             )}
 
-            {/* Planned Duration */}
-            <div className="grid gap-2">
-              <Label>Duración Planificada</Label>
-              <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-                {currentTask.duration} días laborables
-              </div>
-            </div>
+            {/* Incoming Predecessor Dependencies Lag inputs */}
+            {incomingDependencies.length > 0 && (
+              <div className="border rounded-xl p-3 bg-muted/20 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <Link2 className="h-4 w-4 text-primary shrink-0" />
+                  <span className="font-semibold text-xs text-foreground">
+                    Retraso Real de Inicio respecto a Predecesoras
+                  </span>
+                </div>
 
-            {/* Actual Duration */}
-            <div className="grid gap-2">
-              <Label htmlFor="actualDuration">
-                Duración Real <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="actualDuration"
-                type="number"
-                min="1"
-                placeholder={`${task.duration}`}
-                {...register('actualDuration', {
-                  valueAsNumber: true,
-                  required: 'La duración real es obligatoria',
-                  min: { value: 1, message: 'Mínimo 1 día' },
+                {incomingDependencies.map(dep => {
+                  const pred = tasks.find(t => t.id === dep.predecessorId)
+                  const lagState = dependencyLags[dep.id] || { lag: dep.lag || 0, actualLag: dep.actualLag }
+
+                  return (
+                    <div key={dep.id} className="p-2.5 rounded-lg border bg-card space-y-2">
+                      <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                        <span>Predecesora: {pred ? `${pred.wbsCode} - ${pred.name}` : ''}</span>
+                        <span className="text-[10px] text-muted-foreground">FS</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="grid gap-1">
+                          <Label className="text-[11px] text-muted-foreground">Retraso Plan (días)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={lagState.lag}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10) || 0
+                              setDependencyLags(prev => ({
+                                ...prev,
+                                [dep.id]: { ...prev[dep.id], lag: val }
+                              }))
+                            }}
+                          />
+                        </div>
+
+                        <div className="grid gap-1">
+                          <Label className="text-[11px] text-primary font-semibold">Retraso Real Inicio (días)</Label>
+                          <Input
+                            type="number"
+                            placeholder="Opcional"
+                            value={lagState.actualLag !== undefined ? lagState.actualLag : ''}
+                            onChange={(e) => {
+                              const raw = e.target.value
+                              const val = raw === '' ? undefined : parseInt(raw, 10)
+                              setDependencyLags(prev => ({
+                                ...prev,
+                                [dep.id]: { ...prev[dep.id], actualLag: val }
+                              }))
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )
                 })}
-              />
-              {errors.actualDuration && (
-                <p className="text-sm text-destructive">{errors.actualDuration.message}</p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Días laborables que realmente tomó completar la tarea
-              </p>
-            </div>
-
-            {/* Current Variance */}
-            {currentTask.actualDuration !== undefined && (
-              <div className="bg-muted p-3 rounded-md text-sm">
-                <p className="font-medium mb-1">Variación Actual:</p>
-                <p className={variance === 0 ? 'text-muted-foreground' : variance > 0 ? 'text-destructive' : 'text-green-600'}>
-                  {variance === 0 ? 'En plazo' : variance > 0 ? `+${variance} días (retraso)` : `${variance} días (adelanto)`}
-                </p>
               </div>
             )}
+
+            {/* Planned vs Real Duration inputs */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-medium">Duración Planificada</Label>
+                <div className="text-sm font-semibold bg-muted p-2 rounded-md border text-muted-foreground flex items-center h-10">
+                  {currentTask.duration} días laborables
+                </div>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="actualDuration" className="text-xs font-medium">
+                  Duración Real (días) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="actualDuration"
+                  type="number"
+                  min="1"
+                  value={actualDuration}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10) || 1
+                    setActualDuration(val)
+                    setValue('actualDuration', val)
+                  }}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Execution Variance Banner */}
+            <div className="p-3 rounded-md text-xs border bg-card flex items-center justify-between">
+              <span className="font-semibold text-foreground/80">Desvío de Duración:</span>
+              <span
+                className={
+                  executionVariance === 0
+                    ? 'text-muted-foreground font-medium'
+                    : executionVariance > 0
+                    ? 'text-rose-600 dark:text-rose-400 font-bold'
+                    : 'text-emerald-600 dark:text-emerald-400 font-bold'
+                }
+              >
+                {executionVariance === 0
+                  ? '✅ En plazo exacto (0 días)'
+                  : executionVariance > 0
+                  ? `⚠️ +${executionVariance} ${executionVariance === 1 ? 'día' : 'días'} de duración extra`
+                  : `✨ ${executionVariance} ${Math.abs(executionVariance) === 1 ? 'día' : 'días'} menos de lo previsto`}
+              </span>
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
@@ -281,7 +368,7 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
                 variant="outline"
                 onClick={handleClear}
               >
-                Limpiar
+                Desmarcar Avance
               </Button>
             )}
             <Button

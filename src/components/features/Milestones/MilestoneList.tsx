@@ -7,14 +7,18 @@ import { MilestoneFormDialog } from './MilestoneFormDialog'
 import { useMilestones } from '@/hooks/useMilestones'
 import { useTasks } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProject'
+import { useAuth } from '@/hooks/useAuth'
 import type { Milestone } from '@/types'
 
 export function MilestoneList() {
   const { milestones, loadMilestones, deleteMilestone, isLoading } = useMilestones()
   const { tasks } = useTasks()
   const { currentProject } = useProject()
+  const { user } = useAuth()
   const [editingMilestone, setEditingMilestone] = useState<Milestone | undefined>(undefined)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+
+  const isReadOnly = Boolean(user && currentProject?.userId && currentProject.userId !== user.id)
 
   useEffect(() => {
     if (currentProject) {
@@ -29,12 +33,14 @@ export function MilestoneList() {
   }
 
   const handleDelete = async (id: string) => {
+    if (isReadOnly) return
     if (confirm('¿Eliminar este hito?')) {
       await deleteMilestone(id)
     }
   }
 
   const handleDoubleClick = (milestone: Milestone) => {
+    if (isReadOnly) return
     setEditingMilestone(milestone)
     setIsEditDialogOpen(true)
   }
@@ -44,7 +50,7 @@ export function MilestoneList() {
     setEditingMilestone(undefined)
   }
 
-  if (isLoading) {
+  if (isLoading && milestones.length === 0) {
     return (
       <Card>
         <CardContent className="py-8">
@@ -64,14 +70,16 @@ export function MilestoneList() {
               {milestones.length} {milestones.length === 1 ? 'hito' : 'hitos'}
             </CardDescription>
           </div>
-          <MilestoneFormDialog
-            milestone={editingMilestone}
-            open={isEditDialogOpen}
-            onOpenChange={(open) => {
-              setIsEditDialogOpen(open)
-              if (!open) handleEditDialogClose()
-            }}
-          />
+          {!isReadOnly && (
+            <MilestoneFormDialog
+              milestone={editingMilestone}
+              open={isEditDialogOpen}
+              onOpenChange={(open) => {
+                setIsEditDialogOpen(open)
+                if (!open) handleEditDialogClose()
+              }}
+            />
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -97,7 +105,7 @@ export function MilestoneList() {
                   key={milestone.id}
                   className="flex items-center gap-2 p-2 border rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
                   onDoubleClick={() => handleDoubleClick(milestone)}
-                  title="Doble clic para editar"
+                  title={isReadOnly ? undefined : "Doble clic para editar"}
                 >
                   <div className="flex-1 min-w-0 flex items-center gap-1.5">
                     <Flag className="h-3 w-3 text-primary flex-shrink-0" />
@@ -139,17 +147,19 @@ export function MilestoneList() {
                   </div>
 
                   <div className="w-8 flex-shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDelete(milestone.id)
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    {!isReadOnly && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(milestone.id)
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

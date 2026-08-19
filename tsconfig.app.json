@@ -24,7 +24,10 @@
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@domain/*": ["./src/domain/*"],
+      "@infrastructure/*": ["./src/infrastructure/*"],
+      "@presentation/*": ["./src/presentation/*"]
     }
   },
   "include": ["src"]

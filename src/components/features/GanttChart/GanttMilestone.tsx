@@ -8,7 +8,7 @@ interface GanttMilestoneProps {
   rowHeight: number
 }
 
-export function GanttMilestone({ milestone, left, totalHeight, rowHeight }: GanttMilestoneProps) {
+export function GanttMilestone({ milestone, left, totalHeight, rowHeight: _rowHeight }: GanttMilestoneProps) {
   const diamondSize = 12 // Size of the diamond marker
 
   return (
@@ -19,6 +19,7 @@ export function GanttMilestone({ milestone, left, totalHeight, rowHeight }: Gant
         top: 0,
         height: totalHeight,
         zIndex: 3, // Above task bars but below dependency lines
+        transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
       {/* Vertical dashed line */}

@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Edit, Trash2, Users, Search, CheckSquare, Square, X, Calendar } from 'lucide-react'
+import { Plus, Edit, Trash2, Users, Search, CheckSquare, Square, X, Calendar, ArrowRightLeft } from 'lucide-react'
 import { useResources } from '@/hooks/useResources'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
-import { useTasks } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProject'
 import { useGlobalHolidays } from '@/hooks/useGlobalHolidays'
 import { getCombinedHolidays } from '@/lib/calculations/holidays'
 import { ResourceCapacityHeatmap } from './ResourceCapacityHeatmap'
 import { ResourceFormDialog } from './ResourceFormDialog'
+import { ResourceMergeModal } from './ResourceMergeModal'
 import { db } from '@/lib/storage/db'
+import { supabaseSyncService } from '@/lib/supabase/db_service'
 import type { Resource, Task } from '@/types'
+
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -28,7 +30,6 @@ import { es } from 'date-fns/locale'
 export function ResourceManagement() {
   const { resources, isLoading, loadAllResources, deleteResource, deleteResources, updateResource } = useResources()
   const { assignments, loadAllAssignments } = useResourceAssignments()
-  const { tasks } = useTasks()
   const { currentProject } = useProject()
   const { holidays: globalHolidays, loadAllHolidays } = useGlobalHolidays()
 
@@ -45,6 +46,11 @@ export function ResourceManagement() {
   const [vacationsResource, setVacationsResource] = useState<Resource | null>(null)
   const [newVacationStart, setNewVacationStart] = useState('')
   const [newVacationEnd, setNewVacationEnd] = useState('')
+
+
+  // Resource merge / reassign states
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false)
+  const [mergeSourceId, setMergeSourceId] = useState<string | undefined>()
 
   const handleAddVacationToResource = async (resourceId: string, start: Date, end: Date) => {
     const res = resources.find(r => r.id === resourceId)
@@ -85,10 +91,27 @@ export function ResourceManagement() {
     loadAllResources()
     loadAllAssignments()
     loadAllHolidays()
-    db.tasks.toArray()
-      .then(setAllTasks)
-      .catch(err => console.error('Error loading all tasks for resources:', err))
+
+    async function loadTasksForCapacity() {
+      try {
+        const localTasks = await db.tasks.toArray()
+        setAllTasks(localTasks)
+
+        try {
+          await supabaseSyncService.syncFullDatabaseFromCloud()
+          const updatedTasks = await db.tasks.toArray()
+          setAllTasks(updatedTasks)
+        } catch (cloudErr) {
+          console.warn('Cloud tasks hydration skipped for resource capacity:', cloudErr)
+        }
+      } catch (err) {
+        console.error('Error loading tasks for capacity calculation:', err)
+      }
+    }
+
+    loadTasksForCapacity()
   }, [loadAllResources, loadAllAssignments, loadAllHolidays])
+
 
   // Combine global and project-specific holidays
   const combinedHolidays = useMemo(() => {
@@ -186,10 +209,25 @@ export function ResourceManagement() {
             Administra los recursos globales y visualiza su carga de trabajo
           </p>
         </div>
-        <Button onClick={handleCreateResource}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Recurso
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setMergeSourceId(undefined)
+              setIsMergeModalOpen(true)
+            }}
+            className="gap-2 border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10"
+            title="Unificar recursos o migrar tareas de un recurso sustituido"
+          >
+            <ArrowRightLeft className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            Unificar / Reemplazar Recurso
+          </Button>
+          <Button onClick={handleCreateResource}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Recurso
+          </Button>
+        </div>
+
       </div>
 
       {/* Resource List */}
@@ -345,9 +383,13 @@ export function ResourceManagement() {
                           <td className="p-3">
                             <div className="flex items-center gap-1.5 flex-wrap max-w-[260px]">
                               {vacations.length > 0 ? (
-                                vacations.map((vac, idx) => {
-                                  const startStr = format(new Date(vac.start), 'dd MMM', { locale: es })
-                                  const endStr = format(new Date(vac.end), 'dd MMM', { locale: es })
+                                vacations.map((vac: any, idx) => {
+                                  const vStart = vac.start || vac.startDate || vac.start_date
+                                  const vEnd = vac.end || vac.endDate || vac.end_date
+                                  const startDateObj = vStart ? new Date(vStart) : null
+                                  const endDateObj = vEnd ? new Date(vEnd) : null
+                                  const startStr = startDateObj && !isNaN(startDateObj.getTime()) ? format(startDateObj, 'dd MMM', { locale: es }) : 'N/A'
+                                  const endStr = endDateObj && !isNaN(endDateObj.getTime()) ? format(endDateObj, 'dd MMM', { locale: es }) : 'N/A'
                                   return (
                                     <span
                                       key={idx}
@@ -371,7 +413,6 @@ export function ResourceManagement() {
                               ) : (
                                 <span className="text-[11px] text-muted-foreground/60 italic">Sin vacaciones</span>
                               )}
-                              
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -384,9 +425,23 @@ export function ResourceManagement() {
                             </div>
                           </td>
 
+
+
                           {/* Row Actions */}
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                                onClick={() => {
+                                  setMergeSourceId(resource.id)
+                                  setIsMergeModalOpen(true)
+                                }}
+                                title="Unificar / Reemplazar tareas de este recurso"
+                              >
+                                <ArrowRightLeft className="h-3.5 w-3.5" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -396,6 +451,7 @@ export function ResourceManagement() {
                               >
                                 <Edit className="h-3.5 w-3.5" />
                               </Button>
+
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -548,6 +604,22 @@ export function ResourceManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Resource Merge / Reassign Modal */}
+      <ResourceMergeModal
+        isOpen={isMergeModalOpen}
+        onClose={() => {
+          setIsMergeModalOpen(false)
+          setMergeSourceId(undefined)
+        }}
+        initialSourceResourceId={mergeSourceId}
+        resources={resources}
+        onSuccess={() => {
+          loadAllResources()
+          loadAllAssignments()
+        }}
+      />
     </div>
   )
 }
+

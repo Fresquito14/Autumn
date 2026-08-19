@@ -21,6 +21,7 @@ interface DependencyFormData {
   predecessorId: string
   successorId: string
   lag: number
+  actualLag?: number
 }
 
 interface DependencyDialogProps {
@@ -48,6 +49,7 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
       predecessorId: dependency?.predecessorId || '',
       successorId: dependency?.successorId || task?.id || '',
       lag: dependency?.lag || 0,
+      actualLag: dependency?.actualLag,
     }
   })
 
@@ -58,6 +60,7 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
         predecessorId: dependency.predecessorId,
         successorId: dependency.successorId,
         lag: dependency.lag || 0,
+        actualLag: dependency.actualLag,
       })
     }
   }, [dependency, reset])
@@ -97,11 +100,14 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
     }
 
     try {
+      const parsedActualLag = typeof data.actualLag === 'number' && !isNaN(data.actualLag) ? data.actualLag : undefined
+
       if (isEditing) {
         await updateDependency(dependency!.id, {
           predecessorId: data.predecessorId,
           successorId: data.successorId,
           lag: data.lag,
+          actualLag: parsedActualLag,
         })
       } else {
         await createDependency({
@@ -110,6 +116,7 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
           successorId: data.successorId,
           type: 'FS',
           lag: data.lag,
+          actualLag: parsedActualLag,
         })
       }
 
@@ -152,7 +159,7 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
             </DialogTitle>
             <DialogDescription>
               {isEditing
-                ? 'Modifica los detalles de la dependencia'
+                ? 'Modifica los detalles de la dependencia y sus retrasos'
                 : 'Define que una tarea debe completarse antes de que otra pueda iniciar (Finish-to-Start)'}
             </DialogDescription>
           </DialogHeader>
@@ -171,7 +178,7 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
               </Label>
               <select
                 id="predecessorId"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 {...register('predecessorId', { required: 'Selecciona una tarea predecesora' })}
               >
                 <option value="">Selecciona una tarea...</option>
@@ -192,7 +199,7 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
               </Label>
               <select
                 id="successorId"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 {...register('successorId', { required: 'Selecciona una tarea sucesora' })}
                 disabled={!!task}
               >
@@ -208,26 +215,39 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
               )}
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="lag">
-                Retraso (días)
-              </Label>
-              <input
-                id="lag"
-                type="number"
-                min="0"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                {...register('lag', { valueAsNumber: true, min: 0 })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Días de espera adicionales después de terminar la tarea predecesora
-              </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="lag" className="text-xs font-medium">
+                  Retraso Planificado (días)
+                </Label>
+                <input
+                  id="lag"
+                  type="number"
+                  min="0"
+                  className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  {...register('lag', { valueAsNumber: true, min: 0 })}
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="actualLag" className="text-xs font-medium">
+                  Retraso Real (días)
+                </Label>
+                <input
+                  id="actualLag"
+                  type="number"
+                  min="0"
+                  placeholder="Opcional"
+                  className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  {...register('actualLag', { valueAsNumber: true, min: 0 })}
+                />
+              </div>
             </div>
 
-            <div className="bg-muted p-3 rounded-md text-sm">
-              <p className="font-medium mb-1">Tipo de Dependencia:</p>
+            <div className="bg-muted/40 border p-3 rounded-md text-xs space-y-1">
+              <p className="font-semibold text-foreground">Tipo de Dependencia: Finish-to-Start (FS)</p>
               <p className="text-muted-foreground">
-                <strong>Finish-to-Start (FS)</strong>: La tarea sucesora solo puede comenzar cuando la predecesora termine
+                La tarea sucesora inicia tras finalizar la predecesora + los días de retraso o desfase definidos.
               </p>
             </div>
           </div>
