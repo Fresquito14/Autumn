@@ -179,9 +179,18 @@ export function MyTasksManagement() {
     })
   }, [allTasks, selectedResourceId, statusFilter, selectedProjectId, searchQuery, assignments])
 
-  const handleSilentRefresh = useCallback(() => {
-    loadAllData(true)
-  }, [loadAllData])
+  const handleTaskUpdated = useCallback((taskId?: string, updatedChecklist?: ChecklistItem[]) => {
+    if (taskId && updatedChecklist) {
+      setAllTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, checklist: updatedChecklist } : t))
+      )
+    } else {
+      // Refresh tasks directly from local IndexedDB without triggering cloud overwrites
+      db.tasks.toArray().then((dbTasks) => {
+        setAllTasks(dbTasks)
+      })
+    }
+  }, [])
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
@@ -451,7 +460,7 @@ export function MyTasksManagement() {
                 task={task}
                 projectName={projectMap.get(task.projectId) || 'Proyecto'}
                 resourceId={effectiveResourceId}
-                onTaskUpdated={handleSilentRefresh}
+                onTaskUpdated={handleTaskUpdated}
               />
             )
           })}

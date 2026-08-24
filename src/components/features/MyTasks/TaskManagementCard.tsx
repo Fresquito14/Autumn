@@ -21,6 +21,7 @@ import { QuickSubtaskDialog } from './QuickSubtaskDialog'
 import { useTasks } from '@/hooks/useTasks'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import { db } from '@/infrastructure/storage/dexie/db'
+import { supabase } from '@/lib/supabase/client'
 import { getTaskTemporalStatus } from '@/domain/calculations/my-tasks'
 import type { Task, ChecklistItem } from '@/types'
 import { cn } from '@/lib/utils'
@@ -30,7 +31,7 @@ interface TaskManagementCardProps {
   task: Task
   projectName: string
   resourceId: string
-  onTaskUpdated?: () => void
+  onTaskUpdated?: (taskId?: string, updatedChecklist?: ChecklistItem[]) => void
 }
 
 export function TaskManagementCard({
@@ -46,9 +47,11 @@ export function TaskManagementCard({
   const [newChecklistText, setNewChecklistText] = useState('')
   const [isAddingItem, setIsAddingItem] = useState(false)
 
-  // Keep local checklist in sync if task prop updates
+  // Keep local checklist synchronized when task prop changes
   useEffect(() => {
-    setLocalChecklist(task.checklist || [])
+    if (task.checklist) {
+      setLocalChecklist(task.checklist)
+    }
   }, [task.checklist])
 
   // Find assignment for this resource
@@ -78,17 +81,30 @@ export function TaskManagementCard({
     setLocalChecklist(updatedChecklist)
 
     const allChecked = updatedChecklist.length > 0 && updatedChecklist.every((i) => i.completed)
+    const toggledItem = updatedChecklist.find((i) => i.id === itemId)
 
     try {
+      // 1. Update Dexie
       await db.tasks.update(task.id, {
         checklist: updatedChecklist,
         ...(allChecked && !task.actualDuration ? { percentComplete: 100, actualDuration: task.duration, actualEndDate: new Date() } : {}),
         updatedAt: new Date(),
       })
+
+      // 2. Update Zustand store
       await updateTask(task.id, {
         checklist: updatedChecklist,
         ...(allChecked && !task.actualDuration ? { percentComplete: 100, actualDuration: task.duration, actualEndDate: new Date() } : {}),
       })
+
+      // 3. Sync to Supabase in background if authenticated
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.id && toggledItem) {
+        await supabase
+          .from('task_checklist_items')
+          .update({ completed: toggledItem.completed })
+          .eq('id', itemId)
+      }
     } catch (err) {
       console.error('Error updating checklist item:', err)
     }
@@ -96,7 +112,7 @@ export function TaskManagementCard({
     if (allChecked && !task.actualDuration) {
       toast.success(`¡Todos los puntos de "${task.name}" completados!`)
     }
-    onTaskUpdated?.()
+    onTaskUpdated?.(task.id, updatedChecklist)
   }
 
   // Add item to checklist
@@ -116,19 +132,35 @@ export function TaskManagementCard({
     setIsAddingItem(false)
 
     try {
+      // 1. Update Dexie
       await db.tasks.update(task.id, {
         checklist: updatedChecklist,
         updatedAt: new Date(),
       })
+
+      // 2. Update Zustand store
       await updateTask(task.id, {
         checklist: updatedChecklist,
       })
+
+      // 3. Sync to Supabase in background if authenticated
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.id) {
+        await supabase.from('task_checklist_items').upsert({
+          id: newItem.id,
+          task_id: task.id,
+          user_id: session.user.id,
+          text: newItem.text,
+          completed: false,
+          position: updatedChecklist.length - 1,
+        })
+      }
     } catch (err) {
       console.error('Error adding checklist item:', err)
     }
 
     toast.success('Punto añadido al checklist')
-    onTaskUpdated?.()
+    onTaskUpdated?.(task.id, updatedChecklist)
   }
 
   // Delete checklist item
@@ -137,18 +169,24 @@ export function TaskManagementCard({
     setLocalChecklist(updatedChecklist)
 
     try {
+      // 1. Update Dexie
       await db.tasks.update(task.id, {
         checklist: updatedChecklist,
         updatedAt: new Date(),
       })
+
+      // 2. Update Zustand store
       await updateTask(task.id, {
         checklist: updatedChecklist,
       })
+
+      // 3. Sync delete to Supabase in background
+      await supabase.from('task_checklist_items').delete().eq('id', itemId)
     } catch (err) {
       console.error('Error deleting checklist item:', err)
     }
 
-    onTaskUpdated?.()
+    onTaskUpdated?.(task.id, updatedChecklist)
   }
 
   // Toggle task complete / reopen
@@ -160,14 +198,25 @@ export function TaskManagementCard({
         actualDuration: undefined,
         actualEndDate: undefined,
       })
+      await db.tasks.update(task.id, {
+        percentComplete: 0,
+        actualDuration: undefined,
+        actualEndDate: undefined,
+        updatedAt: new Date(),
+      })
       toast.info(`Tarea "${task.name}" reabierta`)
     } else {
       // Mark as complete
-      await updateTask(task.id, {
+      const completeData = {
         percentComplete: 100,
         actualDuration: task.duration,
         actualStartDate: task.actualStartDate || task.startDate,
         actualEndDate: new Date(),
+      }
+      await updateTask(task.id, completeData)
+      await db.tasks.update(task.id, {
+        ...completeData,
+        updatedAt: new Date(),
       })
       toast.success(`Tarea "${task.name}" marcada como completada`)
     }
@@ -175,61 +224,58 @@ export function TaskManagementCard({
   }
 
   return (
-    <Card
-      className={cn(
-        'transition-all duration-200 border-l-4 overflow-hidden',
-        isCompleted
-          ? 'border-l-emerald-500 bg-card/60 opacity-90'
-          : status === 'overdue'
-          ? 'border-l-rose-500 hover:border-l-rose-600 bg-card'
-          : status === 'active'
-          ? 'border-l-amber-500 hover:border-l-amber-600 bg-card shadow-xs'
-          : 'border-l-muted-foreground/30 bg-card'
-      )}
-    >
-      <CardContent className="p-4 space-y-3.5">
+    <Card className={cn(
+      'transition-all border',
+      isCompleted
+        ? 'opacity-75 bg-muted/20 border-border/60'
+        : status === 'overdue'
+        ? 'border-rose-500/30 bg-rose-500/5'
+        : 'bg-card hover:border-border/80'
+    )}>
+      <CardContent className="p-4 space-y-3">
         {/* Top Header Row */}
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="space-y-1 flex-1 min-w-[240px]">
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Project Badge */}
-              <Badge variant="outline" className="text-[11px] gap-1 py-0.5 bg-muted/40 font-medium">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
+          <div className="space-y-1 flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              {/* Project badge */}
+              <Badge variant="secondary" className="gap-1 font-normal text-[11px] py-0 px-2">
                 <FolderGit2 className="h-3 w-3 text-muted-foreground" />
-                <span className="truncate max-w-[160px]">{projectName}</span>
+                <span className="truncate max-w-[140px]">{projectName}</span>
               </Badge>
 
               {/* WBS Code */}
-              <span className="text-xs font-mono font-semibold text-primary">
+              <span className="font-mono font-medium text-muted-foreground">
                 {task.wbsCode}
               </span>
 
-              {/* Status Badge */}
-              {isCompleted ? (
-                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] py-0 px-2">
-                  Completada
-                </Badge>
-              ) : status === 'overdue' ? (
-                <Badge className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] py-0 px-2 gap-1">
-                  <AlertCircle className="h-2.5 w-2.5" />
+              {/* Temporal status badge */}
+              {status === 'overdue' ? (
+                <Badge variant="destructive" className="text-[10px] py-0 px-1.5 gap-1">
+                  <AlertCircle className="h-3 w-3" />
                   Vencida
                 </Badge>
               ) : status === 'active' ? (
-                <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] py-0 px-2">
+                <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] py-0 px-1.5">
                   En curso
                 </Badge>
+              ) : status === 'completed' ? (
+                <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] py-0 px-1.5">
+                  Completada
+                </Badge>
               ) : (
-                <Badge variant="secondary" className="text-[10px] py-0 px-2 text-muted-foreground">
+                <Badge variant="outline" className="text-muted-foreground text-[10px] py-0 px-1.5">
                   Próxima
                 </Badge>
               )}
             </div>
 
-            {/* Task Title */}
+            {/* Task Name */}
             <h3
               className={cn(
-                'text-sm font-semibold text-foreground pt-0.5 leading-snug',
+                'text-sm font-semibold tracking-tight text-foreground truncate',
                 isCompleted && 'line-through text-muted-foreground'
               )}
+              title={task.name}
             >
               {task.name}
             </h3>
@@ -246,13 +292,13 @@ export function TaskManagementCard({
             <QuickSubtaskDialog
               parentTask={task}
               resourceId={resourceId}
-              onSubtaskCreated={onTaskUpdated}
+              onSubtaskCreated={() => onTaskUpdated?.()}
             />
 
             <LogHoursDialog
               task={task}
               resourceId={resourceId}
-              onHoursLogged={onTaskUpdated}
+              onHoursLogged={() => onTaskUpdated?.()}
             />
 
             <Button
@@ -318,13 +364,13 @@ export function TaskManagementCard({
                 <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
                   <div
                     className={cn(
-                      'h-full rounded-full transition-all',
-                      actualHours > plannedHours
-                        ? 'bg-rose-500'
-                        : actualHours > 0
-                        ? 'bg-amber-500'
-                        : 'bg-muted-foreground/30'
-                    )}
+                    'h-full rounded-full transition-all',
+                    actualHours > plannedHours
+                      ? 'bg-rose-500'
+                      : actualHours > 0
+                      ? 'bg-amber-500'
+                      : 'bg-muted-foreground/30'
+                  )}
                     style={{ width: `${Math.min(100, hoursPercent)}%` }}
                   />
                 </div>
