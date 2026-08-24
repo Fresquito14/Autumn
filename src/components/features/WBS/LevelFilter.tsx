@@ -8,7 +8,7 @@ interface LevelFilterProps {
 }
 
 export function LevelFilter({ maxLevel, currentMaxLevel, onLevelChange }: LevelFilterProps) {
-  if (maxLevel === 0) return null
+  if (maxLevel <= 1) return null
 
   return (
     <div className="flex items-center gap-2">
@@ -18,13 +18,16 @@ export function LevelFilter({ maxLevel, currentMaxLevel, onLevelChange }: LevelF
       </Label>
       <select
         id="level-filter"
-        className="flex h-8 rounded-md border border-input bg-background text-foreground px-2 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="flex h-8 rounded-md border border-input bg-background text-foreground px-2 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
         value={currentMaxLevel}
         onChange={(e) => onLevelChange(Number(e.target.value))}
       >
-        {Array.from({ length: maxLevel + 1 }, (_, i) => i).map((level) => (
+        <option value={0} className="bg-background text-foreground">
+          Todos
+        </option>
+        {Array.from({ length: maxLevel }, (_, i) => i + 1).map((level) => (
           <option key={level} value={level} className="bg-background text-foreground">
-            {level === 0 ? 'Todos' : `Nivel ${level}`}
+            Nivel {level}
           </option>
         ))}
       </select>

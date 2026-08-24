@@ -208,9 +208,10 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
         const pred = tasks.find(t => t.id === dep.predecessorId)
         if (pred) {
           const predEnd = pred.actualEndDate || pred.endDate
-          const lagToUse = dependencyLags[dep.id]?.actualLag !== undefined
-            ? dependencyLags[dep.id]?.actualLag!
-            : (dependencyLags[dep.id]?.lag ?? dep.lag ?? 0)
+          const depLagEntry = dependencyLags[dep.id]
+          const lagToUse = depLagEntry?.actualLag !== undefined
+            ? depLagEntry.actualLag
+            : (depLagEntry?.lag ?? dep.lag ?? 0)
 
           const predCalculatedStart = addBusinessDays(new Date(predEnd), lagToUse + 1, workingDays)
           if (!earliestActualStart || predCalculatedStart.getTime() > earliestActualStart.getTime()) {

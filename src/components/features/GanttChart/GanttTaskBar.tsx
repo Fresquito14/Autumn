@@ -119,7 +119,7 @@ export function GanttTaskBar({
         }
       } else {
         const originalStart = pointerStartRef.current.originalStartDate
-        let newStart = addBusinessDays(originalStart, finalOffset, workingDays)
+        const newStart = addBusinessDays(originalStart, finalOffset, workingDays)
         const newEnd = addBusinessDays(newStart, task.duration - 1, workingDays)
 
         await updateTask(task.id, {

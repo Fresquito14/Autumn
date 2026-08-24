@@ -162,9 +162,10 @@ export function ActualProgressDialog({ task, trigger }: ActualProgressDialogProp
           if (!predecessor) return
 
           const predecessorEnd = predecessor.actualEndDate || predecessor.endDate
-          const lagToUse = dependencyLags[dep.id]?.actualLag !== undefined
-            ? dependencyLags[dep.id]?.actualLag!
-            : (dependencyLags[dep.id]?.lag ?? dep.lag ?? 0)
+          const depLagEntry = dependencyLags[dep.id]
+          const lagToUse = depLagEntry?.actualLag !== undefined
+            ? depLagEntry.actualLag
+            : (depLagEntry?.lag ?? dep.lag ?? 0)
 
           const predCalculatedStart = addBusinessDays(new Date(predecessorEnd), lagToUse + 1, workingDays)
           if (!earliestActualStart || predCalculatedStart.getTime() > earliestActualStart.getTime()) {

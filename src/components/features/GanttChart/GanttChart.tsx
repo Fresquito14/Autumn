@@ -24,6 +24,7 @@ import {
   calculateTimelineDimensions,
   calculateDatePosition
 } from '@/lib/calculations/dates'
+import { getMaxWbsLevel, isTaskVisibleAtLevel } from '@/domain/calculations/wbs'
 
 const ROW_HEIGHT = 40
 
@@ -125,13 +126,11 @@ export function GanttChart() {
   // Debug log
   console.log(`Timeline: ${normalizedStart.toLocaleDateString()} to ${normalizedEnd.toLocaleDateString()} (${totalDays} days, dayWidth: ${dayWidth}px, zoomLevel: ${zoomLevel})`)
 
-  // Calculate max level in tasks
-  const maxLevel = Math.max(...tasks.map(t => t.level || 0), 0)
+  // Calculate max level in tasks (1-based: 1 = root, 2 = child, 3 = grandchild, etc.)
+  const maxLevel = getMaxWbsLevel(tasks)
 
   // Filter tasks based on maxDisplayLevel
-  const filteredTasks = maxDisplayLevel === 0
-    ? tasks
-    : tasks.filter(task => task.level <= maxDisplayLevel)
+  const filteredTasks = tasks.filter(task => isTaskVisibleAtLevel(task, maxDisplayLevel))
 
   // Get visible tasks (flatten hierarchy for Gantt)
   const visibleTasks = filteredTasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))

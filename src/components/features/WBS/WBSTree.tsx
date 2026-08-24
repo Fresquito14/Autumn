@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { TaskRow } from './TaskRow'
 import { TaskFormDialog } from './TaskFormDialog'
 import { LevelFilter } from './LevelFilter'
+import { getMaxWbsLevel, isTaskVisibleAtLevel } from '@/domain/calculations/wbs'
 import { useTasks } from '@/hooks/useTasks'
 import { useLevelFilter } from '@/hooks/useLevelFilter'
 import { useProject } from '@/hooks/useProject'
@@ -82,13 +83,12 @@ export function WBSTree() {
     )
   }
 
-  // Calculate max level in tasks
-  const maxLevel = Math.max(...tasks.map(t => t.level || 0), 0)
+  // Calculate max level in tasks (1-based: 1 = root, 2 = child, 3 = grandchild, etc.)
+  const maxLevel = getMaxWbsLevel(tasks)
 
   // Filter tasks based on maxDisplayLevel
   const shouldShowTask = (task: Task): boolean => {
-    if (maxDisplayLevel === 0) return true
-    return task.level <= maxDisplayLevel
+    return isTaskVisibleAtLevel(task, maxDisplayLevel)
   }
 
   const getFilteredChildTasks = (parentId: string | undefined): Task[] => {
