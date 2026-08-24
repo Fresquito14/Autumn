@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   CheckCircle2,
   Circle,
@@ -20,6 +20,7 @@ import { LogHoursDialog } from './LogHoursDialog'
 import { QuickSubtaskDialog } from './QuickSubtaskDialog'
 import { useTasks } from '@/hooks/useTasks'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
+import { db } from '@/infrastructure/storage/dexie/db'
 import { getTaskTemporalStatus } from '@/domain/calculations/my-tasks'
 import type { Task, ChecklistItem } from '@/types'
 import { cn } from '@/lib/utils'
@@ -41,8 +42,14 @@ export function TaskManagementCard({
   const { updateTask } = useTasks()
   const { assignments } = useResourceAssignments()
 
+  const [localChecklist, setLocalChecklist] = useState<ChecklistItem[]>(task.checklist || [])
   const [newChecklistText, setNewChecklistText] = useState('')
   const [isAddingItem, setIsAddingItem] = useState(false)
+
+  // Keep local checklist in sync if task prop updates
+  useEffect(() => {
+    setLocalChecklist(task.checklist || [])
+  }, [task.checklist])
 
   // Find assignment for this resource
   const assignment = assignments.find(
@@ -56,9 +63,8 @@ export function TaskManagementCard({
   const isCompleted = status === 'completed'
 
   // Checklist statistics
-  const checklist = task.checklist || []
-  const totalItems = checklist.length
-  const completedItems = checklist.filter((i) => i.completed).length
+  const totalItems = localChecklist.length
+  const completedItems = localChecklist.filter((i) => i.completed).length
   const checklistPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0
 
   // Hours consumption percent
@@ -66,17 +72,26 @@ export function TaskManagementCard({
 
   // Toggle checklist item status
   const handleToggleChecklistItem = async (itemId: string) => {
-    const updatedChecklist = checklist.map((item) =>
+    const updatedChecklist = localChecklist.map((item) =>
       item.id === itemId ? { ...item, completed: !item.completed } : item
     )
+    setLocalChecklist(updatedChecklist)
 
     const allChecked = updatedChecklist.length > 0 && updatedChecklist.every((i) => i.completed)
 
-    await updateTask(task.id, {
-      checklist: updatedChecklist,
-      // If all items completed, suggest or auto-set completion
-      ...(allChecked && !task.actualDuration ? { percentComplete: 100, actualDuration: task.duration, actualEndDate: new Date() } : {}),
-    })
+    try {
+      await db.tasks.update(task.id, {
+        checklist: updatedChecklist,
+        ...(allChecked && !task.actualDuration ? { percentComplete: 100, actualDuration: task.duration, actualEndDate: new Date() } : {}),
+        updatedAt: new Date(),
+      })
+      await updateTask(task.id, {
+        checklist: updatedChecklist,
+        ...(allChecked && !task.actualDuration ? { percentComplete: 100, actualDuration: task.duration, actualEndDate: new Date() } : {}),
+      })
+    } catch (err) {
+      console.error('Error updating checklist item:', err)
+    }
 
     if (allChecked && !task.actualDuration) {
       toast.success(`¡Todos los puntos de "${task.name}" completados!`)
@@ -86,32 +101,53 @@ export function TaskManagementCard({
 
   // Add item to checklist
   const handleAddChecklistItem = async () => {
-    if (!newChecklistText.trim()) return
+    const trimmed = newChecklistText.trim()
+    if (!trimmed) return
 
     const newItem: ChecklistItem = {
       id: crypto.randomUUID(),
-      text: newChecklistText.trim(),
+      text: trimmed,
       completed: false,
     }
 
-    const updatedChecklist = [...checklist, newItem]
-
-    await updateTask(task.id, {
-      checklist: updatedChecklist,
-    })
-
+    const updatedChecklist = [...localChecklist, newItem]
+    setLocalChecklist(updatedChecklist)
     setNewChecklistText('')
     setIsAddingItem(false)
+
+    try {
+      await db.tasks.update(task.id, {
+        checklist: updatedChecklist,
+        updatedAt: new Date(),
+      })
+      await updateTask(task.id, {
+        checklist: updatedChecklist,
+      })
+    } catch (err) {
+      console.error('Error adding checklist item:', err)
+    }
+
     toast.success('Punto añadido al checklist')
     onTaskUpdated?.()
   }
 
   // Delete checklist item
   const handleDeleteChecklistItem = async (itemId: string) => {
-    const updatedChecklist = checklist.filter((item) => item.id !== itemId)
-    await updateTask(task.id, {
-      checklist: updatedChecklist,
-    })
+    const updatedChecklist = localChecklist.filter((item) => item.id !== itemId)
+    setLocalChecklist(updatedChecklist)
+
+    try {
+      await db.tasks.update(task.id, {
+        checklist: updatedChecklist,
+        updatedAt: new Date(),
+      })
+      await updateTask(task.id, {
+        checklist: updatedChecklist,
+      })
+    } catch (err) {
+      console.error('Error deleting checklist item:', err)
+    }
+
     onTaskUpdated?.()
   }
 
@@ -326,9 +362,9 @@ export function TaskManagementCard({
           </div>
 
           {/* Checklist Items list */}
-          {checklist.length > 0 ? (
+          {localChecklist.length > 0 ? (
             <div className="space-y-1">
-              {checklist.map((item) => (
+              {localChecklist.map((item) => (
                 <div
                   key={item.id}
                   className="group flex items-center justify-between gap-2 text-xs py-1 px-2 rounded hover:bg-muted/40 transition-colors"

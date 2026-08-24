@@ -76,7 +76,7 @@ export const useTasks = create<TaskState>()(
           await dbHelpers.updateTask(id, changes)
 
           const currentTasks = get().tasks
-          const targetTask = currentTasks.find(t => t.id === id)
+          const targetTask = currentTasks.find(t => t.id === id) || (await dbHelpers.getTask(id))
           if (!targetTask) return
 
           const projectId = targetTask.projectId
