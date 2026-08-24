@@ -26,7 +26,7 @@ import {
   getTaskTemporalStatus,
   type TaskStatusFilter,
 } from '@/domain/calculations/my-tasks'
-import type { Task, Project } from '@/types'
+import type { Task, Project, ChecklistItem } from '@/types'
 
 export function MyTasksManagement() {
   const { user } = useAuth()
