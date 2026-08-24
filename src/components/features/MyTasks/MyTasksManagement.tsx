@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   ListTodo,
   CheckCircle2,
@@ -33,28 +33,36 @@ export function MyTasksManagement() {
   const { userRole } = useOrganization()
   const { resources, loadAllResources } = useResources()
   const { assignments, loadAllAssignments } = useResourceAssignments()
-  const { projects, loadProjects } = useProject()
+  const { loadProjects } = useProject()
 
   const [allTasks, setAllTasks] = useState<Task[]>([])
   const [allDbProjects, setAllDbProjects] = useState<Project[]>([])
-  const [selectedResourceId, setSelectedResourceId] = useState<string>('all')
+  const [selectedResourceId, setSelectedResourceId] = useState<string>('')
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all')
-  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>('active')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+
+  const isInitialLoadRef = useRef(true)
+  const hasAutoMatchedUserRef = useRef(false)
 
   const isManagerOrAdmin = !user || userRole === 'manager' || userRole === 'admin'
 
   // Load all projects, tasks, resources, and assignments directly from storage
-  const loadAllData = useCallback(async () => {
-    setIsLoading(true)
+  const loadAllData = useCallback(async (silent = false) => {
+    if (!silent && isInitialLoadRef.current) {
+      setIsLoading(true)
+    }
+
     try {
+      // Sync stores in parallel
       await Promise.all([
         loadProjects(),
         loadAllResources(),
         loadAllAssignments(),
       ])
 
+      // Fetch directly from IndexedDB
       const [dbProjects, dbTasks, , dbResources] = await Promise.all([
         db.projects.toArray(),
         db.tasks.toArray(),
@@ -62,27 +70,43 @@ export function MyTasksManagement() {
         db.resources.toArray(),
       ])
 
-      setAllDbProjects(dbProjects.length > 0 ? dbProjects : projects)
+      setAllDbProjects(dbProjects)
       setAllTasks(dbTasks)
 
-      // Auto-match user to a resource by email
-      if (user?.email && dbResources.length > 0) {
-        const matchingResource = dbResources.find(
-          (r) => r.email?.toLowerCase() === user.email?.toLowerCase()
-        )
-        if (matchingResource) {
-          setSelectedResourceId((prev) => (prev === 'all' ? matchingResource.id : prev))
+      // Auto-match user to their resource once on mount
+      if (!hasAutoMatchedUserRef.current && dbResources.length > 0) {
+        hasAutoMatchedUserRef.current = true
+        let matchedId = ''
+
+        if (user?.email) {
+          const matchingResource = dbResources.find(
+            (r) => r.email?.toLowerCase() === user.email?.toLowerCase()
+          )
+          if (matchingResource) {
+            matchedId = matchingResource.id
+          }
+        }
+
+        // Fallback to the first resource if no email match
+        if (!matchedId && dbResources.length > 0) {
+          matchedId = dbResources[0].id
+        }
+
+        if (matchedId) {
+          setSelectedResourceId(matchedId)
         }
       }
     } catch (err) {
       console.error('Error loading tasks for MyTasks view:', err)
     } finally {
       setIsLoading(false)
+      isInitialLoadRef.current = false
     }
-  }, [loadProjects, loadAllResources, loadAllAssignments, projects, user?.email])
+  }, [loadProjects, loadAllResources, loadAllAssignments, user?.email])
 
+  // Single mount effect - no infinite render loop
   useEffect(() => {
-    loadAllData()
+    loadAllData(false)
   }, [loadAllData])
 
   const currentResource = resources.find((r) => r.id === selectedResourceId)
@@ -90,10 +114,9 @@ export function MyTasksManagement() {
   // Map of project names
   const projectMap = useMemo(() => {
     const map = new Map<string, string>()
-    const projectList = allDbProjects.length > 0 ? allDbProjects : projects
-    projectList.forEach((p) => map.set(p.id, p.name))
+    allDbProjects.forEach((p) => map.set(p.id, p.name))
     return map
-  }, [allDbProjects, projects])
+  }, [allDbProjects])
 
   // Tasks eligible for current resource selection
   const relevantTasks = useMemo(() => {
@@ -156,7 +179,9 @@ export function MyTasksManagement() {
     })
   }, [allTasks, selectedResourceId, statusFilter, selectedProjectId, searchQuery, assignments])
 
-  const availableProjects = allDbProjects.length > 0 ? allDbProjects : projects
+  const handleSilentRefresh = useCallback(() => {
+    loadAllData(true)
+  }, [loadAllData])
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
@@ -175,7 +200,7 @@ export function MyTasksManagement() {
 
           {/* Resource Selector for Managers / Admins */}
           <div className="flex items-center gap-3 flex-wrap">
-            {isManagerOrAdmin ? (
+            {isManagerOrAdmin && resources.length > 0 ? (
               <div className="flex items-center gap-2">
                 <Label htmlFor="resource-select" className="text-xs text-muted-foreground whitespace-nowrap">
                   Recurso:
@@ -275,27 +300,6 @@ export function MyTasksManagement() {
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
             <button
               type="button"
-              onClick={() => setStatusFilter('all')}
-              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
-                statusFilter === 'all'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              Todas
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                  statusFilter === 'all'
-                    ? 'bg-primary-foreground/20 text-primary-foreground'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {counts.total}
-              </span>
-            </button>
-
-            <button
-              type="button"
               onClick={() => setStatusFilter('active')}
               className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
                 statusFilter === 'active'
@@ -356,6 +360,27 @@ export function MyTasksManagement() {
                 {counts.completed}
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+                statusFilter === 'all'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              Todas
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  statusFilter === 'all'
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {counts.total}
+              </span>
+            </button>
           </div>
 
           {/* Project filter & Search input */}
@@ -369,7 +394,7 @@ export function MyTasksManagement() {
                 className="h-8 rounded-md border border-input bg-background text-foreground px-2 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer flex-1 sm:w-44"
               >
                 <option value="all">Todos los proyectos</option>
-                {availableProjects.map((proj) => (
+                {allDbProjects.map((proj) => (
                   <option key={proj.id} value={proj.id}>
                     {proj.name}
                   </option>
@@ -401,13 +426,13 @@ export function MyTasksManagement() {
           <CardContent className="py-12 text-center space-y-2 text-muted-foreground">
             <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground/60" />
             <p className="text-sm font-medium">
-              No hay tareas para mostrar en este filtro
+              No hay tareas para mostrar en esta sección
             </p>
             <p className="text-xs">
               {allTasks.length === 0
                 ? 'No existen tareas creadas en tus proyectos todavía.'
-                : selectedResourceId !== 'all'
-                ? 'El recurso seleccionado no tiene tareas asignadas. Prueba seleccionando "Todos los miembros del equipo" o cambiando el filtro.'
+                : statusFilter === 'active'
+                ? 'No tienes tareas activas o en curso actualmente. Puedes ver tus tareas futuras en la pestaña "Próximas" o en "Todas".'
                 : 'No se encontraron tareas con los filtros seleccionados.'}
             </p>
           </CardContent>
@@ -426,7 +451,7 @@ export function MyTasksManagement() {
                 task={task}
                 projectName={projectMap.get(task.projectId) || 'Proyecto'}
                 resourceId={effectiveResourceId}
-                onTaskUpdated={loadAllData}
+                onTaskUpdated={handleSilentRefresh}
               />
             )
           })}
