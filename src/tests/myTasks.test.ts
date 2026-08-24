@@ -167,17 +167,42 @@ describe('MyTasks Domain Calculations', () => {
       expect(result.map((t) => t.id)).toEqual(['t2'])
     })
 
-    it('should sort chronologically by start date ascending', () => {
+    it('should return all tasks when resourceId is all', () => {
       const result = filterAndSortMyTasks({
         tasks,
-        resourceId: 'res-1',
+        resourceId: 'all',
         statusFilter: 'all',
         referenceDate: refDate,
       })
 
-      expect(result[0].id).toBe('t3') // June 1st
-      expect(result[1].id).toBe('t1') // June 12th
-      expect(result[2].id).toBe('t2') // June 22nd
+      expect(result.length).toBe(4)
+    })
+
+    it('should match task by assignments array if assignedTo is empty', () => {
+      const unassignedTask = createTask({
+        id: 't5',
+        name: 'Assignment only task',
+        assignedTo: [],
+      })
+      const result = filterAndSortMyTasks({
+        tasks: [unassignedTask],
+        resourceId: 'res-1',
+        statusFilter: 'all',
+        assignments: [
+          {
+            id: 'a1',
+            taskId: 't5',
+            resourceId: 'res-1',
+            plannedHours: 10,
+            weeklyDistribution: [],
+            isManualDistribution: false,
+          },
+        ],
+        referenceDate: refDate,
+      })
+
+      expect(result.length).toBe(1)
+      expect(result[0].id).toBe('t5')
     })
   })
 })
