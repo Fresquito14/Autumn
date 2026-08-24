@@ -1,0 +1,411 @@
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  ListTodo,
+  CheckCircle2,
+  Clock,
+  Calendar,
+  Search,
+  Filter,
+  UserCheck,
+  AlertCircle,
+  Briefcase,
+} from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { TaskManagementCard } from './TaskManagementCard'
+import { useAuth } from '@/hooks/useAuth'
+import { useOrganization } from '@/hooks/useOrganization'
+import { useResources } from '@/hooks/useResources'
+import { useResourceAssignments } from '@/hooks/useResourceAssignments'
+import { useProject } from '@/hooks/useProject'
+import { dbHelpers } from '@/infrastructure/storage/dexie/db'
+import {
+  filterAndSortMyTasks,
+  getTaskTemporalStatus,
+  type TaskStatusFilter,
+} from '@/domain/calculations/my-tasks'
+import type { Task } from '@/types'
+
+export function MyTasksManagement() {
+  const { user } = useAuth()
+  const { userRole } = useOrganization()
+  const { resources, loadAllResources } = useResources()
+  const { assignments, loadAllAssignments } = useResourceAssignments()
+  const { projects, loadProjects } = useProject()
+
+  const [allTasks, setAllTasks] = useState<Task[]>([])
+  const [selectedResourceId, setSelectedResourceId] = useState<string>('')
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>('active')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+
+  const isManagerOrAdmin = !user || userRole === 'manager' || userRole === 'admin'
+
+  // Load all projects, resources, and assignments
+  const loadAllData = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      await Promise.all([
+        loadProjects(),
+        loadAllResources(),
+        loadAllAssignments(),
+      ])
+
+      const currentProjects = useProject.getState().projects
+      const projectTasksPromises = currentProjects.map((p) =>
+        dbHelpers.getProjectTasks(p.id)
+      )
+      const tasksArrays = await Promise.all(projectTasksPromises)
+      const combinedTasks = tasksArrays.flat()
+      setAllTasks(combinedTasks)
+    } catch (err) {
+      console.error('Error loading tasks for MyTasks view:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [loadProjects, loadAllResources, loadAllAssignments])
+
+  useEffect(() => {
+    loadAllData()
+  }, [loadAllData])
+
+  // Automatically match logged-in user with their Resource by email
+  useEffect(() => {
+    if (resources.length === 0) return
+
+    if (user?.email) {
+      const matchingResource = resources.find(
+        (r) => r.email?.toLowerCase() === user.email?.toLowerCase()
+      )
+      if (matchingResource) {
+        setSelectedResourceId(matchingResource.id)
+        return
+      }
+    }
+
+    // Default to the first resource if not yet selected
+    if (!selectedResourceId && resources.length > 0) {
+      setSelectedResourceId(resources[0].id)
+    }
+  }, [user?.email, resources, selectedResourceId])
+
+  const currentResource = resources.find((r) => r.id === selectedResourceId)
+
+  // Map of project names
+  const projectMap = useMemo(() => {
+    const map = new Map<string, string>()
+    projects.forEach((p) => map.set(p.id, p.name))
+    return map
+  }, [projects])
+
+  // Filter tasks assigned to current resource
+  const resourceTasks = useMemo(() => {
+    if (!selectedResourceId) return []
+    return allTasks.filter(
+      (t) => Array.isArray(t.assignedTo) && t.assignedTo.includes(selectedResourceId)
+    )
+  }, [allTasks, selectedResourceId])
+
+  // Count metrics for tabs
+  const counts = useMemo(() => {
+    let active = 0
+    let upcoming = 0
+    let completed = 0
+
+    resourceTasks.forEach((t) => {
+      if (selectedProjectId !== 'all' && t.projectId !== selectedProjectId) {
+        return
+      }
+      const st = getTaskTemporalStatus(t)
+      if (st === 'completed') {
+        completed++
+      } else if (st === 'upcoming') {
+        upcoming++
+      } else {
+        // 'active' or 'overdue'
+        active++
+      }
+    })
+
+    const total = active + upcoming + completed
+    return { active, upcoming, completed, total }
+  }, [resourceTasks, selectedProjectId])
+
+  // Total actual hours logged by this resource across assigned tasks
+  const totalHoursLogged = useMemo(() => {
+    if (!selectedResourceId) return 0
+    const myAssignments = assignments.filter((a) => a.resourceId === selectedResourceId)
+    const hours = myAssignments.reduce((sum, a) => sum + (a.actualHours || 0), 0)
+    return Math.round(hours * 10) / 10
+  }, [assignments, selectedResourceId])
+
+  // Filtered and sorted tasks for the list
+  const displayedTasks = useMemo(() => {
+    if (!selectedResourceId) return []
+    return filterAndSortMyTasks({
+      tasks: allTasks,
+      resourceId: selectedResourceId,
+      statusFilter,
+      projectId: selectedProjectId,
+      searchQuery,
+    })
+  }, [allTasks, selectedResourceId, statusFilter, selectedProjectId, searchQuery])
+
+  return (
+    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+      {/* Header Banner & Filters */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <ListTodo className="h-6 w-6 text-primary" />
+              <h2 className="text-xl font-bold tracking-tight">Gestión de Tareas</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Imputa horas, gestiona checklists y desglosa subtareas ordenadas por fecha de inicio.
+            </p>
+          </div>
+
+          {/* Resource Selector for Managers / Admins */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {isManagerOrAdmin && resources.length > 1 && (
+              <div className="flex items-center gap-2">
+                <Label htmlFor="resource-select" className="text-xs text-muted-foreground whitespace-nowrap">
+                  Recurso:
+                </Label>
+                <select
+                  id="resource-select"
+                  value={selectedResourceId}
+                  onChange={(e) => setSelectedResourceId(e.target.value)}
+                  className="h-8 rounded-md border border-input bg-background text-foreground px-2.5 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer font-medium"
+                >
+                  {resources.map((res) => (
+                    <option key={res.id} value={res.id}>
+                      {res.name} {res.email ? `(${res.email})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Current Resource Indicator if not selectable */}
+            {(!isManagerOrAdmin || resources.length <= 1) && currentResource && (
+              <Badge variant="outline" className="text-xs py-1 px-2.5 gap-1.5 bg-muted/30">
+                <UserCheck className="h-3.5 w-3.5 text-primary" />
+                <span>{currentResource.name}</span>
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Top Summary Metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card className="bg-card/50">
+            <CardContent className="p-3.5 flex items-center gap-3">
+              <div className="h-9 w-9 rounded-md bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[11px] text-muted-foreground block">Tareas Activas</span>
+                <span className="text-lg font-bold text-foreground">{counts.active}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/50">
+            <CardContent className="p-3.5 flex items-center gap-3">
+              <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+                <Briefcase className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[11px] text-muted-foreground block">Horas Imputadas</span>
+                <span className="text-lg font-bold text-foreground">{totalHoursLogged}h</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/50">
+            <CardContent className="p-3.5 flex items-center gap-3">
+              <div className="h-9 w-9 rounded-md bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[11px] text-muted-foreground block">Completadas</span>
+                <span className="text-lg font-bold text-foreground">{counts.completed}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/50">
+            <CardContent className="p-3.5 flex items-center gap-3">
+              <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
+                <Calendar className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[11px] text-muted-foreground block">Total Asignadas</span>
+                <span className="text-lg font-bold text-foreground">{counts.total}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filter Controls Row */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2">
+          {/* Status Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+            <button
+              type="button"
+              onClick={() => setStatusFilter('active')}
+              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+                statusFilter === 'active'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              En Curso / Activas
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  statusFilter === 'active'
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {counts.active}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter('upcoming')}
+              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+                statusFilter === 'upcoming'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              Próximas
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  statusFilter === 'upcoming'
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {counts.upcoming}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter('completed')}
+              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+                statusFilter === 'completed'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              Completadas
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  statusFilter === 'completed'
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {counts.completed}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+                statusFilter === 'all'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              Todas
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  statusFilter === 'all'
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {counts.total}
+              </span>
+            </button>
+          </div>
+
+          {/* Project filter & Search input */}
+          <div className="flex items-center gap-2">
+            {/* Project Filter */}
+            <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
+              <Filter className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
+              <select
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+                className="h-8 rounded-md border border-input bg-background text-foreground px-2 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer flex-1 sm:w-44"
+              >
+                <option value="all">Todos los proyectos</option>
+                {projects.map((proj) => (
+                  <option key={proj.id} value={proj.id}>
+                    {proj.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-48">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Buscar tarea o WBS..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Task List */}
+      {isLoading ? (
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          Cargando tareas asignadas...
+        </div>
+      ) : displayedTasks.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="py-12 text-center space-y-2 text-muted-foreground">
+            <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground/60" />
+            <p className="text-sm font-medium">
+              No hay tareas para mostrar en este filtro
+            </p>
+            <p className="text-xs">
+              {statusFilter === 'active'
+                ? 'No tienes tareas activas o en curso en este momento.'
+                : 'No se encontraron tareas con los filtros seleccionados.'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {displayedTasks.map((task) => (
+            <TaskManagementCard
+              key={task.id}
+              task={task}
+              projectName={projectMap.get(task.projectId) || 'Proyecto'}
+              resourceId={selectedResourceId}
+              onTaskUpdated={loadAllData}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

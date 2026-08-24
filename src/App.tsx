@@ -12,6 +12,7 @@ import {
   Crown,
   ArrowRightLeft,
   HelpCircle,
+  ListTodo,
 } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { useProject } from './hooks/useProject'
@@ -28,6 +29,7 @@ import { GanttChart } from './components/features/GanttChart/GanttChart'
 import { ResourceManagement } from './components/features/Resources/ResourceManagement'
 import { GlobalHolidaysManagement } from './components/features/GlobalHolidays/GlobalHolidaysManagement'
 import { PortfolioTimeline } from './components/features/Portfolio/PortfolioTimeline'
+import { MyTasksManagement } from './components/features/MyTasks/MyTasksManagement'
 import { OrganizationSwitcher } from './components/features/Organization/OrganizationSwitcher'
 import { CreateOrganizationDialog } from './components/features/Organization/CreateOrganizationDialog'
 import { WelcomeLanding } from './components/features/Welcome/WelcomeLanding'
@@ -50,7 +52,7 @@ import { AutosaveStatusIndicator } from './components/features/Sync/AutosaveStat
 import { ConflictResolutionModal } from './components/features/Sync/ConflictResolutionModal'
 import { seedInitialPortfolioIfEmpty } from './lib/storage/seed'
 
-type View = 'projects' | 'project' | 'resources' | 'holidays' | 'portfolio'
+type View = 'projects' | 'project' | 'resources' | 'holidays' | 'portfolio' | 'my-tasks'
 
 function App() {
   const { currentProject, setCurrentProject, updateProject } = useProject()
@@ -338,7 +340,7 @@ function App() {
                     Exportar
                   </Button>
                 </>
-              ) : currentView === 'resources' || currentView === 'holidays' || currentView === 'portfolio' ? (
+              ) : currentView === 'resources' || currentView === 'holidays' || currentView === 'portfolio' || currentView === 'my-tasks' ? (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -367,6 +369,15 @@ function App() {
                     >
                       <Upload className="h-4 w-4 mr-2" />
                       {isImporting ? 'Importando...' : 'Importar'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentView('my-tasks')}
+                      title="Gestión y seguimiento de tareas asignadas"
+                    >
+                      <ListTodo className="h-4 w-4 mr-2" />
+                      Mis Tareas
                     </Button>
                     <Button
                       variant="outline"
@@ -498,6 +509,8 @@ function App() {
               setCurrentView('project')
             }} 
           />
+        ) : currentView === 'my-tasks' ? (
+          <MyTasksManagement />
         ) : currentView === 'projects' ? (
           <div className="max-w-7xl mx-auto space-y-6">
             <ProjectList />
