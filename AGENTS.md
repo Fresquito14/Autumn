@@ -60,6 +60,11 @@ Antes de dar por finalizada cualquier tarea, es **estrictamente obligatorio** ej
    - `src/components/ui/`: Componentes base agnósticos al dominio (shadcn/Radix). No deben importar stores de negocio ni lógica de Supabase/Dexie.
    - `src/components/features/`: Componentes de negocio (Gantt, WBS, etc.) que orquestan hooks y UI.
 
+5. **Inmutabilidad de `projectId` y Aislamiento Estricto por Proyecto (Project Scoping):**
+   - El campo `projectId` de cualquier tarea es **estrictamente inmutable** tras su creación (`dbHelpers.updateTask` descarta cualquier intento de mutación).
+   - Queda terminantemente prohibido realizar consultas masivas globales tipo `SELECT * FROM tasks` para sobreescribir IndexedDB. La sincronización es exclusivamente por proyecto (`where project_id = :projectId`).
+   - Las sincronizaciones con la nube son explícitas a petición del usuario. Queda prohibido disparar descargas remotas en segundo plano que muten o reseteen el estado local de IndexedDB al montar vistas o stores.
+
 ---
 
 ## 🤖 3. Subagentes Especializados del Proyecto

@@ -368,8 +368,8 @@ export const supabaseSyncService = {
   },
 
   /**
-   * Fetches all projects, tasks, dependencies, and milestones from Supabase
-   * and syncs them into local IndexedDB (Dexie).
+   * Fetches project metadata from Supabase and syncs project headers to IndexedDB.
+   * 🛡️ ARCHITECTURAL HARDENING: Does NOT perform global task downloads to avoid task-project cross contamination.
    */
   async fetchAllProjectsFromCloud(): Promise<Project[]> {
     const { data: projectRows, error: pErr } = await supabase
@@ -378,25 +378,6 @@ export const supabaseSyncService = {
 
     if (pErr) throw pErr
     if (!projectRows || projectRows.length === 0) return []
-
-    const [tasksRes, depsRes, milesRes] = await Promise.all([
-      supabase.from('tasks').select('*'),
-      supabase.from('dependencies').select('*'),
-      supabase.from('milestones').select('*'),
-    ])
-
-    if (tasksRes.error) throw tasksRes.error
-    if (depsRes.error) throw depsRes.error
-    if (milesRes.error) throw milesRes.error
-
-    const taskIds = (tasksRes.data || []).map((t: any) => t.id)
-    let checklistItems: any[] = []
-    if (taskIds.length > 0) {
-      const chkRes = await supabase.from('task_checklist_items').select('*').in('task_id', taskIds)
-      if (!chkRes.error && chkRes.data) {
-        checklistItems = chkRes.data
-      }
-    }
 
     const projects: Project[] = projectRows.map((projectRow: any) => ({
       id: projectRow.id,
@@ -421,74 +402,9 @@ export const supabaseSyncService = {
       },
     }))
 
-    const tasks: Task[] = (tasksRes.data || []).map((t: any) => {
-      const taskChecklist = checklistItems
-        .filter((c: any) => c.task_id === t.id)
-        .sort((a, b) => (a.position || 0) - (b.position || 0))
-        .map((c: any) => ({
-          id: c.id,
-          text: c.text,
-          completed: c.completed,
-        }))
-
-      return {
-        id: t.id,
-        projectId: t.project_id,
-        name: t.name,
-        description: t.description || undefined,
-        wbsCode: t.wbs_code,
-        parentId: t.parent_id || undefined,
-        level: (t.level !== undefined && t.level !== null) ? Number(t.level) : (t.wbs_code ? getWbsLevel(t.wbs_code) : 0),
-        duration: Number(t.duration),
-        startDate: new Date(t.start_date),
-        endDate: new Date(t.end_date),
-        constraintType: t.constraint_type || undefined,
-        constraintDate: t.constraint_date ? new Date(t.constraint_date) : undefined,
-        assignedTo: t.assigned_to || [],
-        percentComplete: Number(t.percent_complete || 0),
-        actualStartDate: t.actual_start_date ? new Date(t.actual_start_date) : undefined,
-        actualEndDate: t.actual_end_date ? new Date(t.actual_end_date) : undefined,
-        actualDuration: t.actual_duration ? Number(t.actual_duration) : undefined,
-        notes: t.notes || undefined,
-        checklist: taskChecklist,
-        tags: t.tags || [],
-        createdAt: new Date(t.created_at),
-        updatedAt: new Date(t.updated_at),
-      }
-    })
-
-    const dependencies: Dependency[] = (depsRes.data || []).map((d: any) => ({
-      id: d.id,
-      projectId: d.project_id,
-      predecessorId: d.predecessor_id,
-      successorId: d.successor_id,
-      type: d.type || 'FS',
-      lag: Number(d.lag || 0),
-      actualLag: (d.actual_lag !== undefined && d.actual_lag !== null) ? Number(d.actual_lag) : undefined,
-    }))
-
-    const milestones: Milestone[] = (milesRes.data || []).map((m: any) => ({
-      id: m.id,
-      projectId: m.project_id,
-      name: m.name,
-      date: new Date(m.date),
-      linkedTaskId: m.linked_task_id || undefined,
-      offsetDays: m.offset_days || undefined,
-      description: m.description || undefined,
-    }))
-
-    await db.transaction('rw', [db.projects, db.tasks, db.dependencies, db.milestones], async () => {
+    await db.transaction('rw', [db.projects], async () => {
       for (const proj of projects) {
         await db.projects.put(proj)
-      }
-      for (const task of tasks) {
-        await db.tasks.put(task)
-      }
-      for (const dep of dependencies) {
-        await db.dependencies.put(dep)
-      }
-      for (const mile of milestones) {
-        await db.milestones.put(mile)
       }
     })
 

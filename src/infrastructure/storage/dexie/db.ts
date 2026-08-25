@@ -171,8 +171,11 @@ export const dbHelpers = {
   },
 
   async updateTask(id: string, changes: Partial<Task>) {
+    // 🛡️ ARCHITECTURAL INVARIANT: Task projectId and id are strictly immutable
+    const { projectId: _ignoredProjectId, id: _ignoredId, ...safeChanges } = changes as any
+
     return await db.tasks.update(id, {
-      ...changes,
+      ...safeChanges,
       updatedAt: new Date(),
     })
   },
