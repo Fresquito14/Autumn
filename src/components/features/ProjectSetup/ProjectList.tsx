@@ -14,6 +14,8 @@ import {
   UserCheck,
   RefreshCw,
   CloudDownload,
+  Download,
+  AlertTriangle,
 } from 'lucide-react'
 import { useProject } from '@/hooks/useProject'
 import { useAuth } from '@/hooks/useAuth'
@@ -21,6 +23,7 @@ import { useOrganization } from '@/hooks/useOrganization'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { forceSeedPortfolioDataset } from '@/lib/storage/seed'
+import { downloadProjectAsJSON } from '@/infrastructure/export/json'
 import { supabaseSyncService } from '@/infrastructure/supabase/db_service'
 import { PremiumPricingModal } from '../Premium/PremiumPricingModal'
 import { TransferProjectDialog } from './TransferProjectDialog'
@@ -222,31 +225,35 @@ export function ProjectList() {
 
   return (
     <div className="space-y-4">
-      {/* Free Tier Local Mode Banner */}
+      {/* Free Tier Local Mode Banner with JSON download warning */}
       {!user && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-primary/5 to-muted border border-amber-500/20 text-xs">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 border border-amber-500/30 text-xs">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
-              <Crown className="h-4 w-4" />
+            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+              <AlertTriangle className="h-4 w-4" />
             </div>
             <div>
-              <span className="font-semibold text-foreground">
-                Versión Gratuita Local: {projects.length}/3 proyectos utilizados
+              <span className="font-semibold text-foreground flex items-center gap-1.5">
+                Modo Gratuito (Almacenamiento Local Temporal)
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold">
+                  {projects.length}/3 proyectos
+                </span>
               </span>
-              <p className="text-muted-foreground">
-                Almacenamiento privado en navegador sin conexión a base de datos.
+              <p className="text-muted-foreground mt-0.5">
+                Tus datos no se guardan en la nube. <strong>Descarga el JSON</strong> de tus proyectos para no perder tu trabajo, o activa <strong>Premium</strong> para guardado automático y sincronización multidispositivo.
               </p>
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsPricingOpen(true)}
-            className="h-7 text-xs font-semibold border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
-          >
-            <Crown className="h-3.5 w-3.5 mr-1" />
-            Pásate a Premium
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              onClick={() => setIsPricingOpen(true)}
+              className="h-7.5 text-xs font-semibold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-xs"
+            >
+              <Crown className="h-3.5 w-3.5 mr-1" />
+              Guardar en Nube (Premium)
+            </Button>
+          </div>
         </div>
       )}
 
@@ -433,6 +440,25 @@ export function ProjectList() {
                     </div>
 
                     <div className="flex items-center gap-1 ml-auto" onClick={(e) => e.stopPropagation()}>
+                      {/* Download JSON backup button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        title={user ? 'Exportar proyecto a JSON' : 'Descargar respaldo JSON (Obligatorio en plan Free)'}
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          try {
+                            await downloadProjectAsJSON(project.id)
+                            toast.success(`Respaldo JSON de "${project.name}" descargado`)
+                          } catch (err) {
+                            toast.error('Error al descargar el archivo JSON')
+                          }
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+
                       {/* Transfer ownership button */}
                       {canTransfer && (
                         <TransferProjectDialog

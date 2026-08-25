@@ -138,6 +138,30 @@ export const useAuth = create<AuthState>()(
           if (error) throw error
           set({ user: null, session: null, isLoading: false })
           useOrganization.getState().clear()
+
+          // Clear local cache to prevent cross-account data leaks
+          try {
+            const { db } = await import('@/lib/storage/db')
+            const { useProject } = await import('./useProject')
+            const { useTasks } = await import('./useTasks')
+            const { useDependencies } = await import('./useDependencies')
+            const { useMilestones } = await import('./useMilestones')
+
+            await db.transaction('rw', [db.projects, db.tasks, db.dependencies, db.milestones, db.taskResourceAssignments], async () => {
+              await db.projects.clear()
+              await db.tasks.clear()
+              await db.dependencies.clear()
+              await db.milestones.clear()
+              await db.taskResourceAssignments.clear()
+            })
+
+            useProject.setState({ currentProject: null, projects: [] })
+            useTasks.getState().clearTasks()
+            useDependencies.getState().clearDependencies()
+            useMilestones.getState().clearMilestones()
+          } catch (dbErr) {
+            console.warn('Failed to clean local db on logout:', dbErr)
+          }
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })
         }
