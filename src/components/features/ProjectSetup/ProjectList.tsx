@@ -27,7 +27,6 @@ import { downloadProjectAsJSON } from '@/infrastructure/export/json'
 import { supabaseSyncService } from '@/infrastructure/supabase/db_service'
 import { PremiumPricingModal } from '../Premium/PremiumPricingModal'
 import { TransferProjectDialog } from './TransferProjectDialog'
-import { ProjectRecoveryDialog } from './ProjectRecoveryDialog'
 import { calculateBusinessDays } from '@/lib/calculations/dates'
 import { db } from '@/lib/storage/db'
 import { cn } from '@/lib/utils'
@@ -323,9 +322,6 @@ export function ProjectList() {
               Cargar Proyectos de Ejemplo
             </Button>
           )}
-
-          {/* Recovery and Reorganization Assistant */}
-          <ProjectRecoveryDialog />
         </div>
       </div>
 
