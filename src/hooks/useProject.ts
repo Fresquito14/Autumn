@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { Project } from '@/types'
 import { dbHelpers } from '@/lib/storage/db'
-import { supabaseSyncService } from '@/lib/supabase/db_service'
 import { supabase } from '@/lib/supabase/client'
 import { useTasks } from './useTasks'
 import { useDependencies } from './useDependencies'
@@ -35,19 +34,8 @@ export const useProject = create<ProjectState>()(
       loadProjects: async () => {
         set({ isLoading: true, error: null })
         try {
-          // 1. Load local projects first for fast UI rendering
           const localProjects = await dbHelpers.getAllProjects()
           set({ projects: localProjects, isLoading: false })
-
-          // 2. Sync project list from Supabase cloud in background
-          try {
-            await supabaseSyncService.fetchAllProjectsFromCloud()
-            const updatedProjects = await dbHelpers.getAllProjects()
-            set({ projects: updatedProjects })
-          } catch (cloudErr) {
-            // Silently ignore if offline or unauthenticated
-            console.warn('Could not sync project list from Supabase:', cloudErr)
-          }
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })
         }

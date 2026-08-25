@@ -24,6 +24,7 @@ import { forceSeedPortfolioDataset } from '@/lib/storage/seed'
 import { supabaseSyncService } from '@/infrastructure/supabase/db_service'
 import { PremiumPricingModal } from '../Premium/PremiumPricingModal'
 import { TransferProjectDialog } from './TransferProjectDialog'
+import { ProjectRecoveryDialog } from './ProjectRecoveryDialog'
 import { calculateBusinessDays } from '@/lib/calculations/dates'
 import { db } from '@/lib/storage/db'
 import { cn } from '@/lib/utils'
@@ -43,7 +44,6 @@ export function ProjectList() {
   const [isPricingOpen, setIsPricingOpen] = useState(false)
   const [projectMetrics, setProjectMetrics] = useState<Record<string, ProjectMetric>>({})
   const [onlyMyProjects, setOnlyMyProjects] = useState(false)
-  const hasAutoSyncedRef = useRef(false)
 
   // Initial local load
   useEffect(() => {
@@ -74,13 +74,7 @@ export function ProjectList() {
     }
   }
 
-  // Auto-sync from cloud on login/mount when authenticated
-  useEffect(() => {
-    if (user && !hasAutoSyncedRef.current) {
-      hasAutoSyncedRef.current = true
-      handleSyncFromCloud(true)
-    }
-  }, [user])
+
 
   // Compute end dates and schedule deviations for all projects
   useEffect(() => {
@@ -322,6 +316,9 @@ export function ProjectList() {
               Cargar Proyectos de Ejemplo
             </Button>
           )}
+
+          {/* Recovery and Reorganization Assistant */}
+          <ProjectRecoveryDialog />
         </div>
       </div>
 
