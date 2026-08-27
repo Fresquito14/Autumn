@@ -37,7 +37,7 @@ import { PremiumPricingModal } from './components/features/Premium/PremiumPricin
 import { LoginModal } from './components/features/Auth/LoginModal'
 import { Button } from './components/ui/button'
 import { ThemeToggle } from './components/ui/ThemeToggle'
-import { db } from './lib/storage/db'
+import { db, dbHelpers } from './lib/storage/db'
 import { downloadProjectAsJSON, readProjectFile, importProject } from './lib/export/json'
 
 // Supabase, Autosave, Realtime and Auth integration
@@ -110,24 +110,27 @@ function App() {
     }
   }, [currentProject])
 
-  // Sync cloud project version when opening a project
+  // Sync cloud project data when opening a project (scoped to currentProject)
   useEffect(() => {
     if (currentProject && user) {
       const projId = currentProject.id
       supabaseSyncService.loadProjectFromCloud(projId)
-        .then(({ data: cloudData, version: cloudVersion }) => {
-          const localVer = currentProject.version || 1
-          if (cloudVersion > localVer && cloudData) {
-            console.log(`Cloud version ${cloudVersion} is newer than local ${localVer}. Updating local DB...`)
-            updateProject(projId, { version: cloudVersion }).then(() => {
-              loadTasks(projId)
-              loadDependencies(projId)
-              loadMilestones(projId)
-            })
+        .then(async ({ data: cloudData, version: cloudVersion }) => {
+          if (cloudData) {
+            const localTasks = await dbHelpers.getProjectTasks(projId)
+            const localVer = currentProject.version || 1
+            if (localTasks.length === 0 || cloudVersion >= localVer) {
+              await supabaseSyncService.applyCloudDataToLocal(cloudData)
+              await Promise.all([
+                loadTasks(projId),
+                loadDependencies(projId),
+                loadMilestones(projId),
+              ])
+            }
           }
         })
         .catch(err => {
-          console.warn('Could not check project version in cloud:', err)
+          console.warn('Could not sync project from cloud on open:', err)
         })
     }
   }, [currentProject?.id, user])

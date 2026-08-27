@@ -5,6 +5,7 @@ import { dbHelpers } from '@/lib/storage/db'
 import { recalculateTaskDates, calculateBusinessDays } from '@/lib/calculations/dates'
 import { recalculateLinkedMilestones } from '@/lib/calculations/milestones'
 import { supabase } from '@/lib/supabase/client'
+import { supabaseSyncService } from '@/infrastructure/supabase/db_service'
 
 interface TaskState {
   tasks: Task[]
@@ -15,8 +16,9 @@ interface TaskState {
   loadTasks: (projectId: string) => Promise<void>
   getTask: (id: string) => Task | undefined
   createTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Task>
-  updateTask: (id: string, changes: Partial<Task>) => Promise<void>
-  deleteTask: (id: string) => Promise<void>
+  updateTask: (id: string, changes: Partial<Task>, recalculateDependentDates?: boolean) => Promise<void>
+  deleteTask: (id: string, recalculateDependentDates?: boolean) => Promise<void>
+  reorderTasks: (tasks: Task[]) => Promise<void>
   clearTasks: () => void
   recalculateDatesFromDependencies: (dependencies: Dependency[], workingDays: number[]) => Promise<void>
 }
@@ -31,8 +33,21 @@ export const useTasks = create<TaskState>()(
       loadTasks: async (projectId: string) => {
         set({ isLoading: true, error: null })
         try {
-          const tasks = await dbHelpers.getProjectTasks(projectId)
-          tasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
+          let tasks = await dbHelpers.getProjectTasks(projectId)
+
+          // If local tasks are empty, attempt to hydrate from Supabase for this specific project
+          if (tasks.length === 0) {
+            const { data: authData } = await supabase.auth.getUser()
+            if (authData?.user) {
+              const { data: cloudData } = await supabaseSyncService.loadProjectFromCloud(projectId)
+              if (cloudData && cloudData.tasks?.length > 0) {
+                await supabaseSyncService.applyCloudDataToLocal(cloudData)
+                tasks = await dbHelpers.getProjectTasks(projectId)
+              }
+            }
+          }
+
+          tasks.sort((a, b) => (a.wbsCode || '').localeCompare(b.wbsCode || '', undefined, { numeric: true }))
           set({ tasks, isLoading: false })
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })
