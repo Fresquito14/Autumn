@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { LogHoursDialog } from './LogHoursDialog'
 import { QuickSubtaskDialog } from './QuickSubtaskDialog'
+import { CompleteTaskDialog } from './CompleteTaskDialog'
 import { useTasks } from '@/hooks/useTasks'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import { db } from '@/infrastructure/storage/dexie/db'
@@ -189,37 +190,89 @@ export function TaskManagementCard({
     onTaskUpdated?.(task.id, updatedChecklist)
   }
 
-  // Toggle task complete / reopen
-  const handleToggleComplete = async () => {
-    if (isCompleted) {
-      // Reopen task
-      await updateTask(task.id, {
-        percentComplete: 0,
-        actualDuration: undefined,
-        actualEndDate: undefined,
-      })
-      await db.tasks.update(task.id, {
-        percentComplete: 0,
-        actualDuration: undefined,
-        actualEndDate: undefined,
-        updatedAt: new Date(),
-      })
-      toast.info(`Tarea "${task.name}" reabierta`)
-    } else {
-      // Mark as complete
-      const completeData = {
-        percentComplete: 100,
-        actualDuration: task.duration,
-        actualStartDate: task.actualStartDate || task.startDate,
-        actualEndDate: new Date(),
-      }
-      await updateTask(task.id, completeData)
-      await db.tasks.update(task.id, {
-        ...completeData,
-        updatedAt: new Date(),
-      })
-      toast.success(`Tarea "${task.name}" marcada como completada`)
+  // Reopen task
+  const handleReopenTask = async () => {
+    const reopenData = {
+      percentComplete: 0,
+      actualDuration: undefined,
+      actualStartDate: undefined,
+      actualEndDate: undefined,
+      updatedAt: new Date(),
     }
+
+    try {
+      // 1. Update Dexie
+      await db.tasks.update(task.id, reopenData)
+
+      // 2. Update Zustand store
+      await updateTask(task.id, reopenData)
+
+      // 3. Sync to Supabase in background if authenticated
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.id) {
+        await supabase
+          .from('tasks')
+          .update({
+            percent_complete: 0,
+            actual_duration: null,
+            actual_start_date: null,
+            actual_end_date: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', task.id)
+      }
+      toast.info(`Tarea "${task.name}" reabierta`)
+    } catch (err) {
+      console.error('Error reopening task:', err)
+    }
+
+    onTaskUpdated?.()
+  }
+
+  // Confirm completion with actual duration and start delay
+  const handleConfirmCompletion = async (data: {
+    actualDuration: number
+    actualStartDate: Date
+    actualEndDate: Date
+    percentComplete: number
+    notes?: string
+  }) => {
+    const completeData = {
+      percentComplete: 100,
+      actualDuration: data.actualDuration,
+      actualStartDate: data.actualStartDate,
+      actualEndDate: data.actualEndDate,
+      notes: data.notes || task.notes,
+      updatedAt: new Date(),
+    }
+
+    try {
+      // 1. Update Dexie
+      await db.tasks.update(task.id, completeData)
+
+      // 2. Update Zustand store
+      await updateTask(task.id, completeData)
+
+      // 3. Sync to Supabase in background if authenticated
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.id) {
+        await supabase
+          .from('tasks')
+          .update({
+            percent_complete: 100,
+            actual_duration: data.actualDuration,
+            actual_start_date: data.actualStartDate.toISOString(),
+            actual_end_date: data.actualEndDate.toISOString(),
+            notes: data.notes || task.notes || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', task.id)
+      }
+      toast.success(`¡Tarea "${task.name}" completada con éxito!`)
+    } catch (err) {
+      console.error('Error completing task:', err)
+    }
+
     onTaskUpdated?.()
   }
 
@@ -301,30 +354,24 @@ export function TaskManagementCard({
               onHoursLogged={() => onTaskUpdated?.()}
             />
 
-            <Button
-              variant={isCompleted ? 'outline' : 'default'}
-              size="sm"
-              className={cn(
-                'h-8 text-xs gap-1.5',
-                isCompleted
-                  ? 'text-muted-foreground hover:text-foreground'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              )}
-              onClick={handleToggleComplete}
-              title={isCompleted ? 'Reabrir tarea' : 'Marcar como completada'}
-            >
-              {isCompleted ? (
-                <>
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Reabrir
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Completar
-                </>
-              )}
-            </Button>
+            {isCompleted ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                onClick={handleReopenTask}
+                title="Reabrir tarea"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reabrir
+              </Button>
+            ) : (
+              <CompleteTaskDialog
+                task={task}
+                projectName={projectName}
+                onConfirm={handleConfirmCompletion}
+              />
+            )}
           </div>
         </div>
 
