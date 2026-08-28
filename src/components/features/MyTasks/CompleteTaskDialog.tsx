@@ -32,6 +32,7 @@ interface CompleteTaskDialogProps {
     actualStartDate: Date
     actualEndDate: Date
     percentComplete: number
+    startDelayDays: number
     notes?: string
   }) => Promise<void>
   trigger?: React.ReactNode
@@ -109,6 +110,7 @@ export function CompleteTaskDialog({
         actualStartDate: calculatedActualStartDate,
         actualEndDate: calculatedActualEndDate,
         percentComplete: 100,
+        startDelayDays,
         notes: notes.trim() || undefined,
       })
       setOpen(false)

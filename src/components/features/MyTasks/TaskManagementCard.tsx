@@ -21,6 +21,7 @@ import { QuickSubtaskDialog } from './QuickSubtaskDialog'
 import { CompleteTaskDialog } from './CompleteTaskDialog'
 import { useTasks } from '@/hooks/useTasks'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
+import { useDependencies } from '@/hooks/useDependencies'
 import { db } from '@/infrastructure/storage/dexie/db'
 import { supabase } from '@/lib/supabase/client'
 import { getTaskTemporalStatus } from '@/domain/calculations/my-tasks'
@@ -42,6 +43,7 @@ export function TaskManagementCard({
   onTaskUpdated,
 }: TaskManagementCardProps) {
   const { updateTask } = useTasks()
+  const { updateDependency } = useDependencies()
   const { assignments } = useResourceAssignments()
 
   const [localChecklist, setLocalChecklist] = useState<ChecklistItem[]>(task.checklist || [])
@@ -144,7 +146,7 @@ export function TaskManagementCard({
         checklist: updatedChecklist,
       })
 
-      // 3. Sync to Supabase in background if authenticated
+      // 3. Sync to Supabase in background
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user?.id) {
         await supabase.from('task_checklist_items').upsert({
@@ -154,10 +156,11 @@ export function TaskManagementCard({
           text: newItem.text,
           completed: false,
           position: updatedChecklist.length - 1,
+          version: 1,
         })
       }
     } catch (err) {
-      console.error('Error adding checklist item:', err)
+      console.error('Error saving new checklist item:', err)
     }
 
     toast.success('Punto añadido al checklist')
@@ -201,13 +204,20 @@ export function TaskManagementCard({
     }
 
     try {
-      // 1. Update Dexie
+      // 1. Update task in Dexie
       await db.tasks.update(task.id, reopenData)
 
-      // 2. Update Zustand store
+      // 2. Update task in Zustand store
       await updateTask(task.id, reopenData)
 
-      // 3. Sync to Supabase in background if authenticated
+      // 3. Reset actualLag on incoming dependencies
+      const incomingDeps = await db.dependencies.where('successorId').equals(task.id).toArray()
+      for (const dep of incomingDeps) {
+        await db.dependencies.update(dep.id, { actualLag: undefined })
+        await updateDependency(dep.id, { actualLag: undefined })
+      }
+
+      // 4. Sync to Supabase in background if authenticated
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user?.id) {
         await supabase
@@ -220,6 +230,13 @@ export function TaskManagementCard({
             updated_at: new Date().toISOString(),
           })
           .eq('id', task.id)
+
+        for (const dep of incomingDeps) {
+          await supabase
+            .from('dependencies')
+            .update({ actual_lag: null })
+            .eq('id', dep.id)
+        }
       }
       toast.info(`Tarea "${task.name}" reabierta`)
     } catch (err) {
@@ -229,12 +246,13 @@ export function TaskManagementCard({
     onTaskUpdated?.()
   }
 
-  // Confirm completion with actual duration and start delay
+  // Confirm completion with actual duration and start delay (and update dependency actualLag)
   const handleConfirmCompletion = async (data: {
     actualDuration: number
     actualStartDate: Date
     actualEndDate: Date
     percentComplete: number
+    startDelayDays: number
     notes?: string
   }) => {
     const completeData = {
@@ -247,13 +265,21 @@ export function TaskManagementCard({
     }
 
     try {
-      // 1. Update Dexie
+      // 1. Update task in Dexie
       await db.tasks.update(task.id, completeData)
 
-      // 2. Update Zustand store
+      // 2. Update task in Zustand store
       await updateTask(task.id, completeData)
 
-      // 3. Sync to Supabase in background if authenticated
+      // 3. Update actualLag on incoming dependencies (where this task is successor)
+      const incomingDeps = await db.dependencies.where('successorId').equals(task.id).toArray()
+      for (const dep of incomingDeps) {
+        const calculatedActualLag = (dep.lag || 0) + data.startDelayDays
+        await db.dependencies.update(dep.id, { actualLag: calculatedActualLag })
+        await updateDependency(dep.id, { actualLag: calculatedActualLag })
+      }
+
+      // 4. Sync to Supabase in background if authenticated
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user?.id) {
         await supabase
@@ -267,6 +293,14 @@ export function TaskManagementCard({
             updated_at: new Date().toISOString(),
           })
           .eq('id', task.id)
+
+        for (const dep of incomingDeps) {
+          const calculatedActualLag = (dep.lag || 0) + data.startDelayDays
+          await supabase
+            .from('dependencies')
+            .update({ actual_lag: calculatedActualLag })
+            .eq('id', dep.id)
+        }
       }
       toast.success(`¡Tarea "${task.name}" completada con éxito!`)
     } catch (err) {
