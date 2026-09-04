@@ -131,10 +131,13 @@ export function InviteMemberDialog() {
 
   const handleCopyInviteLink = () => {
     if (!currentOrganization) return
-    const inviteUrl = `${window.location.origin}?invite=${currentOrganization.id}`
+    const code = currentOrganization.joinCode || currentOrganization.id
+    const inviteUrl = `${window.location.origin}?code=${code}`
     navigator.clipboard.writeText(inviteUrl)
     setCopiedLink(true)
-    toast.success('Enlace de invitación copiado al portapapeles')
+    toast.success('Enlace de invitación copiado al portapapeles', {
+      description: `Los miembros que abran este enlace se unirán directamente a ${currentOrganization.name}.`,
+    })
     setTimeout(() => setCopiedLink(false), 2500)
   }
 

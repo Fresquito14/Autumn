@@ -72,9 +72,10 @@ function App() {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
   const [isLocalFreeMode, setIsLocalFreeMode] = useState(false)
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false)
+  const [inviteCodeFromUrl, setInviteCodeFromUrl] = useState<string | null>(null)
 
   const { user, initializeAuth, logout } = useAuth()
-  const { organizations, userRole, hasManagedOrganization, isLoading: isOrgLoading } = useOrganization()
+  const { organizations, userRole, isLoading: isOrgLoading } = useOrganization()
   const { tasks, loadTasks } = useTasks()
   const { dependencies, loadDependencies } = useDependencies()
   const { milestones, loadMilestones } = useMilestones()
@@ -87,6 +88,16 @@ function App() {
   const { isMobile } = useDevice()
   const hasInitializedMobileViewRef = useRef(false)
 
+  // Detect ?code= or ?invite= query params from URL
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code') || params.get('invite')
+    if (code) {
+      setInviteCodeFromUrl(code.trim().toUpperCase())
+    }
+  }, [])
+
   // On first mount on mobile devices, navigate directly to 'my-tasks'
   useEffect(() => {
     if (isMobile && !hasInitializedMobileViewRef.current) {
@@ -97,14 +108,33 @@ function App() {
     }
   }, [isMobile, currentView])
 
-  // Auto-prompt mandatory onboarding if user is logged in but has no managed organization
+  // Intelligent Onboarding trigger:
+  // 1. If user is logged in and has NO organizations (organizations.length === 0), prompt onboarding.
+  // 2. If user arrives with a join code in the URL that they don't belong to yet, prompt onboarding.
+  // 3. If user already belongs to an organization (e.g. invited), do NOT block them with an unwanted modal.
   useEffect(() => {
-    if (user && !isOrgLoading && !hasManagedOrganization && organizations.length > 0) {
-      setIsOnboardingOpen(true)
-    } else {
+    if (!user || isOrgLoading) {
       setIsOnboardingOpen(false)
+      return
     }
-  }, [user, isOrgLoading, hasManagedOrganization, organizations.length])
+
+    if (organizations.length === 0) {
+      setIsOnboardingOpen(true)
+      return
+    }
+
+    if (inviteCodeFromUrl) {
+      const alreadyInOrg = organizations.some(
+        (o) => o.joinCode?.toUpperCase() === inviteCodeFromUrl || o.id === inviteCodeFromUrl
+      )
+      if (!alreadyInOrg) {
+        setIsOnboardingOpen(true)
+        return
+      }
+    }
+
+    setIsOnboardingOpen(false)
+  }, [user, isOrgLoading, organizations, inviteCodeFromUrl])
 
   // Initialize Supabase Authentication, seed portfolio dataset if empty & full database hydration
   useEffect(() => {
@@ -641,12 +671,13 @@ function App() {
       {/* Premium Pricing Modal */}
       <PremiumPricingModal open={isPricingOpen} onOpenChange={setIsPricingOpen} />
 
-      {/* Mandatory Onboarding for managers without organization */}
+      {/* Onboarding Dialog (Create Organization or Join by Code) */}
       {user && isOnboardingOpen && (
         <CreateOrganizationDialog
           open={isOnboardingOpen}
           onOpenChange={setIsOnboardingOpen}
-          isMandatoryOnboarding={true}
+          isMandatoryOnboarding={organizations.length === 0}
+          initialCode={inviteCodeFromUrl}
         />
       )}
 
