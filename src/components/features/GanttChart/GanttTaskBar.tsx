@@ -13,6 +13,7 @@ import { calculateTaskProgress } from '@/lib/utils/progress'
 import { addBusinessDays } from '@/lib/calculations/dates'
 import { TaskFormDialog } from '../WBS/TaskFormDialog'
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface GanttTaskBarProps {
   task: Task
@@ -77,12 +78,30 @@ export function GanttTaskBar({
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [isResizingLeft, setIsResizingLeft] = useState(false)
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null)
   const pointerStartRef = useRef<{ clientX: number; originalStartDate: Date; originalDuration: number } | null>(null)
+
+  const handlePointerEnter = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging && !isResizing && !isResizingLeft) {
+      setMousePos({ x: e.clientX, y: e.clientY })
+    }
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging && !isResizing && !isResizingLeft) {
+      setMousePos({ x: e.clientX, y: e.clientY })
+    }
+  }
+
+  const handlePointerLeave = () => {
+    setMousePos(null)
+  }
 
   const handleDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
     if (viewMode !== 'plan' || !isLeafTask || isReadOnly) return
     if ((e.target as HTMLElement).closest('.resize-handle')) return
 
+    setMousePos(null)
     e.currentTarget.setPointerCapture(e.pointerId)
     pointerStartRef.current = {
       clientX: e.clientX,
@@ -135,6 +154,7 @@ export function GanttTaskBar({
   const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
     if (viewMode !== 'plan' || !isLeafTask || isReadOnly) return
 
+    setMousePos(null)
     e.currentTarget.setPointerCapture(e.pointerId)
     pointerStartRef.current = {
       clientX: e.clientX,
@@ -181,6 +201,7 @@ export function GanttTaskBar({
   const handleResizeLeftStart = (e: React.PointerEvent<HTMLDivElement>) => {
     if (viewMode !== 'plan' || !isLeafTask || isReadOnly || hasPredecessors) return
 
+    setMousePos(null)
     e.currentTarget.setPointerCapture(e.pointerId)
     pointerStartRef.current = {
       clientX: e.clientX,
@@ -235,197 +256,507 @@ export function GanttTaskBar({
   const previewStart = addBusinessDays(new Date(task.startDate), effectiveDragOffset + effectiveResizeLeftDelta, workingDays)
   const previewEnd = addBusinessDays(previewStart, previewDuration - 1, workingDays)
 
+  const isParent = !isLeafTask
+  const effectiveActualStart = task.actualStartDate ? new Date(task.actualStartDate) : new Date(task.startDate)
+  const effectiveActualEnd = task.actualEndDate ? new Date(task.actualEndDate) : new Date(task.endDate)
+  const effectiveActualDuration = task.actualDuration ?? task.duration
+  const durationVariance = effectiveActualDuration - task.duration
+  const isDelayed = durationVariance > 0 || effectiveActualEnd.getTime() > new Date(task.endDate).getTime()
+
+  // Summary task styling values
+  const summaryBarHeight = barHeight * 0.7
+  const summaryBarTop = barTop + (barHeight * 0.15)
+
+  // Floating cursor tooltip style anchored directly at the mouse position
+  // Portaled to document.body so it floats on top of the left task panel and escapes scroll container clipping
+  const getCursorTooltipStyle = (pos: { x: number; y: number }): React.CSSProperties => {
+    const showBelow = pos.y < 160
+    const isNearLeft = pos.x < 220
+    const isNearRight = typeof window !== 'undefined' && pos.x > window.innerWidth - 220
+
+    let transformX = '-50%'
+    let offsetX = 0
+
+    if (isNearLeft) {
+      transformX = '0%'
+      offsetX = 14
+    } else if (isNearRight) {
+      transformX = '-100%'
+      offsetX = -14
+    }
+
+    return {
+      position: 'fixed',
+      left: `${pos.x + offsetX}px`,
+      top: showBelow ? `${pos.y + 16}px` : `${pos.y - 12}px`,
+      transform: showBelow ? `translate(${transformX}, 0)` : `translate(${transformX}, -100%)`,
+      pointerEvents: 'none',
+      zIndex: 9999,
+    }
+  }
+
   return (
     <>
-      {/* Planned Task Bar */}
-      <div
-        className={cn(
-          'absolute group z-10',
-          viewMode === 'plan' && isLeafTask && !isReadOnly
-            ? 'cursor-grab active:cursor-grabbing'
-            : isReadOnly
-            ? 'cursor-default'
-            : 'cursor-pointer'
-        )}
-        style={{
-          left: `${currentLeft}px`,
-          width: `${currentWidth}px`,
-          minWidth: '20px',
-          top: `${barTop}px`,
-          height: `${barHeight}px`,
-          transition: isDragging || isResizing || isResizingLeft ? 'none' : 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-        onPointerDown={handleDragStart}
-        onPointerMove={handleDragMove}
-        onPointerUp={handleDragEnd}
-        onDoubleClick={(e) => {
-          e.stopPropagation()
-          if (!isReadOnly) {
-            setIsEditDialogOpen(true)
-          }
-        }}
-        title="Doble clic para editar detalles"
-      >
-        <div
-          className={cn(
-            'h-full rounded-md shadow-sm transition-all flex relative overflow-hidden',
-            viewMode === 'actual' && 'opacity-40',
-            progress === 100
-              ? 'border-2 border-autumn-progress/20'
-              : isCritical
-              ? 'border-2 border-autumn-critical/20'
-              : 'border border-primary-foreground/10'
-          )}
-        >
-          {/* Completed portion (green) */}
-          {progress > 0 && (
-            <div
-              className="h-full transition-colors flex items-center flex-shrink-0"
-              style={{
-                width: `${progress}%`,
-                backgroundColor: 'hsl(153 98% 10%)',
-                borderTopLeftRadius: '0.375rem',
-                borderBottomLeftRadius: '0.375rem',
-                borderTopRightRadius: progress === 100 ? '0.375rem' : '0',
-                borderBottomRightRadius: progress === 100 ? '0.375rem' : '0'
-              }}
-            >
-              {/* Task Name in completed portion - only if wide enough and in plan mode */}
-              {viewMode === 'plan' && (currentWidth * progress / 100) > 100 && (
-                <div className="px-2 flex items-center gap-1 w-full">
-                  {isCritical && progress < 100 && <Zap className="h-3 w-3 fill-white text-white" />}
-                  <span className="text-xs font-medium truncate text-white">
+      {/* ========================================================================= */}
+      {/* PLAN MODE */}
+      {/* ========================================================================= */}
+      {viewMode === 'plan' && (
+        isParent ? (
+          /* Summary Task (Parent / Level 1) Bar in Plan Mode */
+          <div
+            className="absolute group z-10 hover:z-50 cursor-pointer"
+            style={{
+              left: `${plannedLeft}px`,
+              width: `${plannedWidth}px`,
+              minWidth: '16px',
+              top: `${summaryBarTop}px`,
+              height: `${summaryBarHeight}px`,
+              transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+            onPointerEnter={handlePointerEnter}
+            onPointerMove={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
+            onDoubleClick={(e) => {
+              e.stopPropagation()
+              if (!isReadOnly) setIsEditDialogOpen(true)
+            }}
+            title="Doble clic para editar detalles"
+          >
+            <div className="h-full relative rounded-xs bg-neutral-800 dark:bg-neutral-200 shadow-sm overflow-hidden flex items-center">
+              {progress > 0 && (
+                <div
+                  className="h-full bg-emerald-600 dark:bg-emerald-500 transition-all flex-shrink-0"
+                  style={{ width: `${progress}%` }}
+                />
+              )}
+              {plannedWidth > 50 && (
+                <div className="absolute inset-0 px-2 flex items-center gap-1 z-10 pointer-events-none overflow-hidden">
+                  <span className="text-[11px] font-bold truncate text-white dark:text-neutral-900 drop-shadow-xs">
                     {task.name}
                   </span>
                 </div>
               )}
             </div>
-          )}
+            {/* End brackets (downward triangles) */}
+            <div className="absolute -bottom-1 left-0 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-neutral-800 dark:border-t-neutral-200 pointer-events-none" />
+            <div className="absolute -bottom-1 right-0 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-neutral-800 dark:border-t-neutral-200 pointer-events-none" />
 
-          {/* Remaining portion - only show if not 100% complete */}
-          {progress < 100 && (
-            <div
-              className="h-full transition-colors flex items-center flex-grow"
-              style={{
-                backgroundColor: isCritical ? 'hsl(9 55% 14%)' : 'hsl(38 92% 50%)',
-                borderTopLeftRadius: progress === 0 ? '0.375rem' : '0',
-                borderBottomLeftRadius: progress === 0 ? '0.375rem' : '0',
-                borderTopRightRadius: '0.375rem',
-                borderBottomRightRadius: '0.375rem'
-              }}
-            >
-              {/* Task Name in remaining portion - only if completed portion is too small or progress is 0 */}
-              {viewMode === 'plan' && currentWidth > 100 && (progress === 0 || (currentWidth * progress / 100) <= 100) && (
-                <div className="px-2 flex items-center gap-1 w-full">
-                  {isCritical && <Zap className="h-3 w-3 fill-white text-white" />}
-                  <span className="text-xs font-medium truncate text-white">
-                    {task.name}
-                  </span>
+            {/* Tooltip for parent in plan mode */}
+            {mousePos && !isDragging && !isResizing && !isResizingLeft && createPortal(
+              <div
+                className="pointer-events-none transition-opacity duration-75 animate-in fade-in-0"
+                style={getCursorTooltipStyle(mousePos)}
+              >
+                <div className="bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-xl border text-sm whitespace-nowrap">
+                  <div className="font-semibold flex items-center gap-1">
+                    {task.wbsCode} - {task.name} (Resumen)
+                  </div>
+                  <div className="text-muted-foreground text-xs mt-1">
+                    <span className="font-medium">Planificado: </span>
+                    {format(new Date(task.startDate), 'dd MMM', { locale: es })} - {format(new Date(task.endDate), 'dd MMM yyyy', { locale: es })}
+                  </div>
+                  <div className="text-muted-foreground text-xs">
+                    Duración: {task.duration} {task.duration === 1 ? 'día' : 'días'}
+                  </div>
+                  {progress > 0 && (
+                    <div className="text-autumn-progress text-xs font-medium">
+                      Progreso global: {progress}%
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Left Resize handle (only for leaf tasks in plan view when not readOnly) */}
-          {viewMode === 'plan' && isLeafTask && !isReadOnly && (
-            <div
-              className="resize-handle absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 active:bg-white/50 rounded-l-md transition-colors z-20 animate-pulse"
-              onPointerDown={handleResizeLeftStart}
-              onPointerMove={handleResizeLeftMove}
-              onPointerUp={handleResizeLeftEnd}
-            />
-          )}
-
-          {/* Right Resize handle (only for leaf tasks in plan view when not readOnly) */}
-          {viewMode === 'plan' && isLeafTask && !isReadOnly && (
-            <div
-              className="resize-handle absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 active:bg-white/50 rounded-r-md transition-colors z-20 animate-pulse"
-              onPointerDown={handleResizeStart}
-              onPointerMove={handleResizeMove}
-              onPointerUp={handleResizeEnd}
-            />
-          )}
-        </div>
-
-        {/* Tooltip - only on planned bar */}
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-          <div className="bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-lg border text-sm whitespace-nowrap">
-            <div className="font-semibold flex items-center gap-1">
-              {isCritical && progress < 100 && <Zap className="h-3 w-3 text-autumn-critical fill-autumn-critical" />}
-              {task.wbsCode} - {task.name}
-              {isCritical && progress < 100 && <span className="text-autumn-critical ml-1">(CRÍTICO)</span>}
-            </div>
-            <div className="text-muted-foreground text-xs mt-1">
-              <span className="font-medium">Planificado: </span>
-              {format(previewStart, 'dd MMM', { locale: es })} - {format(previewEnd, 'dd MMM yyyy', { locale: es })}
-            </div>
-            <div className="text-muted-foreground text-xs">
-              Duración: {previewDuration} {previewDuration === 1 ? 'día' : 'días'}
-            </div>
-            {progress > 0 && (
-              <div className="text-autumn-progress text-xs font-medium">
-                Progreso: {progress}%
-              </div>
-            )}
-            {hasActualDuration && task.actualDuration !== undefined && (
-              <>
-                <div className="text-muted-foreground text-xs mt-1">
-                  <span className="font-medium">Real: </span>
-                  Duración {task.actualDuration} {task.actualDuration === 1 ? 'día' : 'días'}
-                </div>
-                <div className={cn(
-                  "text-xs font-medium",
-                  task.actualDuration > task.duration ? "text-autumn-critical" : "text-autumn-progress"
-                )}>
-                  Variación: {task.actualDuration > task.duration ? '+' : ''}{task.actualDuration - task.duration} {Math.abs(task.actualDuration - task.duration) === 1 ? 'día' : 'días'}
-                </div>
-              </>
-            )}
-            {taskCPM && (
-              <div className="text-muted-foreground text-xs">
-                Holgura: {taskCPM.totalFloat} {taskCPM.totalFloat === 1 ? 'día' : 'días'}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Actual/Real Task Bar - only shown in actual mode */}
-      {viewMode === 'actual' && (
-        <div
-          className="absolute group cursor-pointer z-10"
-          style={{
-            left: `${actualLeft}px`,
-            width: `${actualWidth}px`,
-            minWidth: '20px',
-            top: `${barTop}px`,
-            height: `${barHeight}px`,
-            transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
+        ) : (
+          /* Leaf Task Bar in Plan Mode */
           <div
             className={cn(
-              'h-full rounded-md shadow-sm transition-all flex',
-              progress === 100
-                ? 'border-2 border-autumn-progress/20'
-                : isCritical
-                ? 'border-2 border-autumn-critical/20'
-                : 'border border-primary-foreground/10'
+              'absolute group z-10 hover:z-50',
+              isLeafTask && !isReadOnly
+                ? 'cursor-grab active:cursor-grabbing'
+                : isReadOnly
+                ? 'cursor-default'
+                : 'cursor-pointer'
             )}
+            style={{
+              left: `${currentLeft}px`,
+              width: `${currentWidth}px`,
+              minWidth: '20px',
+              top: `${barTop}px`,
+              height: `${barHeight}px`,
+              transition: isDragging || isResizing || isResizingLeft ? 'none' : 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+            onPointerDown={handleDragStart}
+            onPointerMove={(e) => {
+              if (isDragging) {
+                handleDragMove(e)
+              } else {
+                handlePointerMove(e)
+              }
+            }}
+            onPointerUp={handleDragEnd}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+            onDoubleClick={(e) => {
+              e.stopPropagation()
+              if (!isReadOnly) {
+                setIsEditDialogOpen(true)
+              }
+            }}
+            title="Doble clic para editar detalles"
           >
-            {/* Completed portion (green) */}
-            {progress > 0 && (
+            <div
+              className={cn(
+                'h-full rounded-md shadow-sm transition-all flex relative overflow-hidden',
+                progress === 100
+                  ? 'border-2 border-autumn-progress/40'
+                  : isCritical
+                  ? 'border-2 border-autumn-critical/40'
+                  : 'border border-primary-foreground/10'
+              )}
+            >
+              {/* Completed portion (green) */}
+              {progress > 0 && (
+                <div
+                  className="h-full transition-colors flex items-center flex-shrink-0"
+                  style={{
+                    width: `${progress}%`,
+                    backgroundColor: 'hsl(153 98% 10%)',
+                    borderTopLeftRadius: '0.375rem',
+                    borderBottomLeftRadius: '0.375rem',
+                    borderTopRightRadius: progress === 100 ? '0.375rem' : '0',
+                    borderBottomRightRadius: progress === 100 ? '0.375rem' : '0'
+                  }}
+                >
+                  {(currentWidth * progress / 100) > 80 && (
+                    <div className="px-2 flex items-center gap-1 w-full overflow-hidden">
+                      {isCritical && progress < 100 && <Zap className="h-3 w-3 fill-white text-white shrink-0" />}
+                      <span className="text-xs font-medium truncate text-white">
+                        {task.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Remaining portion - only show if not 100% complete */}
+              {progress < 100 && (
+                <div
+                  className="h-full transition-colors flex items-center flex-grow overflow-hidden"
+                  style={{
+                    backgroundColor: isCritical ? 'hsl(9 55% 14%)' : 'hsl(38 92% 50%)',
+                    borderTopLeftRadius: progress === 0 ? '0.375rem' : '0',
+                    borderBottomLeftRadius: progress === 0 ? '0.375rem' : '0',
+                    borderTopRightRadius: '0.375rem',
+                    borderBottomRightRadius: '0.375rem'
+                  }}
+                >
+                  {currentWidth > 60 && (progress === 0 || (currentWidth * progress / 100) <= 80) && (
+                    <div className="px-2 flex items-center gap-1 w-full overflow-hidden">
+                      {isCritical && <Zap className="h-3 w-3 fill-white text-white shrink-0" />}
+                      <span className="text-xs font-medium truncate text-white">
+                        {task.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Left Resize handle */}
+              {isLeafTask && !isReadOnly && (
+                <div
+                  className="resize-handle absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 active:bg-white/50 rounded-l-md transition-colors z-20 animate-pulse"
+                  onPointerDown={handleResizeLeftStart}
+                  onPointerMove={handleResizeLeftMove}
+                  onPointerUp={handleResizeLeftEnd}
+                />
+              )}
+
+              {/* Right Resize handle */}
+              {isLeafTask && !isReadOnly && (
+                <div
+                  className="resize-handle absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 active:bg-white/50 rounded-r-md transition-colors z-20 animate-pulse"
+                  onPointerDown={handleResizeStart}
+                  onPointerMove={handleResizeMove}
+                  onPointerUp={handleResizeEnd}
+                />
+              )}
+            </div>
+
+            {/* Floating Cursor Tooltip */}
+            {mousePos && !isDragging && !isResizing && !isResizingLeft && createPortal(
               <div
-                className="h-full transition-colors flex items-center flex-shrink-0"
-                style={{
-                  width: `${progress}%`,
-                  backgroundColor: 'hsl(153 98% 10%)',
-                  borderRadius: '0.375rem'
-                }}
-              />
+                className="pointer-events-none transition-opacity duration-75 animate-in fade-in-0"
+                style={getCursorTooltipStyle(mousePos)}
+              >
+                <div className="bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-xl border text-sm whitespace-nowrap">
+                  <div className="font-semibold flex items-center gap-1">
+                    {isCritical && progress < 100 && <Zap className="h-3 w-3 text-autumn-critical fill-autumn-critical" />}
+                    {task.wbsCode} - {task.name}
+                    {isCritical && progress < 100 && <span className="text-autumn-critical ml-1">(CRÍTICO)</span>}
+                  </div>
+                  <div className="text-muted-foreground text-xs mt-1">
+                    <span className="font-medium">Planificado: </span>
+                    {format(previewStart, 'dd MMM', { locale: es })} - {format(previewEnd, 'dd MMM yyyy', { locale: es })}
+                  </div>
+                  <div className="text-muted-foreground text-xs">
+                    Duración: {previewDuration} {previewDuration === 1 ? 'día' : 'días'}
+                  </div>
+                  {progress > 0 && (
+                    <div className="text-autumn-progress text-xs font-medium">
+                      Progreso: {progress}%
+                    </div>
+                  )}
+                  {hasActualDuration && task.actualDuration !== undefined && (
+                    <>
+                      <div className="text-muted-foreground text-xs mt-1">
+                        <span className="font-medium">Real: </span>
+                        Duración {task.actualDuration} {task.actualDuration === 1 ? 'día' : 'días'}
+                      </div>
+                      <div className={cn(
+                        "text-xs font-medium",
+                        task.actualDuration > task.duration ? "text-autumn-critical" : "text-autumn-progress"
+                      )}>
+                        Variación: {task.actualDuration > task.duration ? '+' : ''}{task.actualDuration - task.duration} {Math.abs(task.actualDuration - task.duration) === 1 ? 'día' : 'días'}
+                      </div>
+                    </>
+                  )}
+                  {taskCPM && (
+                    <div className="text-muted-foreground text-xs">
+                      Holgura: {taskCPM.totalFloat} {taskCPM.totalFloat === 1 ? 'día' : 'días'}
+                    </div>
+                  )}
+                </div>
+              </div>,
+              document.body
             )}
           </div>
-        </div>
+        )
+      )}
+
+      {/* ========================================================================= */}
+      {/* ACTUAL / REAL MODE */}
+      {/* ========================================================================= */}
+      {viewMode === 'actual' && (
+        <>
+          {/* Baseline Bar (Planned reference at bottom of row) */}
+          <div
+            className="absolute z-10 pointer-events-none group/baseline"
+            style={{
+              left: `${plannedLeft}px`,
+              width: `${plannedWidth}px`,
+              minWidth: '16px',
+              top: `${barTop + barHeight - 4}px`,
+              height: '4px',
+            }}
+          >
+            <div className="h-full w-full bg-neutral-400/40 dark:bg-neutral-500/40 rounded-full border border-neutral-500/50" />
+          </div>
+
+          {/* Actual / Real Bar */}
+          {isParent ? (
+            /* Summary Task in Actual Mode */
+            <div
+              className="absolute group z-20 hover:z-50 cursor-pointer"
+              style={{
+                left: `${actualLeft}px`,
+                width: `${actualWidth}px`,
+                minWidth: '16px',
+                top: `${summaryBarTop}px`,
+                height: `${summaryBarHeight}px`,
+                transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+              onPointerEnter={handlePointerEnter}
+              onPointerMove={handlePointerMove}
+              onPointerLeave={handlePointerLeave}
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                if (!isReadOnly) setIsEditDialogOpen(true)
+              }}
+              title="Doble clic para editar detalles"
+            >
+              <div className="h-full relative rounded-xs bg-neutral-800 dark:bg-neutral-200 shadow-sm overflow-hidden flex items-center">
+                {progress > 0 && (
+                  <div
+                    className="h-full bg-emerald-600 dark:bg-emerald-500 transition-all flex-shrink-0"
+                    style={{ width: `${progress}%` }}
+                  />
+                )}
+                {actualWidth > 50 && (
+                  <div className="absolute inset-0 px-2 flex items-center gap-1 z-10 pointer-events-none overflow-hidden">
+                    <span className="text-[11px] font-bold truncate text-white dark:text-neutral-900 drop-shadow-xs">
+                      {task.name}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="absolute -bottom-1 left-0 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-neutral-800 dark:border-t-neutral-200 pointer-events-none" />
+              <div className="absolute -bottom-1 right-0 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-neutral-800 dark:border-t-neutral-200 pointer-events-none" />
+
+              {/* Tooltip for parent in actual mode */}
+              {mousePos && !isDragging && !isResizing && !isResizingLeft && createPortal(
+                <div
+                  className="pointer-events-none transition-opacity duration-75 animate-in fade-in-0"
+                  style={getCursorTooltipStyle(mousePos)}
+                >
+                  <div className="bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-xl border text-sm whitespace-nowrap">
+                    <div className="font-semibold flex items-center gap-1">
+                      {task.wbsCode} - {task.name} (Resumen Real)
+                    </div>
+                    <div className="text-muted-foreground text-xs mt-1">
+                      <span className="font-medium">Real: </span>
+                      {format(effectiveActualStart, 'dd MMM', { locale: es })} - {format(effectiveActualEnd, 'dd MMM yyyy', { locale: es })}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      Duración real: {effectiveActualDuration} {effectiveActualDuration === 1 ? 'día' : 'días'}
+                    </div>
+                    {progress > 0 && (
+                      <div className="text-autumn-progress text-xs font-medium">
+                        Progreso real: {progress}%
+                      </div>
+                    )}
+                    <div className="text-muted-foreground text-[11px] mt-1 pt-1 border-t">
+                      Planificado original: {format(new Date(task.startDate), 'dd MMM', { locale: es })} - {format(new Date(task.endDate), 'dd MMM yyyy', { locale: es })}
+                    </div>
+                  </div>
+                </div>,
+                document.body
+              )}
+            </div>
+          ) : (
+            /* Leaf Task in Actual Mode - Solid, Never Translucent */
+            <div
+              className="absolute group z-20 hover:z-50 cursor-pointer"
+              style={{
+                left: `${actualLeft}px`,
+                width: `${actualWidth}px`,
+                minWidth: '20px',
+                top: `${barTop}px`,
+                height: `${barHeight}px`,
+                transition: 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+              onPointerEnter={handlePointerEnter}
+              onPointerMove={handlePointerMove}
+              onPointerLeave={handlePointerLeave}
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                if (!isReadOnly) setIsEditDialogOpen(true)
+              }}
+              title="Doble clic para editar detalles"
+            >
+              <div
+                className={cn(
+                  'h-full rounded-md shadow-sm transition-all flex relative overflow-hidden',
+                  progress === 100
+                    ? 'border-2 border-emerald-500/50'
+                    : isCritical
+                    ? 'border-2 border-autumn-critical'
+                    : isDelayed
+                    ? 'border-2 border-amber-600'
+                    : 'border border-primary-foreground/20'
+                )}
+              >
+                {/* Completed portion (green) */}
+                {progress > 0 && (
+                  <div
+                    className="h-full transition-colors flex items-center flex-shrink-0"
+                    style={{
+                      width: `${progress}%`,
+                      backgroundColor: 'hsl(153 98% 10%)',
+                      borderTopLeftRadius: '0.375rem',
+                      borderBottomLeftRadius: '0.375rem',
+                      borderTopRightRadius: progress === 100 ? '0.375rem' : '0',
+                      borderBottomRightRadius: progress === 100 ? '0.375rem' : '0'
+                    }}
+                  >
+                    {(actualWidth * progress / 100) > 80 && (
+                      <div className="px-2 flex items-center gap-1 w-full overflow-hidden">
+                        {isCritical && progress < 100 && <Zap className="h-3 w-3 fill-white text-white shrink-0" />}
+                        <span className="text-xs font-medium truncate text-white">
+                          {task.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Remaining portion - Solid visible background, NEVER translucent */}
+                {progress < 100 && (
+                  <div
+                    className="h-full transition-colors flex items-center flex-grow overflow-hidden"
+                    style={{
+                      backgroundColor: isCritical
+                        ? 'hsl(9 55% 14%)'
+                        : isDelayed
+                        ? 'hsl(28 85% 44%)'
+                        : 'hsl(38 92% 50%)',
+                      borderTopLeftRadius: progress === 0 ? '0.375rem' : '0',
+                      borderBottomLeftRadius: progress === 0 ? '0.375rem' : '0',
+                      borderTopRightRadius: '0.375rem',
+                      borderBottomRightRadius: '0.375rem'
+                    }}
+                  >
+                    {actualWidth > 60 && (progress === 0 || (actualWidth * progress / 100) <= 80) && (
+                      <div className="px-2 flex items-center gap-1 w-full overflow-hidden">
+                        {isCritical && <Zap className="h-3 w-3 fill-white text-white shrink-0" />}
+                        <span className="text-xs font-medium truncate text-white">
+                          {task.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Tooltip for actual mode */}
+              {mousePos && !isDragging && !isResizing && !isResizingLeft && createPortal(
+                <div
+                  className="pointer-events-none transition-opacity duration-75 animate-in fade-in-0"
+                  style={getCursorTooltipStyle(mousePos)}
+                >
+                  <div className="bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-xl border text-sm whitespace-nowrap">
+                    <div className="font-semibold flex items-center gap-1">
+                      {isCritical && progress < 100 && <Zap className="h-3 w-3 text-autumn-critical fill-autumn-critical" />}
+                      {task.wbsCode} - {task.name}
+                      {isCritical && progress < 100 && <span className="text-autumn-critical ml-1">(CRÍTICO)</span>}
+                    </div>
+                    <div className="text-muted-foreground text-xs mt-1">
+                      <span className="font-medium">Real: </span>
+                      {format(effectiveActualStart, 'dd MMM', { locale: es })} - {format(effectiveActualEnd, 'dd MMM yyyy', { locale: es })}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      Duración real: {effectiveActualDuration} {effectiveActualDuration === 1 ? 'día' : 'días'}
+                    </div>
+                    {durationVariance !== 0 && (
+                      <div className={cn(
+                        "text-xs font-medium",
+                        durationVariance > 0 ? "text-autumn-critical" : "text-autumn-progress"
+                      )}>
+                        Variación: {durationVariance > 0 ? `+${durationVariance}` : durationVariance} {Math.abs(durationVariance) === 1 ? 'día' : 'días'}
+                        {durationVariance > 0 ? ' (retraso)' : ' (adelanto)'}
+                      </div>
+                    )}
+                    {progress > 0 && (
+                      <div className="text-autumn-progress text-xs font-medium">
+                        Progreso: {progress}%
+                      </div>
+                    )}
+                    <div className="text-muted-foreground text-[11px] mt-1 pt-1 border-t">
+                      Planificado original: {format(new Date(task.startDate), 'dd MMM', { locale: es })} - {format(new Date(task.endDate), 'dd MMM yyyy', { locale: es })} ({task.duration} {task.duration === 1 ? 'día' : 'días'})
+                    </div>
+                    {taskCPM && (
+                      <div className="text-muted-foreground text-xs">
+                        Holgura: {taskCPM.totalFloat} {taskCPM.totalFloat === 1 ? 'día' : 'días'}
+                      </div>
+                    )}
+                  </div>
+                </div>,
+                document.body
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* Double-click edit modal directly from Gantt bar */}

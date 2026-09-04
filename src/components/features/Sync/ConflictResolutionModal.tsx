@@ -60,20 +60,20 @@ export function ConflictResolutionModal({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
           {/* Opción 1: Cargar de la nube */}
-          <Card className="flex flex-col justify-between border-slate-200 dark:border-slate-800">
+          <Card className="flex flex-col justify-between border">
             <CardHeader className="pb-2">
-              <div className="flex items-center gap-2 text-blue-600 mb-2">
+              <div className="flex items-center gap-2 text-primary mb-2">
                 <CloudDownload className="h-5 w-5" />
                 <CardTitle className="text-base">Usar Versión de la Nube</CardTitle>
               </div>
-              <CardDescription>
+              <CardDescription className="text-xs">
                 Descarta tus cambios locales no sincronizados y carga la última versión guardada en el servidor.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-2">
               <Button
                 variant="outline"
-                className="w-full border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-900/50 dark:hover:bg-blue-950/20"
+                className="w-full border-primary/30 hover:bg-primary/10 text-primary font-medium text-xs"
                 disabled={isResolving}
                 onClick={() => handleResolve('cloud')}
               >
@@ -83,20 +83,20 @@ export function ConflictResolutionModal({
           </Card>
 
           {/* Opción 2: Sobrescribir en la nube */}
-          <Card className="flex flex-col justify-between border-slate-200 dark:border-slate-800">
+          <Card className="flex flex-col justify-between border">
             <CardHeader className="pb-2">
-              <div className="flex items-center gap-2 text-rose-600 mb-2">
+              <div className="flex items-center gap-2 text-destructive mb-2">
                 <CloudUpload className="h-5 w-5" />
                 <CardTitle className="text-base">Sobrescribir en la Nube</CardTitle>
               </div>
-              <CardDescription>
+              <CardDescription className="text-xs">
                 Fuerza el guardado de tus datos locales sobre la nube. ¡Atención! Se perderán los cambios del otro usuario.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-2">
               <Button
                 variant="destructive"
-                className="w-full bg-rose-600 hover:bg-rose-700 text-white"
+                className="w-full text-xs font-semibold"
                 disabled={isResolving}
                 onClick={() => {
                   if (
@@ -116,12 +116,12 @@ export function ConflictResolutionModal({
 
         <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4">
           <p className="text-xs text-muted-foreground text-center sm:text-left">
-            ID de Proyecto: <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-[10px]">{projectId}</code>
+            ID de Proyecto: <code className="bg-muted text-foreground px-1 py-0.5 rounded text-[10px] font-mono">{projectId}</code>
           </p>
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
             onClick={onExportBackup}
           >
             <Download className="h-3.5 w-3.5" />

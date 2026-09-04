@@ -197,37 +197,44 @@ export function ResourceManagement() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Users className="h-8 w-8" />
-            Gestión de Recursos
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Administra los recursos globales y visualiza su carga de trabajo
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-xl border shadow-xs">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary shrink-0" />
+            <h2 className="font-bold text-lg text-foreground">
+              Gestión de Recursos ({resources.length})
+            </h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Administra los recursos globales del equipo y visualiza su carga de trabajo.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <Button
             variant="outline"
+            size="sm"
             onClick={() => {
               setMergeSourceId(undefined)
               setIsMergeModalOpen(true)
             }}
-            className="gap-2 border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10"
+            className="h-8 gap-2 border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 text-xs font-semibold"
             title="Unificar recursos o migrar tareas de un recurso sustituido"
           >
-            <ArrowRightLeft className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            Unificar / Reemplazar Recurso
+            <ArrowRightLeft className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            Unificar / Reemplazar
           </Button>
-          <Button onClick={handleCreateResource}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button
+            size="sm"
+            onClick={handleCreateResource}
+            className="h-8 gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
             Nuevo Recurso
           </Button>
         </div>
-
       </div>
 
       {/* Resource List */}

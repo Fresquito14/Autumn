@@ -95,31 +95,58 @@ export function addBusinessDays(
 }
 
 /**
- * Get timeline bounds for a set of tasks
+ * Get timeline bounds for a set of tasks, including actual dates and milestones
  */
-export function getTimelineBounds(tasks: { startDate: Date; endDate: Date }[]): {
+export function getTimelineBounds(
+  tasks: {
+    startDate: Date
+    endDate: Date
+    actualStartDate?: Date | null
+    actualEndDate?: Date | null
+  }[],
+  milestones?: { date: Date }[],
+  projectStartDate?: Date | null
+): {
   start: Date
   end: Date
 } {
-  if (tasks.length === 0) {
-    const today = new Date()
-    return {
-      start: today,
-      end: addDays(today, 30),
+  const dates: Date[] = []
+
+  tasks.forEach((t) => {
+    if (t.startDate) dates.push(new Date(t.startDate))
+    if (t.endDate) dates.push(new Date(t.endDate))
+    if (t.actualStartDate) dates.push(new Date(t.actualStartDate))
+    if (t.actualEndDate) dates.push(new Date(t.actualEndDate))
+  })
+
+  if (milestones) {
+    milestones.forEach((m) => {
+      if (m.date) dates.push(new Date(m.date))
+    })
+  }
+
+  if (projectStartDate) {
+    const pStart = new Date(projectStartDate)
+    if (!isNaN(pStart.getTime())) {
+      dates.push(pStart)
     }
   }
 
-  const startDates = tasks.map((t) => new Date(t.startDate))
-  const endDates = tasks.map((t) => new Date(t.endDate))
+  if (dates.length === 0) {
+    const today = new Date()
+    return {
+      start: startOfWeek(today, { weekStartsOn: 1 }),
+      end: endOfWeek(addDays(today, 30), { weekStartsOn: 1 }),
+    }
+  }
 
-  const minStart = new Date(Math.min(...startDates.map((d) => d.getTime())))
-  const maxEnd = new Date(Math.max(...endDates.map((d) => d.getTime())))
+  const minStart = new Date(Math.min(...dates.map((d) => d.getTime())))
+  const maxEnd = new Date(Math.max(...dates.map((d) => d.getTime())))
 
-  // Add some padding
-  // Use default week start (Sunday) to match JavaScript's getDay() behavior
+  // Add padding: start at beginning of week (Monday) and end at end of week (Sunday) + 7 days
   return {
-    start: startOfWeek(minStart),
-    end: endOfWeek(addDays(maxEnd, 7)),
+    start: startOfWeek(minStart, { weekStartsOn: 1 }),
+    end: endOfWeek(addDays(maxEnd, 7), { weekStartsOn: 1 }),
   }
 }
 
@@ -209,13 +236,22 @@ export function calculateTaskBarPosition(
   const taskDuration = differenceInDays(normalizedTaskEnd, normalizedTaskStart) + 1
 
   const fullWidth = taskDuration * dayWidth
-  const reducedWidth = fullWidth * 0.95 // Reduce 5% for better connection line visibility
-  const leftOffset = (fullWidth - reducedWidth) / 2 // Center the reduced bar
+  // Anchor directly to the day start coordinate so all tasks starting on the same day (parents & children)
+  // align to the exact same pixel without any artificial percentage shifts!
+  // Leave a 2px visual margin on the right edge so dependency arrows and neighboring bars have clear borders.
+  const visualWidth = Math.max(dayWidth - 2, fullWidth - 2)
 
   return {
-    left: daysFromStart * dayWidth + leftOffset,
-    width: reducedWidth,
+    left: daysFromStart * dayWidth,
+    width: visualWidth,
   }
+}
+
+export interface TimelineScaleItem {
+  date: Date
+  label: string
+  width: number
+  daysCount: number
 }
 
 /**
@@ -225,7 +261,7 @@ export function generateTimelineScale(
   start: Date,
   end: Date,
   granularity: 'day' | 'week' | 'month' = 'week'
-): Array<{ date: Date; label: string; width: number }> {
+): TimelineScaleItem[] {
   // Normalize dates to match the rest of the Gantt calculations
   const normalizedStart = normalizeDateToMidnight(start)
   const normalizedEnd = normalizeDateToMidnight(end)
@@ -233,18 +269,21 @@ export function generateTimelineScale(
   const days = eachDayOfInterval({ start: normalizedStart, end: normalizedEnd })
 
   if (granularity === 'month') {
-    const months: Array<{ date: Date; label: string; width: number }> = []
-    let currentMonth = startOfMonth(normalizedStart)
+    const months: TimelineScaleItem[] = []
+    let currentMonth = normalizeDateToMidnight(startOfMonth(normalizedStart))
 
     while (currentMonth <= normalizedEnd) {
-      const monthEnd = endOfMonth(currentMonth)
+      const monthEnd = normalizeDateToMidnight(endOfMonth(currentMonth))
       const monthDays = days.filter((day) => isSameMonth(day, currentMonth)).length
 
-      months.push({
-        date: currentMonth,
-        label: format(currentMonth, 'MMM yyyy', { locale: es }),
-        width: (monthDays / totalDays) * 100,
-      })
+      if (monthDays > 0) {
+        months.push({
+          date: currentMonth,
+          label: format(currentMonth, 'MMM yyyy', { locale: es }),
+          width: (monthDays / totalDays) * 100,
+          daysCount: monthDays,
+        })
+      }
 
       currentMonth = addDays(monthEnd, 1)
     }
@@ -253,21 +292,24 @@ export function generateTimelineScale(
   }
 
   if (granularity === 'week') {
-    const weeks: Array<{ date: Date; label: string; width: number }> = []
-    // Use default week start (Sunday) to match JavaScript's getDay() behavior
-    let currentWeek = startOfWeek(normalizedStart)
+    const weeks: TimelineScaleItem[] = []
+    // Week starts on Monday to match European / Spanish standard
+    let currentWeek = normalizeDateToMidnight(startOfWeek(normalizedStart, { weekStartsOn: 1 }))
 
     while (currentWeek <= normalizedEnd) {
-      const weekEnd = endOfWeek(currentWeek)
+      const weekEnd = normalizeDateToMidnight(endOfWeek(currentWeek, { weekStartsOn: 1 }))
       const weekDays = days.filter(
-        (day) => day >= currentWeek && day <= weekEnd
+        (day) => day.getTime() >= currentWeek.getTime() && day.getTime() <= weekEnd.getTime()
       ).length
 
-      weeks.push({
-        date: currentWeek,
-        label: `S${format(currentWeek, 'w')}`,
-        width: (weekDays / totalDays) * 100,
-      })
+      if (weekDays > 0) {
+        weeks.push({
+          date: currentWeek,
+          label: `S${format(currentWeek, 'I')}`,
+          width: (weekDays / totalDays) * 100,
+          daysCount: weekDays,
+        })
+      }
 
       currentWeek = addDays(weekEnd, 1)
     }
@@ -280,6 +322,7 @@ export function generateTimelineScale(
     date: day,
     label: format(day, 'd', { locale: es }),
     width: (1 / totalDays) * 100,
+    daysCount: 1,
   }))
 }
 

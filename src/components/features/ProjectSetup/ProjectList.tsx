@@ -16,6 +16,7 @@ import {
   CloudDownload,
   Download,
   AlertTriangle,
+  MoreVertical,
 } from 'lucide-react'
 import { useProject } from '@/hooks/useProject'
 import { useAuth } from '@/hooks/useAuth'
@@ -27,10 +28,12 @@ import { downloadProjectAsJSON } from '@/infrastructure/export/json'
 import { supabaseSyncService } from '@/infrastructure/supabase/db_service'
 import { PremiumPricingModal } from '../Premium/PremiumPricingModal'
 import { TransferProjectDialog } from './TransferProjectDialog'
+import { EditProjectDialog } from './EditProjectDialog'
 import { calculateBusinessDays } from '@/lib/calculations/dates'
 import { db } from '@/lib/storage/db'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import type { Project } from '@/types'
 
 interface ProjectMetric {
   startDate: Date | null
@@ -44,6 +47,7 @@ export function ProjectList() {
   const { currentOrganization } = useOrganization()
   const [isSyncing, setIsSyncing] = useState(false)
   const [isPricingOpen, setIsPricingOpen] = useState(false)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [projectMetrics, setProjectMetrics] = useState<Record<string, ProjectMetric>>({})
   const [onlyMyProjects, setOnlyMyProjects] = useState(false)
 
@@ -359,21 +363,38 @@ export function ProjectList() {
                 <div className="absolute inset-0 pointer-events-none -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out bg-gradient-to-r from-transparent via-primary/10 dark:via-white/10 to-transparent skew-x-12 z-10" />
 
                 <CardHeader className="pb-3 relative z-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="flex items-center gap-2 text-base font-bold group-hover:text-primary transition-colors leading-tight">
-                      <FolderOpen className="h-4.5 w-4.5 text-primary shrink-0 group-hover:scale-110 transition-transform" />
-                      <span className="truncate">{project.name}</span>
-                    </CardTitle>
-                    <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 flex items-start gap-2">
+                      <FolderOpen className="h-4.5 w-4.5 text-primary shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                      <CardTitle className="text-base font-bold group-hover:text-primary transition-colors leading-snug break-words line-clamp-2 min-w-0">
+                        {project.name}
+                      </CardTitle>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
                       {isReadOnlyProject && (
                         <span
-                          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0"
                           title="Proyecto compartido en modo solo lectura"
                         >
                           <Eye className="h-3 w-3" />
                           Lectura
                         </span>
                       )}
+
+                      {/* Botón clásico y sutil de 3 puntitos: siempre visible y anclado a la derecha */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditingProject(project)
+                        }}
+                        className="h-7 w-7 p-0 text-muted-foreground/70 hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+                        title="Editar configuración del proyecto"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                   {project.description && (
@@ -499,6 +520,15 @@ export function ProjectList() {
       )}
 
       <PremiumPricingModal open={isPricingOpen} onOpenChange={setIsPricingOpen} />
+
+      <EditProjectDialog
+        project={editingProject}
+        open={Boolean(editingProject)}
+        onOpenChange={(open) => !open && setEditingProject(null)}
+        onSaved={() => {
+          loadProjects()
+        }}
+      />
     </div>
   )
 }

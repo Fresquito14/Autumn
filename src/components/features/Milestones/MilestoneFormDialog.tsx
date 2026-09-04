@@ -134,16 +134,22 @@ export function MilestoneFormDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit(onSubmit)}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Flag className="h-5 w-5" />
-              {isEditing ? 'Editar Hito' : 'Crear Hito'}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditing
-                ? 'Modifica los detalles del hito'
-                : 'Los hitos marcan fechas clave del proyecto'}
-            </DialogDescription>
+          <DialogHeader className="pb-2 border-b">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <Flag className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base sm:text-lg font-bold">
+                  {isEditing ? 'Editar Hito' : 'Crear Hito'}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  {isEditing
+                    ? 'Modifica los detalles del hito'
+                    : 'Los hitos marcan fechas clave y entregables del proyecto'}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
@@ -169,7 +175,7 @@ export function MilestoneFormDialog({
               </Label>
               <select
                 id="linkedTaskId"
-                className="flex h-10 w-full rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 {...register('linkedTaskId')}
               >
                 <option value="">Sin vincular</option>
@@ -224,26 +230,28 @@ export function MilestoneFormDialog({
               <Label htmlFor="description">Descripción (opcional)</Label>
               <textarea
                 id="description"
+                placeholder="Detalles sobre este hito, criterios de aceptación o entregables..."
                 rows={3}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="Describe el hito..."
                 {...register('description')}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring placeholder:text-muted-foreground resize-none leading-relaxed"
               />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => {
                 setOpen(false)
                 reset()
               }}
+              className="text-xs"
             >
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button type="submit" size="sm" className="text-xs font-semibold px-4">
               {isEditing ? 'Guardar Cambios' : 'Crear Hito'}
             </Button>
           </DialogFooter>

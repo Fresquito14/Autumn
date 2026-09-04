@@ -6,6 +6,15 @@ import { recalculateTaskDates, calculateBusinessDays } from '@/lib/calculations/
 import { recalculateLinkedMilestones } from '@/lib/calculations/milestones'
 import { supabase } from '@/lib/supabase/client'
 import { supabaseSyncService } from '@/infrastructure/supabase/db_service'
+import {
+  compareWbsCodes,
+  calculateMoveSiblingUpdates,
+  calculateReorderTaskUpdates,
+  calculateInsertBelowUpdates,
+  reindexSiblingsAndDescendants,
+  getWbsLevel,
+} from '@/domain/calculations/wbs'
+import { useDependencies } from './useDependencies'
 
 interface TaskState {
   tasks: Task[]
@@ -15,9 +24,11 @@ interface TaskState {
   // Actions
   loadTasks: (projectId: string) => Promise<void>
   getTask: (id: string) => Task | undefined
-  createTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Task>
+  createTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>, options?: { insertAfterTaskId?: string }) => Promise<Task>
   updateTask: (id: string, changes: Partial<Task>, recalculateDependentDates?: boolean) => Promise<void>
   deleteTask: (id: string, recalculateDependentDates?: boolean) => Promise<void>
+  moveTaskSibling: (taskId: string, direction: 'up' | 'down') => Promise<void>
+  reorderTask: (sourceTaskId: string, targetTaskId: string, position: 'before' | 'after') => Promise<void>
   reorderTasks: (tasks: Task[]) => Promise<void>
   clearTasks: () => void
   recalculateDatesFromDependencies: (dependencies: Dependency[], workingDays: number[]) => Promise<void>
@@ -58,12 +69,38 @@ export const useTasks = create<TaskState>()(
         return get().tasks.find(task => task.id === id)
       },
 
-      createTask: async (taskData) => {
+      createTask: async (taskData, options) => {
         set({ error: null })
         try {
           const now = new Date()
+          let finalWbsCode = taskData.wbsCode
+          let finalParentId = taskData.parentId
+          let finalLevel = taskData.level
+
+          if (options?.insertAfterTaskId) {
+            const currentTasks = get().tasks
+            const { newWbsCode, parentId, updates } = calculateInsertBelowUpdates(currentTasks, options.insertAfterTaskId)
+            finalWbsCode = newWbsCode
+            finalParentId = parentId
+            finalLevel = getWbsLevel(finalWbsCode)
+
+            if (updates.length > 0) {
+              await dbHelpers.updateTasksBatch(
+                updates.map(u => ({ id: u.taskId, changes: { wbsCode: u.newWbsCode } }))
+              )
+              const updatedTasksMap = new Map(updates.map(u => [u.taskId, u.newWbsCode]))
+              const shiftedTasks = currentTasks.map(t =>
+                updatedTasksMap.has(t.id) ? { ...t, wbsCode: updatedTasksMap.get(t.id)! } : t
+              )
+              set({ tasks: shiftedTasks })
+            }
+          }
+
           const task: Task = {
             ...taskData,
+            wbsCode: finalWbsCode,
+            parentId: finalParentId,
+            level: finalLevel,
             id: crypto.randomUUID(),
             checklist: taskData.checklist || [],
             assignedTo: taskData.assignedTo || [],
@@ -74,7 +111,7 @@ export const useTasks = create<TaskState>()(
           await dbHelpers.createTask(task)
 
           const tasks = await dbHelpers.getProjectTasks(task.projectId)
-          tasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
+          tasks.sort((a, b) => compareWbsCodes(a.wbsCode || '', b.wbsCode || ''))
           set({ tasks })
 
           return task
@@ -102,7 +139,10 @@ export const useTasks = create<TaskState>()(
           const isDateOrDurationChange =
             changes.startDate !== undefined ||
             changes.endDate !== undefined ||
-            changes.duration !== undefined
+            changes.duration !== undefined ||
+            changes.actualStartDate !== undefined ||
+            changes.actualEndDate !== undefined ||
+            changes.actualDuration !== undefined
 
           if (isDateOrDurationChange) {
             const projectDeps = await dbHelpers.getProjectDependencies(projectId)
@@ -149,19 +189,12 @@ export const useTasks = create<TaskState>()(
                 const maxEndDate = new Date(Math.max(...childEndDates.map(d => d.getTime())))
                 const newDuration = calculateBusinessDays(minStartDate, maxEndDate, workingDays)
 
-                // Actual dates rollup from children
-                const childrenWithActual = children.filter(t => t.actualStartDate && t.actualEndDate)
-                let parentActualStart: Date | undefined = undefined
-                let parentActualEnd: Date | undefined = undefined
-                let parentActualDuration: number | undefined = undefined
-
-                if (childrenWithActual.length > 0) {
-                  const childActualStarts = childrenWithActual.map(t => new Date(t.actualStartDate!))
-                  const childActualEnds = childrenWithActual.map(t => new Date(t.actualEndDate!))
-                  parentActualStart = new Date(Math.min(...childActualStarts.map(d => d.getTime())))
-                  parentActualEnd = new Date(Math.max(...childActualEnds.map(d => d.getTime())))
-                  parentActualDuration = calculateBusinessDays(parentActualStart, parentActualEnd, workingDays)
-                }
+                // Actual dates rollup from children using effective actual dates
+                const childActualStarts = children.map(t => new Date(t.actualStartDate || t.startDate))
+                const childActualEnds = children.map(t => new Date(t.actualEndDate || t.endDate))
+                const parentActualStart = new Date(Math.min(...childActualStarts.map(d => d.getTime())))
+                const parentActualEnd = new Date(Math.max(...childActualEnds.map(d => d.getTime())))
+                const parentActualDuration = calculateBusinessDays(parentActualStart, parentActualEnd, workingDays)
 
                 await dbHelpers.updateTask(currentParentId, {
                   startDate: minStartDate,
@@ -220,11 +253,105 @@ export const useTasks = create<TaskState>()(
             console.warn('Cloud delete task skipped:', cloudErr)
           }
 
-          const tasks = await dbHelpers.getProjectTasks(task.projectId)
-          tasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
+          let tasks = await dbHelpers.getProjectTasks(task.projectId)
+
+          // Re-index remaining siblings to eliminate numbering gaps
+          const remainingSiblings = tasks
+            .filter(t => t.parentId === task.parentId)
+            .sort((a, b) => compareWbsCodes(a.wbsCode || '', b.wbsCode || ''))
+
+          if (remainingSiblings.length > 0) {
+            const parentTask = task.parentId ? tasks.find(t => t.id === task.parentId) : undefined
+            const siblingUpdates = reindexSiblingsAndDescendants(tasks, remainingSiblings, parentTask?.wbsCode)
+            if (siblingUpdates.length > 0) {
+              await dbHelpers.updateTasksBatch(
+                siblingUpdates.map(u => ({ id: u.taskId, changes: { wbsCode: u.newWbsCode } }))
+              )
+              const updateMap = new Map(siblingUpdates.map(u => [u.taskId, u.newWbsCode]))
+              tasks = tasks.map(t => (updateMap.has(t.id) ? { ...t, wbsCode: updateMap.get(t.id)! } : t))
+            }
+          }
+
+          tasks.sort((a, b) => compareWbsCodes(a.wbsCode || '', b.wbsCode || ''))
           set({ tasks })
 
+          // Synchronize useDependencies store so deleted task dependencies are purged from memory
+          await useDependencies.getState().loadDependencies(task.projectId)
+
           await recalculateLinkedMilestones(task.projectId, tasks)
+        } catch (error) {
+          set({ error: (error as Error).message })
+        }
+      },
+
+      moveTaskSibling: async (taskId: string, direction: 'up' | 'down') => {
+        set({ error: null })
+        try {
+          const currentTasks = get().tasks
+          const updates = calculateMoveSiblingUpdates(currentTasks, taskId, direction)
+          if (updates.length === 0) return
+
+          await dbHelpers.updateTasksBatch(
+            updates.map(u => ({ id: u.taskId, changes: { wbsCode: u.newWbsCode } }))
+          )
+
+          const updateMap = new Map(updates.map(u => [u.taskId, u.newWbsCode]))
+          const updatedTasks = currentTasks
+            .map(t => (updateMap.has(t.id) ? { ...t, wbsCode: updateMap.get(t.id)! } : t))
+            .sort((a, b) => compareWbsCodes(a.wbsCode || '', b.wbsCode || ''))
+
+          set({ tasks: updatedTasks })
+        } catch (error) {
+          set({ error: (error as Error).message })
+        }
+      },
+
+      reorderTask: async (sourceTaskId: string, targetTaskId: string, position: 'before' | 'after') => {
+        set({ error: null })
+        try {
+          const currentTasks = get().tasks
+          const updates = calculateReorderTaskUpdates(currentTasks, sourceTaskId, targetTaskId, position)
+          if (updates.length === 0) return
+
+          const targetTask = currentTasks.find(t => t.id === targetTaskId)
+          const sourceTask = currentTasks.find(t => t.id === sourceTaskId)
+
+          const dbBatchUpdates = updates.map(u => {
+            const isSource = u.taskId === sourceTaskId
+            const changes: Partial<Task> = { wbsCode: u.newWbsCode }
+            if (isSource && targetTask && sourceTask && sourceTask.parentId !== targetTask.parentId) {
+              changes.parentId = targetTask.parentId
+              changes.level = getWbsLevel(u.newWbsCode)
+            }
+            return { id: u.taskId, changes }
+          })
+
+          await dbHelpers.updateTasksBatch(dbBatchUpdates)
+
+          const batchMap = new Map(dbBatchUpdates.map(u => [u.id, u.changes]))
+          const updatedTasks = currentTasks
+            .map(t => {
+              const changes = batchMap.get(t.id)
+              return changes ? { ...t, ...changes } : t
+            })
+            .sort((a, b) => compareWbsCodes(a.wbsCode || '', b.wbsCode || ''))
+
+          set({ tasks: updatedTasks })
+        } catch (error) {
+          set({ error: (error as Error).message })
+        }
+      },
+
+      reorderTasks: async (newTasks: Task[]) => {
+        set({ error: null })
+        try {
+          const updates = newTasks.map((t, idx) => ({
+            id: t.id,
+            changes: { wbsCode: String(idx + 1) }
+          }))
+          await dbHelpers.updateTasksBatch(updates)
+          const updated = newTasks.map((t, idx) => ({ ...t, wbsCode: String(idx + 1) }))
+          set({ tasks: updated })
         } catch (error) {
           set({ error: (error as Error).message })
         }

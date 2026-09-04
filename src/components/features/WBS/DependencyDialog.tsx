@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useDependencies } from '@/hooks/useDependencies'
 import { useTasks } from '@/hooks/useTasks'
@@ -152,16 +153,22 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
       </DialogTrigger>
       <DialogContent className="sm:max-w-[525px]">
         <form onSubmit={handleSubmit(onSubmit)}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Link2 className="h-5 w-5" />
-              {isEditing ? 'Editar Dependencia' : 'Crear Dependencia'}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditing
-                ? 'Modifica los detalles de la dependencia y sus retrasos'
-                : 'Define que una tarea debe completarse antes de que otra pueda iniciar (Finish-to-Start)'}
-            </DialogDescription>
+          <DialogHeader className="pb-2 border-b">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <Link2 className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base sm:text-lg font-bold">
+                  {isEditing ? 'Editar Dependencia' : 'Crear Dependencia'}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  {isEditing
+                    ? 'Modifica los detalles de la dependencia y sus retrasos'
+                    : 'Define que una tarea debe completarse antes de que otra pueda iniciar (Finish-to-Start)'}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
@@ -178,7 +185,7 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
               </Label>
               <select
                 id="predecessorId"
-                className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 {...register('predecessorId', { required: 'Selecciona una tarea predecesora' })}
               >
                 <option value="">Selecciona una tarea...</option>
@@ -199,7 +206,7 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
               </Label>
               <select
                 id="successorId"
-                className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 {...register('successorId', { required: 'Selecciona una tarea sucesora' })}
                 disabled={!!task}
               >
@@ -220,11 +227,10 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
                 <Label htmlFor="lag" className="text-xs font-medium">
                   Retraso Planificado (días)
                 </Label>
-                <input
+                <Input
                   id="lag"
                   type="number"
                   min="0"
-                  className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                   {...register('lag', { valueAsNumber: true, min: 0 })}
                 />
               </div>
@@ -233,12 +239,11 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
                 <Label htmlFor="actualLag" className="text-xs font-medium">
                   Retraso Real (días)
                 </Label>
-                <input
+                <Input
                   id="actualLag"
                   type="number"
                   min="0"
                   placeholder="Opcional"
-                  className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                   {...register('actualLag', { valueAsNumber: true, min: 0 })}
                 />
               </div>
@@ -252,19 +257,21 @@ export function DependencyDialog({ task, dependency, open: controlledOpen, onOpe
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => {
                 setOpen(false)
                 reset()
                 setError(null)
               }}
+              className="text-xs"
             >
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button type="submit" size="sm" className="text-xs font-semibold px-4">
               {isEditing ? 'Guardar Cambios' : 'Crear Dependencia'}
             </Button>
           </DialogFooter>

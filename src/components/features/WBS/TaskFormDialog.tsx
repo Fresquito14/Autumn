@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { CheckSquare, Link2, Plus } from 'lucide-react'
+import { CheckSquare, Link2, Plus, CornerDownRight, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -36,17 +36,18 @@ interface TaskFormData {
 interface TaskFormDialogProps {
   task?: Task
   parentTask?: Task
+  insertAfterTask?: Task
   onSuccess?: () => void
   trigger?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }
 
-export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: controlledOpen, onOpenChange }: TaskFormDialogProps) {
+export function TaskFormDialog({ task, parentTask, insertAfterTask, onSuccess, trigger, open: controlledOpen, onOpenChange }: TaskFormDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const [checklist, setChecklist] = useState<ChecklistItem[]>(task?.checklist || [])
   const { createTask, updateTask, tasks } = useTasks()
-  const { dependencies, createDependency, updateDependency } = useDependencies()
+  const { dependencies, createDependency, updateDependency, deleteDependency, validateDependency } = useDependencies()
   const { currentProject } = useProject()
 
   // Use controlled state if provided, otherwise use internal state
@@ -54,16 +55,32 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
   const setOpen = onOpenChange || setInternalOpen
 
   const isEditing = !!task
-  const isCreatingChild = !!parentTask
+  const isInsertingAfter = !!insertAfterTask
+  const isCreatingChild = !!parentTask && !isInsertingAfter
+  const effectiveParentId = isInsertingAfter ? insertAfterTask.parentId : parentTask?.id
+  const effectiveParentTask = isInsertingAfter
+    ? tasks.find(t => t.id === insertAfterTask.parentId)
+    : parentTask
   const isLeafTask = task ? !tasks.some(t => t.parentId === task.id) : !isCreatingChild
 
-  // Incoming dependencies for the task being edited
+  // Incoming and outgoing dependencies for the task being edited
   const incomingDependencies = isEditing && task
     ? dependencies.filter(d => d.successorId === task.id)
+    : []
+  const outgoingDependencies = isEditing && task
+    ? dependencies.filter(d => d.predecessorId === task.id)
     : []
 
   // Local state for editing incoming dependency lags
   const [dependencyLags, setDependencyLags] = useState<Record<string, { lag: number; actualLag?: number }>>({})
+
+  // State for managing/adding dependencies inside the task dialog
+  const [isAddingDep, setIsAddingDep] = useState(false)
+  const [newDepType, setNewDepType] = useState<'predecessor' | 'successor'>('predecessor')
+  const [newDepTaskId, setNewDepTaskId] = useState('')
+  const [newDepLag, setNewDepLag] = useState(0)
+  const [depError, setDepError] = useState<string | null>(null)
+  const [isSubmittingDep, setIsSubmittingDep] = useState(false)
 
   const hasActual = Boolean(task?.actualDuration !== undefined && task?.actualDuration !== null)
   const [isCompleted, setIsCompleted] = useState<boolean>(hasActual)
@@ -144,6 +161,86 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
     ))
   }
 
+  // Delete dependency handler
+  const handleDeleteDependency = async (depId: string) => {
+    try {
+      await deleteDependency(depId)
+      setDependencyLags(prev => {
+        const next = { ...prev }
+        delete next[depId]
+        return next
+      })
+    } catch (err) {
+      console.error('Error deleting dependency:', err)
+    }
+  }
+
+  // Add dependency handler
+  const handleAddDependency = async () => {
+    if (!currentProject || !task || !newDepTaskId) return
+    setDepError(null)
+
+    const predId = newDepType === 'predecessor' ? newDepTaskId : task.id
+    const succId = newDepType === 'predecessor' ? task.id : newDepTaskId
+
+    if (predId === succId) {
+      setDepError('Una tarea no puede depender de sí misma')
+      return
+    }
+
+    const predHasChildren = tasks.some(t => t.parentId === predId)
+    const succHasChildren = tasks.some(t => t.parentId === succId)
+    if (predHasChildren || succHasChildren) {
+      setDepError('Las dependencias solo pueden crearse entre tareas finales (sin subtareas).')
+      return
+    }
+
+    const alreadyExists = dependencies.some(d => d.predecessorId === predId && d.successorId === succId)
+    if (alreadyExists) {
+      setDepError('Esta dependencia ya existe.')
+      return
+    }
+
+    const isValid = validateDependency(predId, succId)
+    if (!isValid) {
+      setDepError('Esta dependencia crearía una dependencia circular (bucle de fechas no permitido).')
+      return
+    }
+
+    setIsSubmittingDep(true)
+    try {
+      await createDependency({
+        projectId: currentProject.id,
+        predecessorId: predId,
+        successorId: succId,
+        type: 'FS',
+        lag: newDepLag || 0,
+      })
+      setNewDepTaskId('')
+      setNewDepLag(0)
+      setIsAddingDep(false)
+    } catch (err) {
+      setDepError((err as Error).message || 'Error al crear la dependencia')
+    } finally {
+      setIsSubmittingDep(false)
+    }
+  }
+
+  // Filter available tasks to link as dependency
+  const availableDependencyTasks = tasks.filter(t => {
+    if (!task || t.id === task.id) return false
+    // Must be leaf task (no children)
+    if (tasks.some(child => child.parentId === t.id)) return false
+    // Check if relation already exists and whether it creates a cycle
+    if (newDepType === 'predecessor') {
+      if (dependencies.some(d => d.predecessorId === t.id && d.successorId === task.id)) return false
+      return validateDependency(t.id, task.id)
+    } else {
+      if (dependencies.some(d => d.predecessorId === task.id && d.successorId === t.id)) return false
+      return validateDependency(task.id, t.id)
+    }
+  })
+
   // Predecessor date calculation for new task creation
   useEffect(() => {
     if (predecessorId && !isEditing) {
@@ -180,6 +277,9 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
     // Update incoming dependencies if their lags were modified
     if (isEditing && incomingDependencies.length > 0) {
       for (const dep of incomingDependencies) {
+        const depStillExists = dependencies.some(d => d.id === dep.id)
+        if (!depStillExists) continue
+
         const currentLagState = dependencyLags[dep.id]
         if (currentLagState) {
           if (currentLagState.lag !== dep.lag || currentLagState.actualLag !== dep.actualLag) {
@@ -250,15 +350,17 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
       })
     } else {
       // Create new task
-      const parentId = parentTask?.id
-      const parentWbsCode = parentTask?.wbsCode
+      const parentId = effectiveParentId
+      const parentWbsCode = effectiveParentTask?.wbsCode
 
       // Count siblings to generate WBS code
       const siblings = tasks.filter((t) =>
         t.parentId === parentId && t.projectId === currentProject.id
       )
 
-      const wbsCode = generateWbsCode(parentWbsCode, siblings.length)
+      const wbsCode = isInsertingAfter
+        ? insertAfterTask.wbsCode
+        : generateWbsCode(parentWbsCode, siblings.length)
       const level = getWbsLevel(wbsCode)
 
       const parsedActualLag = typeof data.actualLag === 'number' && !isNaN(data.actualLag)
@@ -280,7 +382,7 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
         actualDuration: isCompleted ? finalActualDuration : undefined,
         actualStartDate,
         actualEndDate: isCompleted ? actualEndDate : undefined,
-      })
+      }, isInsertingAfter ? { insertAfterTaskId: insertAfterTask.id } : undefined)
 
       // Create dependency if predecessor is selected
       if (data.predecessorId && newTask) {
@@ -293,8 +395,8 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
             lag: data.lag || 0,
             actualLag: parsedActualLag,
           })
-        } catch (err) {
-          console.error('Error al crear la dependencia:', err)
+        } catch (depError) {
+          console.error('Failed to create dependency:', depError)
         }
       }
     }
@@ -321,6 +423,15 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
     >
       <Plus className="h-3.5 w-3.5" />
     </Button>
+  ) : isInsertingAfter ? (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-6 w-6 p-0 hover:text-primary hover:bg-primary/10"
+      title={`Insertar tarea debajo de ${insertAfterTask.wbsCode}`}
+    >
+      <CornerDownRight className="h-3.5 w-3.5" />
+    </Button>
   ) : !isEditing ? (
     <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 shadow-xs">
       <Plus className="h-4 w-4" />
@@ -336,27 +447,37 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
         </DialogTrigger>
       )}
       <DialogContent
-        className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto"
+        className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
       >
         <form onSubmit={handleSubmit(onSubmit)}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckSquare className="h-5 w-5" />
-              {isEditing
-                ? `Editar Tarea ${task?.wbsCode || ''}`
-                : isCreatingChild
-                ? `Nueva Subtarea de ${parentTask?.wbsCode}`
-                : 'Nueva Tarea'}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditing
-                ? 'Modifica los detalles, dependencias, retraso real o avance de la tarea'
-                : isCreatingChild
-                ? `Creando subtarea bajo ${parentTask?.wbsCode} - ${parentTask?.name}`
-                : 'Crea una nueva tarea en tu proyecto'}
-            </DialogDescription>
+          <DialogHeader className="pb-2 border-b">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <CheckSquare className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base sm:text-lg font-bold">
+                  {isEditing
+                    ? `Editar Tarea ${task?.wbsCode || ''}`
+                    : isInsertingAfter
+                    ? `Insertar Tarea tras ${insertAfterTask.wbsCode}`
+                    : isCreatingChild
+                    ? `Nueva Subtarea de ${parentTask?.wbsCode}`
+                    : 'Nueva Tarea'}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  {isEditing
+                    ? 'Modifica los detalles, dependencias, retraso real o avance de la tarea'
+                    : isInsertingAfter
+                    ? `Se insertará directamente tras "${insertAfterTask.name}", desplazando las siguientes.`
+                    : isCreatingChild
+                    ? `Creando subtarea bajo ${parentTask?.wbsCode} - ${parentTask?.name}`
+                    : 'Crea una nueva tarea en tu proyecto'}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
@@ -421,85 +542,252 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
               </div>
             </div>
 
-            {/* Predecessor Dependencies & Actual Start Delay (When Editing) */}
-            {isEditing && incomingDependencies.length > 0 && (
+            {/* Task Dependencies Management (When Editing) */}
+            {isEditing && task && (
               <div className="border rounded-xl p-3.5 bg-muted/20 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Link2 className="h-4 w-4 text-primary shrink-0" />
-                  <span className="font-semibold text-xs text-foreground">
-                    Dependencias de Inicio (Predecesoras y Retraso Real)
-                  </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4 text-primary shrink-0" />
+                    <span className="font-semibold text-xs text-foreground">
+                      Gestión de Dependencias
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                      {incomingDependencies.length + outgoingDependencies.length}
+                    </span>
+                  </div>
+                  {isLeafTask && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => {
+                        setIsAddingDep(!isAddingDep)
+                        setDepError(null)
+                      }}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {isAddingDep ? 'Cancelar' : 'Añadir dependencia'}
+                    </Button>
+                  )}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Controla el desfase planificado y el retraso real con el que se inicia la tarea respecto al fin de cada predecesora.
-                </p>
 
-                {incomingDependencies.map(dep => {
-                  const pred = tasks.find(t => t.id === dep.predecessorId)
-                  const lagState = dependencyLags[dep.id] || { lag: dep.lag || 0, actualLag: dep.actualLag }
-
-                  return (
-                    <div key={dep.id} className="p-2.5 rounded-lg border bg-card/60 space-y-2">
-                      <div className="text-xs font-semibold text-foreground flex items-center justify-between">
-                        <span>{pred ? `${pred.wbsCode} - ${pred.name}` : 'Predecesora'}</span>
-                        <span className="text-[10px] font-normal text-muted-foreground">Tipo: Finish-to-Start (FS)</span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-1">
-                          <Label className="text-[11px] text-muted-foreground">Retraso Planificado (días)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={lagState.lag}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value, 10) || 0
-                              setDependencyLags(prev => ({
-                                ...prev,
-                                [dep.id]: { ...prev[dep.id], lag: val }
-                              }))
-                            }}
-                          />
+                {!isLeafTask ? (
+                  <p className="text-[11px] text-muted-foreground italic">
+                    Esta tarea contiene subtareas (tarea resumen). Las dependencias deben vincularse a las subtareas finales.
+                  </p>
+                ) : (
+                  <>
+                    {/* Inline form to add a new dependency */}
+                    {isAddingDep && (
+                      <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 space-y-2.5">
+                        <div className="text-xs font-semibold text-foreground">
+                          Vincular nueva dependencia
                         </div>
 
-                        <div className="grid gap-1">
-                          <Label className="text-[11px] text-muted-foreground font-semibold text-primary">
-                            Retraso Real de Inicio (días)
-                          </Label>
-                          <Input
-                            type="number"
-                            placeholder="Ej: 2 (retraso), -1 (adelanto)"
-                            value={lagState.actualLag !== undefined ? lagState.actualLag : ''}
-                            onChange={(e) => {
-                              const raw = e.target.value
-                              const val = raw === '' ? undefined : parseInt(raw, 10)
-                              setDependencyLags(prev => ({
-                                ...prev,
-                                [dep.id]: { ...prev[dep.id], actualLag: val }
-                              }))
-                            }}
-                          />
-                        </div>
-                      </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="grid gap-1">
+                            <Label className="text-[11px] text-muted-foreground">Relación</Label>
+                            <select
+                              value={newDepType}
+                              onChange={(e) => {
+                                setNewDepType(e.target.value as 'predecessor' | 'successor')
+                                setNewDepTaskId('')
+                                setDepError(null)
+                              }}
+                              className="w-full flex h-8 rounded-md border border-input bg-background text-foreground px-2 py-1 text-xs shadow-xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                              <option value="predecessor">Predecesora (Esta tarea depende de...)</option>
+                              <option value="successor">Sucesora (Otra tarea depende de esta)</option>
+                            </select>
+                          </div>
 
-                      {lagState.actualLag !== undefined && (
-                        <p className="text-[11px] text-foreground/80 font-medium bg-muted/40 px-2 py-1 rounded">
-                          {lagState.actualLag > (lagState.lag || 0) ? (
-                            <span className="text-rose-600 dark:text-rose-400">
-                              ⚠️ Inicio retrasado en +{lagState.actualLag - (lagState.lag || 0)}d respecto al desfase planificado
-                            </span>
-                          ) : lagState.actualLag < (lagState.lag || 0) ? (
-                            <span className="text-emerald-600 dark:text-emerald-400">
-                              ✨ Inicio adelantado en {Math.abs(lagState.actualLag - (lagState.lag || 0))}d respecto al plan
-                            </span>
-                          ) : (
-                            <span>✅ Iniciada exactamente con el desfase planificado ({lagState.actualLag}d)</span>
-                          )}
+                          <div className="grid gap-1">
+                            <Label className="text-[11px] text-muted-foreground">Tarea vinculada</Label>
+                            <select
+                              value={newDepTaskId}
+                              onChange={(e) => {
+                                setNewDepTaskId(e.target.value)
+                                setDepError(null)
+                              }}
+                              className="w-full flex h-8 rounded-md border border-input bg-background text-foreground px-2 py-1 text-xs shadow-xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                              <option value="">Selecciona una tarea...</option>
+                              {availableDependencyTasks.map(t => (
+                                <option key={t.id} value={t.id}>
+                                  {t.wbsCode} - {t.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="grid gap-1 w-32">
+                            <Label className="text-[11px] text-muted-foreground">Desfase (días)</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={newDepLag}
+                              onChange={(e) => setNewDepLag(parseInt(e.target.value, 10) || 0)}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div className="flex items-end gap-2 pt-4">
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={!newDepTaskId || isSubmittingDep}
+                              onClick={handleAddDependency}
+                              className="h-8 text-xs font-medium"
+                            >
+                              {isSubmittingDep ? 'Guardando...' : 'Vincular Dependencia'}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {depError && (
+                          <p className="text-xs text-destructive font-medium">{depError}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Predecessors list */}
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Tareas Predecesoras (Esta tarea depende de)
+                      </span>
+
+                      {incomingDependencies.length === 0 ? (
+                        <p className="text-[11px] text-muted-foreground italic pl-1">
+                          No tiene predecesoras asignadas.
                         </p>
+                      ) : (
+                        incomingDependencies.map(dep => {
+                          const pred = tasks.find(t => t.id === dep.predecessorId)
+                          const lagState = dependencyLags[dep.id] || { lag: dep.lag || 0, actualLag: dep.actualLag }
+
+                          return (
+                            <div key={dep.id} className="p-2.5 rounded-lg border bg-card/60 space-y-2">
+                              <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                                <span className="truncate pr-2 font-medium">
+                                  {pred ? `${pred.wbsCode} - ${pred.name}` : 'Predecesora desconocida'}
+                                </span>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[10px] font-normal text-muted-foreground">Tipo: FS</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleDeleteDependency(dep.id)}
+                                    title="Eliminar esta dependencia"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-1">
+                                  <Label className="text-[11px] text-muted-foreground">Retraso Planificado (días)</Label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={lagState.lag}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value, 10) || 0
+                                      setDependencyLags(prev => ({
+                                        ...prev,
+                                        [dep.id]: { ...prev[dep.id], lag: val }
+                                      }))
+                                    }}
+                                  />
+                                </div>
+
+                                <div className="grid gap-1">
+                                  <Label className="text-[11px] text-muted-foreground font-semibold text-primary">
+                                    Retraso Real de Inicio (días)
+                                  </Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="Ej: 2 (retraso), -1 (adelanto)"
+                                    value={lagState.actualLag !== undefined ? lagState.actualLag : ''}
+                                    onChange={(e) => {
+                                      const raw = e.target.value
+                                      const val = raw === '' ? undefined : parseInt(raw, 10)
+                                      setDependencyLags(prev => ({
+                                        ...prev,
+                                        [dep.id]: { ...prev[dep.id], actualLag: val }
+                                      }))
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              {lagState.actualLag !== undefined && (
+                                <p className="text-[11px] text-foreground/80 font-medium bg-muted/40 px-2 py-1 rounded">
+                                  {lagState.actualLag > (lagState.lag || 0) ? (
+                                    <span className="text-rose-600 dark:text-rose-400">
+                                      ⚠️ Inicio retrasado en +{lagState.actualLag - (lagState.lag || 0)}d respecto al desfase planificado
+                                    </span>
+                                  ) : lagState.actualLag < (lagState.lag || 0) ? (
+                                    <span className="text-emerald-600 dark:text-emerald-400">
+                                      ✨ Inicio adelantado en {Math.abs(lagState.actualLag - (lagState.lag || 0))}d respecto al plan
+                                    </span>
+                                  ) : (
+                                    <span>✅ Iniciada exactamente con el desfase planificado ({lagState.actualLag}d)</span>
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          )
+                        })
                       )}
                     </div>
-                  )
-                })}
+
+                    {/* Successors list */}
+                    <div className="space-y-2 pt-2 border-t">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Tareas Sucesoras (Esperan a que esta finalice)
+                      </span>
+
+                      {outgoingDependencies.length === 0 ? (
+                        <p className="text-[11px] text-muted-foreground italic pl-1">
+                          Ninguna tarea posterior depende de esta.
+                        </p>
+                      ) : (
+                        outgoingDependencies.map(dep => {
+                          const succ = tasks.find(t => t.id === dep.successorId)
+
+                          return (
+                            <div key={dep.id} className="p-2 rounded-lg border bg-card/60 flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2 truncate pr-2">
+                                <span className="font-semibold text-foreground truncate">
+                                  {succ ? `${succ.wbsCode} - ${succ.name}` : 'Sucesora desconocida'}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  (FS {dep.lag ? `+${dep.lag}d` : '+0d'})
+                                </span>
+                              </div>
+
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                onClick={() => handleDeleteDependency(dep.id)}
+                                title="Eliminar esta dependencia"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -646,18 +934,20 @@ export function TaskFormDialog({ task, parentTask, onSuccess, trigger, open: con
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => {
                 setOpen(false)
                 reset()
               }}
+              className="text-xs"
             >
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button type="submit" size="sm" className="text-xs font-semibold px-4">
               {isEditing ? 'Guardar Cambios' : 'Crear Tarea'}
             </Button>
           </DialogFooter>

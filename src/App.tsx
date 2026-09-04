@@ -13,8 +13,13 @@ import {
   ArrowRightLeft,
   HelpCircle,
   ListTodo,
+  MoreVertical,
+  FolderKanban,
+  Palmtree,
 } from 'lucide-react'
 import { Toaster } from 'sonner'
+import { cn } from './lib/utils'
+import { useDevice } from './hooks/useDevice'
 import { useProject } from './hooks/useProject'
 import { useAutoRecalculate } from './hooks/useAutoRecalculate'
 import { useOrganization } from './hooks/useOrganization'
@@ -22,11 +27,13 @@ import { ProjectSetupDialog } from './components/features/ProjectSetup/ProjectSe
 import { ProjectList } from './components/features/ProjectSetup/ProjectList'
 import { TransferProjectDialog } from './components/features/ProjectSetup/TransferProjectDialog'
 import { ProjectStartDateDialog } from './components/features/ProjectSetup/ProjectStartDateDialog'
+import { EditProjectDialog } from './components/features/ProjectSetup/EditProjectDialog'
 import { WBSTree } from './components/features/WBS/WBSTree'
 import { DependencyList } from './components/features/WBS/DependencyList'
 import { MilestoneList } from './components/features/Milestones/MilestoneList'
 import { GanttChart } from './components/features/GanttChart/GanttChart'
 import { ResourceManagement } from './components/features/Resources/ResourceManagement'
+import { MyVacationsManagement } from './components/features/Resources/MyVacationsManagement'
 import { GlobalHolidaysManagement } from './components/features/GlobalHolidays/GlobalHolidaysManagement'
 import { PortfolioTimeline } from './components/features/Portfolio/PortfolioTimeline'
 import { MyTasksManagement } from './components/features/MyTasks/MyTasksManagement'
@@ -35,6 +42,8 @@ import { CreateOrganizationDialog } from './components/features/Organization/Cre
 import { WelcomeLanding } from './components/features/Welcome/WelcomeLanding'
 import { PremiumPricingModal } from './components/features/Premium/PremiumPricingModal'
 import { LoginModal } from './components/features/Auth/LoginModal'
+import { MobileBottomNav } from './components/features/Navigation/MobileBottomNav'
+import { MobileProjectNotice } from './components/features/Navigation/MobileProjectNotice'
 import { Button } from './components/ui/button'
 import { ThemeToggle } from './components/ui/ThemeToggle'
 import { db, dbHelpers } from './lib/storage/db'
@@ -52,7 +61,7 @@ import { AutosaveStatusIndicator } from './components/features/Sync/AutosaveStat
 import { ConflictResolutionModal } from './components/features/Sync/ConflictResolutionModal'
 import { seedInitialPortfolioIfEmpty } from './lib/storage/seed'
 
-type View = 'projects' | 'project' | 'resources' | 'holidays' | 'portfolio' | 'my-tasks'
+type View = 'projects' | 'project' | 'resources' | 'holidays' | 'portfolio' | 'my-tasks' | 'my-vacations'
 
 function App() {
   const { currentProject, setCurrentProject, updateProject } = useProject()
@@ -62,6 +71,7 @@ function App() {
   const [isPricingOpen, setIsPricingOpen] = useState(false)
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
   const [isLocalFreeMode, setIsLocalFreeMode] = useState(false)
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false)
 
   const { user, initializeAuth, logout } = useAuth()
   const { organizations, userRole, hasManagedOrganization, isLoading: isOrgLoading } = useOrganization()
@@ -73,6 +83,19 @@ function App() {
   const isProjectReadOnly = Boolean(
     user && currentProject && currentProject.userId && currentProject.userId !== user.id
   )
+
+  const { isMobile } = useDevice()
+  const hasInitializedMobileViewRef = useRef(false)
+
+  // On first mount on mobile devices, navigate directly to 'my-tasks'
+  useEffect(() => {
+    if (isMobile && !hasInitializedMobileViewRef.current) {
+      hasInitializedMobileViewRef.current = true
+      if (currentView === 'projects') {
+        setCurrentView('my-tasks')
+      }
+    }
+  }, [isMobile, currentView])
 
   // Auto-prompt mandatory onboarding if user is logged in but has no managed organization
   useEffect(() => {
@@ -284,9 +307,23 @@ function App() {
               {/* In-Project Context Indicator */}
               {currentProject && currentView === 'project' && (
                 <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-muted">
-                  <span className="text-xs font-semibold text-foreground max-w-[180px] truncate">
+                  <span className="text-xs sm:text-sm font-semibold text-foreground max-w-[260px] md:max-w-md lg:max-w-2xl truncate" title={currentProject.name}>
                     {currentProject.name}
                   </span>
+
+                  {/* Botón clásico y sutil de 3 puntitos: abre el panel de edición dentro de la vista del proyecto */}
+                  {!isProjectReadOnly && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditProjectOpen(true)}
+                      className="h-7 w-7 p-0 text-muted-foreground/70 hover:text-primary hover:bg-muted transition-colors shrink-0"
+                      title="Editar configuración del proyecto (nombre, descripción, días laborables, inicio)"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  )}
+
                   <ProjectStartDateDialog />
                   {isProjectReadOnly && (
                     <span
@@ -343,19 +380,10 @@ function App() {
                     Exportar
                   </Button>
                 </>
-              ) : currentView === 'resources' || currentView === 'holidays' || currentView === 'portfolio' || currentView === 'my-tasks' ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setCurrentView('projects')}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Volver a Proyectos
-                </Button>
               ) : (
-                /* Projects List view navigation */
+                /* Main Tab Navigation when not viewing a single project */
                 (user || isLocalFreeMode) && (
-                  <>
+                  <div className="hidden md:flex items-center gap-1">
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -363,57 +391,89 @@ function App() {
                       className="hidden"
                       onChange={handleFileSelect}
                     />
+
                     <Button
-                      variant="outline"
+                      variant={currentView === 'projects' ? 'secondary' : 'ghost'}
                       size="sm"
-                      onClick={handleImportClick}
-                      disabled={isImporting}
-                      title="Importar proyecto desde JSON"
+                      onClick={() => setCurrentView('projects')}
+                      className="h-8 text-xs font-semibold"
                     >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {isImporting ? 'Importando...' : 'Importar'}
+                      <FolderKanban className="h-3.5 w-3.5 mr-1.5" />
+                      Proyectos
                     </Button>
+
                     <Button
-                      variant="outline"
+                      variant={currentView === 'my-tasks' ? 'secondary' : 'ghost'}
                       size="sm"
                       onClick={() => setCurrentView('my-tasks')}
+                      className="h-8 text-xs font-semibold"
                       title="Gestión y seguimiento de tareas asignadas"
                     >
-                      <ListTodo className="h-4 w-4 mr-2" />
+                      <ListTodo className="h-3.5 w-3.5 mr-1.5" />
                       Mis Tareas
                     </Button>
+
                     <Button
-                      variant="outline"
+                      variant={currentView === 'my-vacations' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setCurrentView('my-vacations')}
+                      className="h-8 text-xs font-semibold"
+                      title="Gestión de vacaciones y ausencias personales"
+                    >
+                      <Palmtree className="h-3.5 w-3.5 mr-1.5" />
+                      Vacaciones
+                    </Button>
+
+                    <Button
+                      variant={currentView === 'portfolio' ? 'secondary' : 'ghost'}
                       size="sm"
                       onClick={() => setCurrentView('portfolio')}
+                      className="h-8 text-xs font-semibold"
                       title="Timeline global de proyectos (Roadmap)"
                     >
-                      <Calendar className="h-4 w-4 mr-2" />
+                      <Calendar className="h-3.5 w-3.5 mr-1.5" />
                       Roadmap
                     </Button>
+
                     {(!user || userRole === 'manager' || userRole === 'admin') && (
                       <>
                         <Button
-                          variant="outline"
+                          variant={currentView === 'resources' ? 'secondary' : 'ghost'}
                           size="sm"
                           onClick={() => setCurrentView('resources')}
+                          className="h-8 text-xs font-semibold"
                           title="Gestión de recursos globales"
                         >
-                          <Users className="h-4 w-4 mr-2" />
+                          <Users className="h-3.5 w-3.5 mr-1.5" />
                           Recursos
                         </Button>
                         <Button
-                          variant="outline"
+                          variant={currentView === 'holidays' ? 'secondary' : 'ghost'}
                           size="sm"
                           onClick={() => setCurrentView('holidays')}
+                          className="h-8 text-xs font-semibold"
                           title="Gestión de festivos globales"
                         >
-                          <PartyPopper className="h-4 w-4 mr-2" />
+                          <PartyPopper className="h-3.5 w-3.5 mr-1.5" />
                           Festivos
                         </Button>
                       </>
                     )}
-                  </>
+
+                    {currentView === 'projects' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleImportClick}
+                        disabled={isImporting}
+                        className="h-8 text-xs ml-1"
+                        title="Importar proyecto desde JSON"
+                      >
+                        <Upload className="h-3.5 w-3.5 mr-1.5" />
+                        {isImporting ? 'Importando...' : 'Importar'}
+                      </Button>
+                    )}
+                  </div>
                 )
               )}
 
@@ -498,13 +558,15 @@ function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="px-4 py-4">
+      <main className={cn("px-4 py-4", isMobile && "pb-24")}>
         {!user && !isLocalFreeMode ? (
           <WelcomeLanding onStartFree={() => setIsLocalFreeMode(true)} />
         ) : currentView === 'holidays' ? (
           <GlobalHolidaysManagement />
         ) : currentView === 'resources' ? (
           <ResourceManagement />
+        ) : currentView === 'my-vacations' ? (
+          <MyVacationsManagement />
         ) : currentView === 'portfolio' ? (
           <PortfolioTimeline 
             onOpenProject={(project) => {
@@ -520,15 +582,16 @@ function App() {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Three column layout for WBS, Dependencies, and Milestones */}
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="lg:w-[40%]">
+            {isMobile && (
+              <MobileProjectNotice onGoToTasks={() => setCurrentView('my-tasks')} />
+            )}
+            {/* Main project view: 2/3 WBS on left, 1/3 vertical stack for Dependencies & Milestones on right */}
+            <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+              <div className="w-full lg:w-2/3 flex flex-col">
                 <WBSTree />
               </div>
-              <div className="lg:w-[30%]">
+              <div className="w-full lg:w-1/3 flex flex-col gap-4">
                 <DependencyList />
-              </div>
-              <div className="lg:w-[30%]">
                 <MilestoneList />
               </div>
             </div>
@@ -536,6 +599,19 @@ function App() {
           </div>
         )}
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      {isMobile && (user || isLocalFreeMode) && (
+        <MobileBottomNav
+          currentView={currentView}
+          onSelectView={(view) => {
+            if (view === 'projects') {
+              setCurrentProject(null)
+            }
+            setCurrentView(view)
+          }}
+        />
+      )}
 
       {/* UI Blocker Overlay */}
       {isImporting && (
@@ -571,6 +647,15 @@ function App() {
           open={isOnboardingOpen}
           onOpenChange={setIsOnboardingOpen}
           isMandatoryOnboarding={true}
+        />
+      )}
+
+      {/* Edit Project Dialog inside project view */}
+      {currentProject && (
+        <EditProjectDialog
+          project={currentProject}
+          open={isEditProjectOpen}
+          onOpenChange={setIsEditProjectOpen}
         />
       )}
     </div>

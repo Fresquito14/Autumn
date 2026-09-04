@@ -9,6 +9,7 @@ import {
   FolderGit2,
   AlertCircle,
   RotateCcw,
+  AlertTriangle,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -34,6 +35,7 @@ interface TaskManagementCardProps {
   projectName: string
   resourceId: string
   onTaskUpdated?: (taskId?: string, updatedChecklist?: ChecklistItem[]) => void
+  hasConflict?: boolean
 }
 
 export function TaskManagementCard({
@@ -41,6 +43,7 @@ export function TaskManagementCard({
   projectName,
   resourceId,
   onTaskUpdated,
+  hasConflict,
 }: TaskManagementCardProps) {
   const { updateTask } = useTasks()
   const { updateDependency } = useDependencies()
@@ -315,6 +318,8 @@ export function TaskManagementCard({
       'transition-all border',
       isCompleted
         ? 'opacity-75 bg-muted/20 border-border/60'
+        : hasConflict
+        ? 'border-amber-500/50 bg-amber-500/[0.03] shadow-xs'
         : status === 'overdue'
         ? 'border-rose-500/30 bg-rose-500/5'
         : 'bg-card hover:border-border/80'
@@ -352,6 +357,18 @@ export function TaskManagementCard({
               ) : (
                 <Badge variant="outline" className="text-muted-foreground text-[10px] py-0 px-1.5">
                   Próxima
+                </Badge>
+              )}
+
+              {/* Overlap / Conflict indicator */}
+              {hasConflict && !isCompleted && (
+                <Badge
+                  variant="outline"
+                  className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] py-0 px-1.5 gap-1"
+                  title="Esta tarea tiene solape de fechas con otra tarea asignada a este recurso"
+                >
+                  <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                  Solape
                 </Badge>
               )}
             </div>

@@ -14,6 +14,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import { useProject } from '@/hooks/useProject'
 import { useAuth } from '@/hooks/useAuth'
 import { useGlobalHolidays } from '@/hooks/useGlobalHolidays'
@@ -26,12 +28,22 @@ interface ProjectFormData {
   description: string
   startDate: string
   hoursPerDay: number
-  workingDays: number[]
 }
+
+const DAYS_OF_WEEK = [
+  { id: 1, label: 'L', name: 'Lunes' },
+  { id: 2, label: 'M', name: 'Martes' },
+  { id: 3, label: 'X', name: 'Miércoles' },
+  { id: 4, label: 'J', name: 'Jueves' },
+  { id: 5, label: 'V', name: 'Viernes' },
+  { id: 6, label: 'S', name: 'Sábado' },
+  { id: 0, label: 'D', name: 'Domingo' },
+]
 
 export function ProjectSetupDialog() {
   const [open, setOpen] = useState(false)
   const [isPricingOpen, setIsPricingOpen] = useState(false)
+  const [workingDays, setWorkingDays] = useState<number[]>([1, 2, 3, 4, 5])
   const { projects, createProject } = useProject()
   const { user } = useAuth()
   const { holidays: globalHolidays, loadAllHolidays } = useGlobalHolidays()
@@ -41,9 +53,20 @@ export function ProjectSetupDialog() {
       description: '',
       startDate: new Date().toISOString().split('T')[0],
       hoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5], // Mon-Fri
     }
   })
+
+  const toggleDay = (dayId: number) => {
+    if (workingDays.includes(dayId)) {
+      if (workingDays.length <= 1) {
+        toast.warning('El proyecto debe tener al menos un día laborable a la semana')
+        return
+      }
+      setWorkingDays(workingDays.filter((d) => d !== dayId))
+    } else {
+      setWorkingDays([...workingDays, dayId])
+    }
+  }
 
   // Load global holidays when dialog opens
   useEffect(() => {
@@ -92,11 +115,6 @@ export function ProjectSetupDialog() {
   }
 
   const onSubmit = async (data: ProjectFormData) => {
-    // Convert workingDays from strings to numbers (HTML checkboxes return strings)
-    const workingDays = Array.isArray(data.workingDays)
-      ? data.workingDays.map(day => typeof day === 'string' ? parseInt(day, 10) : day)
-      : [1, 2, 3, 4, 5]
-
     const config: ProjectConfig = {
       workingDays,
       hoursPerDay: data.hoursPerDay,
@@ -106,8 +124,6 @@ export function ProjectSetupDialog() {
       skipHolidaysInScheduling: true,
       defaultDuration: 1,
     }
-
-    console.log('💾 Guardando proyecto con workingDays:', workingDays, typeof workingDays[0])
 
     try {
       await createProject({
@@ -119,6 +135,7 @@ export function ProjectSetupDialog() {
 
       setOpen(false)
       reset()
+      setWorkingDays([1, 2, 3, 4, 5])
       setUseGlobalHolidays(true)
       setExcludedGlobalHolidayIds([])
       setProjectSpecificHolidays([])
@@ -149,14 +166,20 @@ export function ProjectSetupDialog() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit(onSubmit)}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Crear Nuevo Proyecto
-            </DialogTitle>
-            <DialogDescription>
-              Configura los detalles básicos de tu proyecto. Podrás ajustar el calendario y festivos más adelante.
-            </DialogDescription>
+          <DialogHeader className="pb-2 border-b">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <Calendar className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base sm:text-lg font-bold">
+                  Crear Nuevo Proyecto
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Configura los detalles básicos de tu proyecto. Podrás ajustar el calendario y festivos más adelante.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
@@ -176,76 +199,80 @@ export function ProjectSetupDialog() {
 
             <div className="grid gap-2">
               <Label htmlFor="description">Descripción</Label>
-              <Input
+              <textarea
                 id="description"
-                placeholder="Descripción breve del proyecto"
+                placeholder="Descripción breve del proyecto, objetivos y notas clave..."
+                rows={3}
                 {...register('description')}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring placeholder:text-muted-foreground resize-none leading-relaxed"
               />
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="startDate">
-                Fecha de Inicio <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="startDate"
-                type="date"
-                {...register('startDate', { required: 'La fecha de inicio es requerida' })}
-              />
-              {errors.startDate && (
-                <p className="text-sm text-destructive">{errors.startDate.message}</p>
-              )}
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="hoursPerDay">Horas por Día</Label>
-              <Input
-                id="hoursPerDay"
-                type="number"
-                min="1"
-                max="24"
-                {...register('hoursPerDay', {
-                  valueAsNumber: true,
-                  min: { value: 1, message: 'Mínimo 1 hora' },
-                  max: { value: 24, message: 'Máximo 24 horas' }
-                })}
-              />
-              {errors.hoursPerDay && (
-                <p className="text-sm text-destructive">{errors.hoursPerDay.message}</p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Jornada laboral estándar (típicamente 8 horas)
-              </p>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Días Laborables</Label>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { value: 1, label: 'Lun' },
-                  { value: 2, label: 'Mar' },
-                  { value: 3, label: 'Mié' },
-                  { value: 4, label: 'Jue' },
-                  { value: 5, label: 'Vie' },
-                  { value: 6, label: 'Sáb' },
-                  { value: 0, label: 'Dom' },
-                ].map((day) => (
-                  <label
-                    key={day.value}
-                    className="flex items-center gap-1 text-sm cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      value={day.value}
-                      defaultChecked={day.value >= 1 && day.value <= 5}
-                      {...register('workingDays')}
-                      className="h-4 w-4"
-                    />
-                    {day.label}
-                  </label>
-                ))}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="startDate">
+                  Fecha de Inicio <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  {...register('startDate', { required: 'La fecha de inicio es requerida' })}
+                />
+                {errors.startDate && (
+                  <p className="text-sm text-destructive">{errors.startDate.message}</p>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">
+
+              <div className="grid gap-2">
+                <Label htmlFor="hoursPerDay">Horas por Día</Label>
+                <Input
+                  id="hoursPerDay"
+                  type="number"
+                  min="1"
+                  max="24"
+                  {...register('hoursPerDay', {
+                    valueAsNumber: true,
+                    min: { value: 1, message: 'Mínimo 1 hora' },
+                    max: { value: 24, message: 'Máximo 24 horas' }
+                  })}
+                />
+                {errors.hoursPerDay && (
+                  <p className="text-sm text-destructive">{errors.hoursPerDay.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Días Laborables de la Semana</Label>
+                <Badge variant="secondary" className="text-[10px] font-medium">
+                  {workingDays.length} {workingDays.length === 1 ? 'día laborable' : 'días laborables a la semana'}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                {DAYS_OF_WEEK.map((day) => {
+                  const isSelected = workingDays.includes(day.id)
+                  return (
+                    <button
+                      key={day.id}
+                      type="button"
+                      onClick={() => toggleDay(day.id)}
+                      title={`${day.name}: haz clic para alternar`}
+                      className={cn(
+                        'h-11 rounded-lg text-xs font-semibold transition-all border flex flex-col items-center justify-center gap-0.5',
+                        isSelected
+                          ? 'bg-primary text-primary-foreground border-primary shadow-xs ring-1 ring-primary/20'
+                          : 'bg-background text-muted-foreground border-input hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      <span className="text-xs font-bold leading-none">{day.label}</span>
+                      <span className="text-[9px] opacity-75 hidden sm:inline leading-none">{day.name.slice(0, 3)}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
                 Selecciona los días de trabajo de la semana
               </p>
             </div>
@@ -422,18 +449,23 @@ export function ProjectSetupDialog() {
 
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => {
                 setOpen(false)
                 reset()
+                setWorkingDays([1, 2, 3, 4, 5])
               }}
+              className="text-xs"
             >
               Cancelar
             </Button>
-            <Button type="submit">Crear Proyecto</Button>
+            <Button type="submit" size="sm" className="text-xs font-semibold px-4">
+              Crear Proyecto
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -53,9 +53,10 @@ export function GanttMilestone({ milestone, left, totalHeight, rowHeight: _rowHe
 
       {/* Milestone name label */}
       <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap shadow-md"
+        className="absolute top-0 bg-primary text-primary-foreground px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap shadow-md z-10"
         style={{
           marginTop: `${diamondSize + 8}px`,
+          ...(left < 60 ? { left: '0px', transform: 'none' } : { left: '50%', transform: 'translateX(-50%)' }),
         }}
       >
         {milestone.name}

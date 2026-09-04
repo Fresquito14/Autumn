@@ -58,12 +58,21 @@ export function calculateCriticalPath(
     isCritical: false,
   }))
 
-  // Build adjacency lists for easy traversal
+  // Create a map for quick task lookup
+  const taskMap = new Map<string, TaskWithCPM>()
+  tasksWithCPM.forEach(task => taskMap.set(task.id, task))
+
+  // Build adjacency lists for easy traversal, ignoring dependencies pointing to missing/deleted tasks
   const successors = new Map<string, string[]>()
   const predecessors = new Map<string, string[]>()
   const dependencyMap = new Map<string, Dependency>()
 
   dependencies.forEach(dep => {
+    // 🛡️ Ensure both predecessor and successor exist in tasks
+    if (!taskMap.has(dep.predecessorId) || !taskMap.has(dep.successorId)) {
+      return
+    }
+
     // Successors: tasks that depend on this task
     if (!successors.has(dep.predecessorId)) {
       successors.set(dep.predecessorId, [])
@@ -81,10 +90,6 @@ export function calculateCriticalPath(
     dependencyMap.set(key, dep)
   })
 
-  // Create a map for quick task lookup
-  const taskMap = new Map<string, TaskWithCPM>()
-  tasksWithCPM.forEach(task => taskMap.set(task.id, task))
-
   // ============================================
   // FORWARD PASS: Calculate ES and EF
   // ============================================
@@ -97,9 +102,11 @@ export function calculateCriticalPath(
   tasksWithCPM.forEach(task => {
     if (!predecessors.has(task.id) || predecessors.get(task.id)!.length === 0) {
       toProcess.push(task.id)
-      const t = taskMap.get(task.id)!
-      t.earlyStart = 0
-      t.earlyFinish = task.duration
+      const t = taskMap.get(task.id)
+      if (t) {
+        t.earlyStart = 0
+        t.earlyFinish = task.duration
+      }
     }
   })
 
@@ -108,20 +115,24 @@ export function calculateCriticalPath(
     const taskId = toProcess.shift()!
     if (processed.has(taskId)) continue
 
-    const task = taskMap.get(taskId)!
+    const task = taskMap.get(taskId)
+    if (!task) continue
 
     // Calculate ES as max(EF of all predecessors + lag)
     const preds = predecessors.get(taskId) || []
     if (preds.length > 0) {
-      task.earlyStart = Math.max(
-        ...preds.map(predId => {
-          const pred = taskMap.get(predId)!
-          const dep = dependencyMap.get(`${predId}-${taskId}`)
-          const lag = (dep?.actualLag !== undefined && dep?.actualLag !== null) ? dep.actualLag : (dep?.lag || 0)
-          return pred.earlyFinish + lag
-        })
-      )
-      task.earlyFinish = task.earlyStart + task.duration
+      const validPreds = preds.filter(pId => taskMap.has(pId))
+      if (validPreds.length > 0) {
+        task.earlyStart = Math.max(
+          ...validPreds.map(predId => {
+            const pred = taskMap.get(predId)!
+            const dep = dependencyMap.get(`${predId}-${taskId}`)
+            const lag = (dep?.actualLag !== undefined && dep?.actualLag !== null) ? dep.actualLag : (dep?.lag || 0)
+            return pred.earlyFinish + lag
+          })
+        )
+        task.earlyFinish = task.earlyStart + task.duration
+      }
     }
 
     processed.add(taskId)
@@ -143,6 +154,7 @@ export function calculateCriticalPath(
 
   // Find project completion time (max EF)
   const projectCompletion = Math.max(
+    0,
     ...tasksWithCPM.map(t => t.earlyFinish)
   )
 
@@ -165,20 +177,24 @@ export function calculateCriticalPath(
     const taskId = toProcessBackward.shift()!
     if (processedBackward.has(taskId)) continue
 
-    const task = taskMap.get(taskId)!
+    const task = taskMap.get(taskId)
+    if (!task) continue
 
     // Calculate LF as min(LS of all successors - lag)
     const succs = successors.get(taskId) || []
     if (succs.length > 0 && processedBackward.size > 0) {
-      task.lateFinish = Math.min(
-        ...succs.map(succId => {
-          const succ = taskMap.get(succId)!
-          const dep = dependencyMap.get(`${taskId}-${succId}`)
-          const lag = (dep?.actualLag !== undefined && dep?.actualLag !== null) ? dep.actualLag : (dep?.lag || 0)
-          return succ.lateStart - lag
-        })
-      )
-      task.lateStart = task.lateFinish - task.duration
+      const validSuccs = succs.filter(sId => taskMap.has(sId))
+      if (validSuccs.length > 0) {
+        task.lateFinish = Math.min(
+          ...validSuccs.map(succId => {
+            const succ = taskMap.get(succId)!
+            const dep = dependencyMap.get(`${taskId}-${succId}`)
+            const lag = (dep?.actualLag !== undefined && dep?.actualLag !== null) ? dep.actualLag : (dep?.lag || 0)
+            return succ.lateStart - lag
+          })
+        )
+        task.lateStart = task.lateFinish - task.duration
+      }
     }
 
     processedBackward.add(taskId)
@@ -267,9 +283,9 @@ export function getCriticalPathSequence(
   while (queue.length > 0) {
     // Sort by early start to get natural order
     queue.sort((a, b) => {
-      const taskA = tasksWithCPM.find(t => t.id === a)!
-      const taskB = tasksWithCPM.find(t => t.id === b)!
-      return taskA.earlyStart - taskB.earlyStart
+      const taskA = tasksWithCPM.find(t => t.id === a)
+      const taskB = tasksWithCPM.find(t => t.id === b)
+      return (taskA?.earlyStart ?? 0) - (taskB?.earlyStart ?? 0)
     })
 
     const taskId = queue.shift()!

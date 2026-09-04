@@ -119,11 +119,11 @@ export function WBSTree() {
   }
 
   return (
-    <Card>
+    <Card className="flex flex-col flex-1 h-full min-h-[380px]">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <List className="h-5 w-5" />
+            <List className="h-5 w-5 text-primary shrink-0" />
             <div>
               <CardTitle className="text-base">Estructura de Tareas (WBS)</CardTitle>
               <CardDescription>
@@ -161,14 +161,14 @@ export function WBSTree() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-0 flex-1 flex flex-col min-h-0">
         {filteredRootTasks.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <p className="mb-4">No hay tareas creadas</p>
             {!isReadOnly && <TaskFormDialog />}
           </div>
         ) : (
-          <div>
+          <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
             <div className="flex items-center py-1.5 px-3 bg-muted/50 border-b font-medium text-xs text-muted-foreground">
               <div className="w-5" /> {/* Expand button space */}
@@ -183,7 +183,7 @@ export function WBSTree() {
 
 
             {/* Tasks - scrollable container */}
-            <div className="overflow-y-auto scrollbar-hide max-h-[40vh]">
+            <div className="overflow-y-auto scrollbar-hide flex-1 min-h-0">
               {filteredRootTasks.map((task) => renderTask(task))}
             </div>
           </div>

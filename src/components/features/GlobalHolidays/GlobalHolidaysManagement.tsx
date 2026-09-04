@@ -103,21 +103,31 @@ export function GlobalHolidaysManagement() {
     .sort((a, b) => b - a)
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <PartyPopper className="h-8 w-8" />
-            Festivos Globales
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Gestiona los festivos compartidos entre todos los proyectos
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-xl border shadow-xs">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <PartyPopper className="h-4 w-4 text-primary shrink-0" />
+            <h2 className="font-bold text-lg text-foreground">
+              Festivos Globales ({holidays.length})
+            </h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Gestiona los días festivos y no laborables compartidos entre todos los proyectos.
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Festivo
-        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => handleOpenDialog()}
+            className="h-8 gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Nuevo Festivo
+          </Button>
+        </div>
       </div>
 
       {holidays.length === 0 ? (

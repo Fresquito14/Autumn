@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, ChevronDown, Trash2, Calendar, Zap } from 'lucide-react'
+import { ChevronRight, ChevronDown, Trash2, Calendar, Zap, GripVertical, ArrowUp, ArrowDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import { useAuth } from '@/hooks/useAuth'
 import { useProject } from '@/hooks/useProject'
 import { calculateTaskProgress } from '@/lib/utils/progress'
+import { compareWbsCodes } from '@/domain/calculations/wbs'
 import type { Task, Resource } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -25,7 +26,7 @@ interface TaskRowProps {
 }
 
 export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }: TaskRowProps) {
-  const { tasks, deleteTask } = useTasks()
+  const { tasks, deleteTask, moveTaskSibling, reorderTask } = useTasks()
   const { isTaskCritical, getTaskCPM } = useCriticalPath()
   const { resources } = useResources()
   const { assignments } = useResourceAssignments()
@@ -33,8 +34,17 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
   const { currentProject } = useProject()
   const [isHovered, setIsHovered] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [dropIndicator, setDropIndicator] = useState<'before' | 'after' | null>(null)
 
   const isReadOnly = Boolean(user && currentProject?.userId && currentProject.userId !== user.id)
+
+  // Calculate whether task is first or last sibling
+  const siblings = tasks
+    .filter(t => t.parentId === task.parentId)
+    .sort((a, b) => compareWbsCodes(a.wbsCode || '', b.wbsCode || ''))
+  const siblingIndex = siblings.findIndex(t => t.id === task.id)
+  const isFirstSibling = siblingIndex === 0
+  const isLastSibling = siblingIndex === siblings.length - 1
 
   const isCritical = isTaskCritical(task.id)
   const taskCPM = getTaskCPM(task.id)
@@ -68,6 +78,37 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
 
   return (
     <div
+      draggable={!isReadOnly}
+      onDragStart={(e) => {
+        if (isReadOnly) return
+        e.dataTransfer.setData('text/plain', task.id)
+        e.dataTransfer.effectAllowed = 'move'
+      }}
+      onDragOver={(e) => {
+        if (isReadOnly) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        const rect = e.currentTarget.getBoundingClientRect()
+        const midpoint = rect.top + rect.height / 2
+        if (e.clientY < midpoint) {
+          setDropIndicator('before')
+        } else {
+          setDropIndicator('after')
+        }
+      }}
+      onDragLeave={() => {
+        setDropIndicator(null)
+      }}
+      onDrop={async (e) => {
+        if (isReadOnly) return
+        e.preventDefault()
+        const sourceTaskId = e.dataTransfer.getData('text/plain')
+        const position = dropIndicator || 'after'
+        setDropIndicator(null)
+        if (sourceTaskId && sourceTaskId !== task.id) {
+          await reorderTask(sourceTaskId, task.id, position)
+        }
+      }}
       className={cn(
         'group border-b hover:bg-muted/50 transition-colors cursor-pointer relative overflow-hidden',
         isHovered && 'bg-muted/30',
@@ -80,6 +121,14 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
       onDoubleClick={handleDoubleClick}
       title="Doble clic para editar tarea"
     >
+      {/* Drop Target Indicator Lines */}
+      {dropIndicator === 'before' && (
+        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500 z-30 pointer-events-none animate-pulse" />
+      )}
+      {dropIndicator === 'after' && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500 z-30 pointer-events-none animate-pulse" />
+      )}
+
       {/* Progress background gradient */}
       {progress > 0 && (
         <div
@@ -89,6 +138,18 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
       )}
 
       <div className="flex items-center py-1.5 px-3 gap-2 relative z-10">
+        {/* Drag handle */}
+        {!isReadOnly && (
+          <div
+            className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground shrink-0 transition-colors -ml-1"
+            title="Arrastrar para reordenar"
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </div>
+        )}
+
         {/* Indent */}
         <div style={{ width: indentWidth }} />
 
@@ -198,6 +259,37 @@ export function TaskRow({ task, hasChildren, isExpanded, onToggleExpand, level }
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
           >
+            {/* Move Sibling Up / Down */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:text-primary hover:bg-primary/10 disabled:opacity-20"
+              disabled={isFirstSibling}
+              onClick={(e) => {
+                e.stopPropagation()
+                moveTaskSibling(task.id, 'up')
+              }}
+              title={isFirstSibling ? 'Primera tarea del grupo' : 'Subir tarea (reordenar arriba)'}
+            >
+              <ArrowUp className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:text-primary hover:bg-primary/10 disabled:opacity-20"
+              disabled={isLastSibling}
+              onClick={(e) => {
+                e.stopPropagation()
+                moveTaskSibling(task.id, 'down')
+              }}
+              title={isLastSibling ? 'Última tarea del grupo' : 'Bajar tarea (reordenar abajo)'}
+            >
+              <ArrowDown className="h-3 w-3" />
+            </Button>
+
+            {/* Insert task directly below */}
+            <TaskFormDialog insertAfterTask={task} />
+
             <ActualProgressDialog key={`progress-${task.id}`} task={task} />
             <CopyTaskBlockDialog key={`copy-${task.id}`} task={task} />
             <TaskFormDialog parentTask={task} />

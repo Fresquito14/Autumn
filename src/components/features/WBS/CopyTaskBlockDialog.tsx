@@ -23,6 +23,7 @@ import { useDependencies } from '@/hooks/useDependencies'
 import { useProject } from '@/hooks/useProject'
 import { copyTaskBlock, getDescendantTasks } from '@/lib/utils/task-copy'
 import { dbHelpers } from '@/lib/storage/db'
+import { toast } from 'sonner'
 import type { Task } from '@/types'
 
 interface CopyTaskBlockDialogProps {
@@ -34,8 +35,8 @@ export function CopyTaskBlockDialog({ task, trigger }: CopyTaskBlockDialogProps)
   const [open, setOpen] = useState(false)
   const [targetParentId, setTargetParentId] = useState<string | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(false)
-  const { tasks } = useTasks()
-  const { dependencies } = useDependencies()
+  const { tasks, loadTasks } = useTasks()
+  const { dependencies, loadDependencies } = useDependencies()
   const { currentProject } = useProject()
 
   // Get descendant count for display
@@ -79,19 +80,17 @@ export function CopyTaskBlockDialog({ task, trigger }: CopyTaskBlockDialogProps)
         const updatedTasks = await dbHelpers.getProjectTasks(currentProject.id)
         updatedTasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
 
-        // Trigger recalculation via state updates (useAutoRecalculate will handle it)
-        // The tasks will be reloaded automatically by the store
+        // Trigger reactive reload in stores
+        await loadTasks(currentProject.id)
+        await loadDependencies(currentProject.id)
       }
 
-      alert(`✅ Bloque copiado: ${totalTasks} tareas y ${newDependencies.length} dependencias`)
+      toast.success(`Bloque copiado: ${totalTasks} tareas y ${newDependencies.length} dependencias`)
       setOpen(false)
       setTargetParentId(undefined)
-
-      // Force reload to show changes
-      window.location.reload()
     } catch (error) {
       console.error('Error copying task block:', error)
-      alert('❌ Error al copiar el bloque de tareas: ' + (error as Error).message)
+      toast.error('Error al copiar el bloque de tareas: ' + (error as Error).message)
     } finally {
       setIsLoading(false)
     }
@@ -109,14 +108,20 @@ export function CopyTaskBlockDialog({ task, trigger }: CopyTaskBlockDialogProps)
         {trigger || defaultTrigger}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Copy className="h-5 w-5" />
-            Copiar Bloque de Tareas
-          </DialogTitle>
-          <DialogDescription>
-            {task.wbsCode} - {task.name}
-          </DialogDescription>
+        <DialogHeader className="pb-2 border-b">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Copy className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold">
+                Copiar Bloque de Tareas
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                {task.wbsCode} - {task.name}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
@@ -169,21 +174,25 @@ export function CopyTaskBlockDialog({ task, trigger }: CopyTaskBlockDialogProps)
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={() => {
               setOpen(false)
               setTargetParentId(undefined)
             }}
             disabled={isLoading}
+            className="text-xs"
           >
             Cancelar
           </Button>
           <Button
+            size="sm"
             onClick={handleCopy}
             disabled={isLoading}
+            className="text-xs font-semibold px-4"
           >
             {isLoading ? 'Copiando...' : 'Copiar Bloque'}
           </Button>

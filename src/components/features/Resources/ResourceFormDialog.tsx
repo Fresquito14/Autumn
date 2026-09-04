@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Plus, Trash2, Calendar } from 'lucide-react'
+import { X, Plus, Trash2, Calendar, Users } from 'lucide-react'
 import type { Resource, DateRange } from '@/types'
 import { useResources } from '@/hooks/useResources'
 import {
@@ -13,8 +13,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { toast } from 'sonner'
 
 interface ResourceFormDialogProps {
   open: boolean
@@ -94,7 +96,7 @@ export function ResourceFormDialog({
     const end = new Date(vacationEnd)
 
     if (start > end) {
-      alert('La fecha de inicio debe ser anterior a la fecha de fin')
+      toast.error('La fecha de inicio debe ser anterior a la fecha de fin')
       return
     }
 
@@ -155,23 +157,30 @@ export function ResourceFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {resource ? 'Editar Recurso' : 'Nuevo Recurso'}
-          </DialogTitle>
-          <DialogDescription>
-            {resource
-              ? 'Modifica los datos del recurso'
-              : 'Crea un nuevo recurso para asignar a tareas'}
-          </DialogDescription>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="pb-2 border-b">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold">
+                {resource ? 'Editar Recurso' : 'Nuevo Recurso'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                {resource
+                  ? 'Modifica los datos y calendario de trabajo del recurso'
+                  : 'Crea un nuevo recurso para asignar a tareas'}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="name">
-              Nombre <span className="text-red-500">*</span>
+              Nombre <span className="text-destructive">*</span>
             </Label>
             <Input
               id="name"
@@ -197,7 +206,7 @@ export function ResourceFormDialog({
           {/* Max Hours Per Week */}
           <div className="space-y-2">
             <Label htmlFor="maxHours">
-              Horas máximas por semana <span className="text-red-500">*</span>
+              Horas máximas por semana <span className="text-destructive">*</span>
             </Label>
             <Input
               id="maxHours"
@@ -258,21 +267,22 @@ export function ResourceFormDialog({
 
             {/* Tag list */}
             {formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex flex-wrap gap-1.5 mt-2">
                 {formData.tags.map(tag => (
-                  <div
+                  <Badge
                     key={tag}
-                    className="inline-flex items-center gap-1 px-2 py-1 bg-secondary text-secondary-foreground rounded-md text-xs"
+                    variant="secondary"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-normal"
                   >
                     <span>{tag}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveTag(tag)}
-                      className="hover:text-destructive"
+                      className="hover:text-destructive transition-colors ml-0.5"
                     >
                       <X className="h-3 w-3" />
                     </button>
-                  </div>
+                  </Badge>
                 ))}
               </div>
             )}
@@ -340,16 +350,18 @@ export function ResourceFormDialog({
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
+              className="text-xs"
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs font-semibold px-4">
               {isSubmitting ? 'Guardando...' : resource ? 'Actualizar' : 'Crear'}
             </Button>
           </DialogFooter>

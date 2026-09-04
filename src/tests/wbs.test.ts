@@ -10,6 +10,9 @@ import {
   compareWbsCodes,
   isDescendantOf,
   getChildrenCodes,
+  calculateMoveSiblingUpdates,
+  calculateInsertBelowUpdates,
+  calculateReorderTaskUpdates,
 } from '@/domain/calculations/wbs'
 
 /**
@@ -119,5 +122,95 @@ describe('WBS Code Management & Level Filtering', () => {
     expect(getChildrenCodes(allCodes, undefined)).toEqual(['1', '2'])
     expect(getChildrenCodes(allCodes, '1')).toEqual(['1.1', '1.2'])
     expect(getChildrenCodes(allCodes, '1.2')).toEqual(['1.2.1'])
+  })
+})
+
+describe('WBS Reordering & Intermediate Task Insertion', () => {
+  const baseTasks = [
+    { id: 'p1', wbsCode: '1', parentId: undefined },
+    { id: 't11', wbsCode: '1.1', parentId: 'p1' },
+    { id: 't12', wbsCode: '1.2', parentId: 'p1' },
+    { id: 't121', wbsCode: '1.2.1', parentId: 't12' },
+    { id: 't13', wbsCode: '1.3', parentId: 'p1' },
+    { id: 'p2', wbsCode: '2', parentId: undefined },
+    { id: 't21', wbsCode: '2.1', parentId: 'p2' },
+    { id: 't22', wbsCode: '2.2', parentId: 'p2' },
+    { id: 't221', wbsCode: '2.2.1', parentId: 't22' },
+    { id: 't222', wbsCode: '2.2.2', parentId: 't22' },
+  ]
+
+  it('should move sibling up and swap WBS codes along with descendants', () => {
+    // Move 2.2 up -> should swap with 2.1
+    const updates = calculateMoveSiblingUpdates(baseTasks, 't22', 'up')
+
+    const map = new Map(updates.map(u => [u.taskId, u.newWbsCode]))
+    expect(map.get('t22')).toBe('2.1')
+    expect(map.get('t221')).toBe('2.1.1')
+    expect(map.get('t222')).toBe('2.1.2')
+    expect(map.get('t21')).toBe('2.2')
+  })
+
+  it('should move sibling down and swap WBS codes', () => {
+    // Move 1.1 down -> should swap with 1.2
+    const updates = calculateMoveSiblingUpdates(baseTasks, 't11', 'down')
+
+    const map = new Map(updates.map(u => [u.taskId, u.newWbsCode]))
+    expect(map.get('t11')).toBe('1.2')
+    expect(map.get('t12')).toBe('1.1')
+    expect(map.get('t121')).toBe('1.1.1')
+  })
+
+  it('should not move sibling beyond boundaries', () => {
+    // 2.1 is first sibling, cannot move up
+    expect(calculateMoveSiblingUpdates(baseTasks, 't21', 'up')).toEqual([])
+
+    // 2.2 is last sibling of p2, cannot move down
+    expect(calculateMoveSiblingUpdates(baseTasks, 't22', 'down')).toEqual([])
+  })
+
+  it('should calculate insertion below an existing task and shift subsequent siblings + descendants', () => {
+    // User scenario: In branch 2 with 2.1 and 2.2 (which has 2.2.1, 2.2.2),
+    // insert intermediate task directly below 2.1:
+    const result = calculateInsertBelowUpdates(baseTasks, 't21')
+
+    expect(result.newWbsCode).toBe('2.2')
+    expect(result.parentId).toBe('p2')
+
+    const map = new Map(result.updates.map(u => [u.taskId, u.newWbsCode]))
+    // Old 2.2 shifts to 2.3
+    expect(map.get('t22')).toBe('2.3')
+    // Descendants of old 2.2 shift to 2.3.x
+    expect(map.get('t221')).toBe('2.3.1')
+    expect(map.get('t222')).toBe('2.3.2')
+    // 2.1 remains unaffected
+    expect(map.has('t21')).toBe(false)
+  })
+
+  it('should reorder tasks via drag & drop before target', () => {
+    // Drag 1.3 before 1.2
+    const updates = calculateReorderTaskUpdates(baseTasks, 't13', 't12', 'before')
+
+    const map = new Map(updates.map(u => [u.taskId, u.newWbsCode]))
+    // Order becomes: 1.1, 1.3 (now 1.2), 1.2 (now 1.3)
+    expect(map.get('t13')).toBe('1.2')
+    expect(map.get('t12')).toBe('1.3')
+    expect(map.get('t121')).toBe('1.3.1')
+  })
+
+  it('should reorder tasks via drag & drop after target', () => {
+    // Drag 1.1 after 1.2
+    const updates = calculateReorderTaskUpdates(baseTasks, 't11', 't12', 'after')
+
+    const map = new Map(updates.map(u => [u.taskId, u.newWbsCode]))
+    // Order becomes: 1.2 (now 1.1), 1.1 (now 1.2), 1.3 (remains 1.3)
+    expect(map.get('t12')).toBe('1.1')
+    expect(map.get('t121')).toBe('1.1.1')
+    expect(map.get('t11')).toBe('1.2')
+  })
+
+  it('should reject dragging a task into its own descendant', () => {
+    // Drag 1.2 into 1.2.1 -> forbidden cycle
+    const updates = calculateReorderTaskUpdates(baseTasks, 't12', 't121', 'after')
+    expect(updates).toEqual([])
   })
 })

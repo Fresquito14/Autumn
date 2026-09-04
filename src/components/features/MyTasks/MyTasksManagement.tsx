@@ -9,18 +9,25 @@ import {
   UserCheck,
   AlertCircle,
   Briefcase,
+  LayoutGrid,
+  CalendarRange,
+  AlertTriangle,
+  Columns,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { TaskManagementCard } from './TaskManagementCard'
+import { MyTasksTimeline } from './MyTasksTimeline'
 import { useAuth } from '@/hooks/useAuth'
 import { useOrganization } from '@/hooks/useOrganization'
 import { useResources } from '@/hooks/useResources'
 import { useResourceAssignments } from '@/hooks/useResourceAssignments'
 import { useProject } from '@/hooks/useProject'
 import { db } from '@/infrastructure/storage/dexie/db'
+import { detectTaskConflicts } from '@/domain/calculations/conflicts'
 import {
   filterAndSortMyTasks,
   getTaskTemporalStatus,
@@ -40,8 +47,24 @@ export function MyTasksManagement() {
   const [selectedResourceId, setSelectedResourceId] = useState<string>('')
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>('active')
+  const [viewLayout, setViewLayout] = useState<'both' | 'cards' | 'timeline'>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('autumn_my_tasks_layout') : null
+    if (saved === 'both' || saved === 'cards' || saved === 'timeline') {
+      return saved
+    }
+    return 'both'
+  })
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+
+  const handleLayoutChange = (newLayout: 'both' | 'cards' | 'timeline') => {
+    setViewLayout(newLayout)
+    try {
+      localStorage.setItem('autumn_my_tasks_layout', newLayout)
+    } catch {
+      // Ignore storage errors in restricted contexts
+    }
+  }
 
   const isInitialLoadRef = useRef(true)
   const hasAutoMatchedUserRef = useRef(false)
@@ -167,6 +190,20 @@ export function MyTasksManagement() {
     return Math.round(hours * 10) / 10
   }, [assignments, selectedResourceId])
 
+  // Conflict map for all relevant tasks of this resource
+  const conflictMap = useMemo(() => {
+    return detectTaskConflicts(relevantTasks)
+  }, [relevantTasks])
+
+  // Count tasks with scheduling conflicts
+  const conflictsCount = useMemo(() => {
+    let count = 0
+    conflictMap.forEach((info) => {
+      if (info.hasConflict) count++
+    })
+    return count
+  }, [conflictMap])
+
   // Filtered and sorted tasks for display
   const displayedTasks = useMemo(() => {
     return filterAndSortMyTasks({
@@ -193,7 +230,7 @@ export function MyTasksManagement() {
   }, [])
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header Banner & Filters */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
@@ -203,12 +240,24 @@ export function MyTasksManagement() {
               <h2 className="text-xl font-bold tracking-tight">Gestión de Tareas</h2>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Imputa horas, completa checklists y crea subtareas ordenadas por fecha de inicio.
+              Imputa horas, completa checklists y supervisa solapes de tareas en el cronograma.
             </p>
           </div>
 
-          {/* Resource Selector for Managers / Admins */}
+          {/* Resource Selector & Conflict Indicator */}
           <div className="flex items-center gap-3 flex-wrap">
+            {conflictsCount > 0 && (
+              <Badge
+                variant="outline"
+                className="text-xs py-1 px-2.5 gap-1.5 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 cursor-pointer hover:bg-amber-500/20 transition-colors"
+                onClick={() => handleLayoutChange('both')}
+                title="Ver solapes y cronograma a la vez"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                <span>{conflictsCount} en conflicto / solape</span>
+              </Badge>
+            )}
+
             {isManagerOrAdmin && resources.length > 0 ? (
               <div className="flex items-center gap-2">
                 <Label htmlFor="resource-select" className="text-xs text-muted-foreground whitespace-nowrap">
@@ -392,8 +441,44 @@ export function MyTasksManagement() {
             </button>
           </div>
 
-          {/* Project filter & Search input */}
-          <div className="flex items-center gap-2">
+          {/* View Layout Toggle & Project filter & Search input */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* View Layout Switcher */}
+            <ToggleGroup
+              type="single"
+              value={viewLayout}
+              onValueChange={(val) => val && handleLayoutChange(val as 'both' | 'cards' | 'timeline')}
+              className="border rounded-md bg-background h-8"
+            >
+              <ToggleGroupItem
+                value="both"
+                aria-label="Vista combinada: cronograma y tarjetas a la vez"
+                className="text-xs px-2.5 h-7 gap-1.5"
+                title="Mostrar cronograma y tarjetas simultáneamente para ver solapes"
+              >
+                <Columns className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">A la vez</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="cards"
+                aria-label="Vista tarjetas"
+                className="text-xs px-2.5 h-7 gap-1.5"
+                title="Ver solo tarjetas de tareas"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Tarjetas</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="timeline"
+                aria-label="Vista cronograma horizontal"
+                className="text-xs px-2.5 h-7 gap-1.5"
+                title="Ver solo cronograma"
+              >
+                <CalendarRange className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Cronograma</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+
             {/* Project Filter */}
             <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
               <Filter className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
@@ -425,7 +510,7 @@ export function MyTasksManagement() {
         </div>
       </div>
 
-      {/* Task List */}
+      {/* Tasks View: Cards, Horizontal Timeline, or Both Concurrently */}
       {isLoading ? (
         <div className="py-12 text-center text-sm text-muted-foreground">
           Cargando tareas asignadas...
@@ -447,23 +532,68 @@ export function MyTasksManagement() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {displayedTasks.map((task) => {
-            const effectiveResourceId =
-              selectedResourceId && selectedResourceId !== 'all'
-                ? selectedResourceId
-                : task.assignedTo?.[0] || resources[0]?.id || ''
-
-            return (
-              <TaskManagementCard
-                key={task.id}
-                task={task}
-                projectName={projectMap.get(task.projectId) || 'Proyecto'}
-                resourceId={effectiveResourceId}
+        <div className="space-y-6">
+          {/* Cronograma / Timeline Section (visible in 'both' or 'timeline' modes) */}
+          {(viewLayout === 'both' || viewLayout === 'timeline') && (
+            <div className="space-y-2">
+              {viewLayout === 'both' && (
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                    <CalendarRange className="h-4 w-4 text-primary" />
+                    <span>Cronograma de Responsabilidades y Solapes</span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    Visualización temporal con detección de solapes
+                  </span>
+                </div>
+              )}
+              <MyTasksTimeline
+                tasks={displayedTasks}
+                projectMap={projectMap}
                 onTaskUpdated={handleTaskUpdated}
+                resourceId={selectedResourceId && selectedResourceId !== 'all' ? selectedResourceId : currentResource?.id || resources[0]?.id}
               />
-            )
-          })}
+            </div>
+          )}
+
+          {/* Cards Management Section (visible in 'both' or 'cards' modes) */}
+          {(viewLayout === 'both' || viewLayout === 'cards') && (
+            <div className="space-y-3">
+              {viewLayout === 'both' && (
+                <div className="flex items-center justify-between px-1 pt-2 border-t">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                    <ListTodo className="h-4 w-4 text-primary" />
+                    <span>Detalle y Gestión de Tareas ({displayedTasks.length})</span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    Imputa horas, completa checklists o crea subtareas
+                  </span>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {displayedTasks.map((task) => {
+                  const effectiveResourceId =
+                    selectedResourceId && selectedResourceId !== 'all'
+                      ? selectedResourceId
+                      : task.assignedTo?.[0] || resources[0]?.id || ''
+
+                  const conflictInfo = conflictMap.get(task.id)
+
+                  return (
+                    <TaskManagementCard
+                      key={task.id}
+                      task={task}
+                      projectName={projectMap.get(task.projectId) || 'Proyecto'}
+                      resourceId={effectiveResourceId}
+                      onTaskUpdated={handleTaskUpdated}
+                      hasConflict={conflictInfo?.hasConflict}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

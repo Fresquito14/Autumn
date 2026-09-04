@@ -9,9 +9,7 @@ import { GanttDependencyLines } from './GanttDependencyLines'
 import { GanttMilestone } from './GanttMilestone'
 import { ProjectStatistics } from './ProjectStatistics'
 import { LevelFilter } from '../WBS/LevelFilter'
-import { ProjectStartDateDialog } from '../ProjectSetup/ProjectStartDateDialog'
 import { TaskDebugExport } from '../Debug/TaskDebugExport'
-import { RecalculateAllButton } from '../Debug/RecalculateAllButton'
 import { useTasks } from '@/hooks/useTasks'
 import { useDependencies } from '@/hooks/useDependencies'
 import { useMilestones } from '@/hooks/useMilestones'
@@ -22,9 +20,11 @@ import {
   getTimelineBounds,
   calculateTaskBarPosition,
   calculateTimelineDimensions,
-  calculateDatePosition
+  calculateDatePosition,
+  rollupParentActualDates
 } from '@/lib/calculations/dates'
-import { getMaxWbsLevel, isTaskVisibleAtLevel } from '@/domain/calculations/wbs'
+import { getMaxWbsLevel, isTaskVisibleAtLevel, getWbsLevel } from '@/domain/calculations/wbs'
+import { cn } from '@/lib/utils'
 
 const ROW_HEIGHT = 40
 
@@ -68,6 +68,50 @@ export function GanttChart() {
     }
   }, []) // Run only once on mount
 
+  const workingDays = currentProject?.config?.workingDays || [1, 2, 3, 4, 5]
+
+  // Roll up actual and planned dates for parent tasks so summary tasks always enclose all children
+  const tasksWithRollup = rollupParentActualDates(tasks, workingDays)
+
+  const { start: timelineStart, end: timelineEnd } = getTimelineBounds(
+    tasksWithRollup,
+    milestones,
+    currentProject?.startDate
+  )
+
+  // Calculate base total days first to compute zoom width
+  const { totalDays: baseTotalDays } = calculateTimelineDimensions(timelineStart, timelineEnd, 1000)
+
+  // Determine base day width depending on zoom level
+  let baseDayWidth = 20
+  if (zoomLevel === 'day') {
+    baseDayWidth = 60
+  } else if (zoomLevel === 'month') {
+    baseDayWidth = 6
+  }
+
+  const calculatedWidth = baseTotalDays * baseDayWidth
+  const ganttWidth = Math.max(containerWidth, calculatedWidth)
+
+  // Calculate timeline dimensions using centralized function
+  const { totalDays, dayWidth, normalizedStart, normalizedEnd } = calculateTimelineDimensions(
+    timelineStart,
+    timelineEnd,
+    ganttWidth
+  )
+
+  // Auto-scroll to project start date whenever switching projects or adjusting zoom/dimensions
+  useLayoutEffect(() => {
+    if (containerRef.current && currentProject) {
+      const projectStart = currentProject.startDate
+        ? new Date(currentProject.startDate)
+        : timelineStart
+      const pos = calculateDatePosition(projectStart, timelineStart, timelineEnd, ganttWidth)
+      const targetScroll = Math.max(0, pos.left - 24)
+      containerRef.current.scrollLeft = targetScroll
+    }
+  }, [currentProject, ganttWidth, timelineStart, timelineEnd])
+
   if (isLoading && tasks.length === 0) {
     return (
       <Card>
@@ -100,37 +144,11 @@ export function GanttChart() {
     )
   }
 
-  const { start: timelineStart, end: timelineEnd } = getTimelineBounds(tasks)
-
-  // Calculate base total days first to compute zoom width
-  const { totalDays: baseTotalDays } = calculateTimelineDimensions(timelineStart, timelineEnd, 1000)
-
-  // Determine base day width depending on zoom level
-  let baseDayWidth = 20
-  if (zoomLevel === 'day') {
-    baseDayWidth = 60
-  } else if (zoomLevel === 'month') {
-    baseDayWidth = 6
-  }
-
-  const calculatedWidth = baseTotalDays * baseDayWidth
-  const ganttWidth = Math.max(containerWidth, calculatedWidth)
-
-  // Calculate timeline dimensions using centralized function
-  const { totalDays, dayWidth, normalizedStart, normalizedEnd } = calculateTimelineDimensions(
-    timelineStart,
-    timelineEnd,
-    ganttWidth
-  )
-
-  // Debug log
-  console.log(`Timeline: ${normalizedStart.toLocaleDateString()} to ${normalizedEnd.toLocaleDateString()} (${totalDays} days, dayWidth: ${dayWidth}px, zoomLevel: ${zoomLevel})`)
-
   // Calculate max level in tasks (1-based: 1 = root, 2 = child, 3 = grandchild, etc.)
-  const maxLevel = getMaxWbsLevel(tasks)
+  const maxLevel = getMaxWbsLevel(tasksWithRollup)
 
   // Filter tasks based on maxDisplayLevel
-  const filteredTasks = tasks.filter(task => isTaskVisibleAtLevel(task, maxDisplayLevel))
+  const filteredTasks = tasksWithRollup.filter(task => isTaskVisibleAtLevel(task, maxDisplayLevel))
 
   // Get visible tasks (flatten hierarchy for Gantt)
   const visibleTasks = filteredTasks.sort((a, b) => a.wbsCode.localeCompare(b.wbsCode, undefined, { numeric: true }))
@@ -236,15 +254,13 @@ export function GanttChart() {
               </ToggleGroupItem>
             </ToggleGroup>
 
-            <ProjectStartDateDialog />
-
             <LevelFilter
               maxLevel={maxLevel}
               currentMaxLevel={maxDisplayLevel}
               onLevelChange={setMaxDisplayLevel}
             />
-            <RecalculateAllButton />
-            <TaskDebugExport />
+
+            {import.meta.env.DEV && <TaskDebugExport />}
           </div>
         </div>
       </CardHeader>
@@ -256,22 +272,37 @@ export function GanttChart() {
               Tarea
             </div>
             <div>
-              {visibleTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="border-b px-4 flex items-center box-border h-10 max-h-10 min-h-10 shrink-0 overflow-hidden"
-                  style={{ height: `${ROW_HEIGHT}px` }}
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                    <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
-                      {task.wbsCode}
-                    </span>
-                    <span className="text-sm truncate select-none" style={{ marginLeft: task.level * 12 }} title={task.name}>
-                      {task.name}
-                    </span>
+              {visibleTasks.map((task) => {
+                const isParent = tasksWithRollup.some(t => t.parentId === task.id)
+                const indent = getWbsLevel(task.wbsCode) * 14
+
+                return (
+                  <div
+                    key={task.id}
+                    className={cn(
+                      "border-b px-4 flex items-center box-border h-10 max-h-10 min-h-10 shrink-0 overflow-hidden",
+                      isParent ? "bg-muted/40 font-medium" : ""
+                    )}
+                    style={{ height: `${ROW_HEIGHT}px` }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                      <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
+                        {task.wbsCode}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-sm truncate select-none",
+                          isParent ? "font-semibold text-foreground" : "text-foreground/90"
+                        )}
+                        style={{ marginLeft: `${indent}px` }}
+                        title={task.name}
+                      >
+                        {task.name}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
@@ -357,22 +388,22 @@ export function GanttChart() {
                     ganttWidth
                   )
 
-                  // Calculate actual position if we have actual dates
-                  let actualPosition = plannedPosition
-                  if (task.actualStartDate && task.actualEndDate) {
-                    actualPosition = calculateTaskBarPosition(
-                      new Date(task.actualStartDate),
-                      new Date(task.actualEndDate),
-                      timelineStart,
-                      timelineEnd,
-                      ganttWidth
-                    )
-                  }
+                  // Calculate actual position (fallback to planned dates if actual not defined)
+                  const actualStart = task.actualStartDate ? new Date(task.actualStartDate) : new Date(task.startDate)
+                  const actualEnd = task.actualEndDate ? new Date(task.actualEndDate) : new Date(task.endDate)
+
+                  const actualPosition = calculateTaskBarPosition(
+                    actualStart,
+                    actualEnd,
+                    timelineStart,
+                    timelineEnd,
+                    ganttWidth
+                  )
 
                   return (
                     <div
                       key={task.id}
-                      className="border-b relative box-border h-10 max-h-10 min-h-10 shrink-0"
+                      className="border-b relative box-border h-10 max-h-10 min-h-10 shrink-0 hover:z-40"
                       style={{ height: `${ROW_HEIGHT}px` }}
                     >
                       <GanttTaskBar

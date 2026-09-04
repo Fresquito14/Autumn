@@ -41,12 +41,13 @@ export function GanttTimeline({ startDate, endDate, width, zoomLevel }: GanttTim
   return (
     <div className="border-b bg-muted/30 sticky top-0 z-10 box-border h-[60px]" style={{ width: `${width}px` }}>
       {/* Top scale (Weeks or Months) */}
-      <div className="flex h-8 border-b box-border">
+      <div className="flex h-8 border-b box-border overflow-hidden">
         {scaleItems.map((item, index) => (
           <div
             key={index}
-            className="border-r last:border-r-0 flex items-center justify-center text-xs font-semibold text-muted-foreground"
-            style={{ width: `${item.width}%` }}
+            className="border-r last:border-r-0 flex items-center justify-center text-xs font-semibold text-muted-foreground flex-shrink-0 box-border truncate px-1"
+            style={{ width: `${item.daysCount * dayWidth}px` }}
+            title={item.label}
           >
             {item.label}
           </div>
@@ -54,12 +55,12 @@ export function GanttTimeline({ startDate, endDate, width, zoomLevel }: GanttTim
       </div>
 
       {/* Day grid (with labels if space allows) */}
-      <div className="h-7 flex box-border">
+      <div className="h-7 flex box-border overflow-hidden">
         {days.map((day, i) => (
           <div
             key={i}
             className={cn(
-              "border-r last:border-r-0 border-muted flex items-center justify-center text-[9px] font-medium text-muted-foreground select-none",
+              "border-r last:border-r-0 border-muted flex items-center justify-center text-[9px] font-medium text-muted-foreground select-none flex-shrink-0 box-border",
               day.isWeekend && "bg-muted-foreground/10 text-destructive/70"
             )}
             style={{ width: `${dayWidth}px` }}

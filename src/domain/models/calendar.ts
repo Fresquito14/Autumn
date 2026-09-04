@@ -26,8 +26,11 @@ export interface Holiday {
 }
 
 export interface DateRange {
+  id?: string
   start: Date
   end: Date
+  reason?: string
+  type?: 'vacation' | 'leave' | 'other'
 }
 
 export interface WorkingDay {

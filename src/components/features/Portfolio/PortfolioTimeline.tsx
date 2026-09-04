@@ -276,6 +276,22 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
     return differenceInDays(today, timelineStart) * dayWidth
   }, [timelineStart, timelineEnd, dayWidth])
 
+  // Dynamic tooltip style to prevent clipping against the left task list container
+  const getTooltipStyle = (barLeft: number, barWidth: number): React.CSSProperties => {
+    const barCenter = barLeft + barWidth / 2
+    if (barCenter < 160) {
+      const leftOffset = Math.max(0, 6 - barLeft)
+      return {
+        left: `${leftOffset}px`,
+        transform: 'none',
+      }
+    }
+    return {
+      left: '50%',
+      transform: 'translateX(-50%)',
+    }
+  }
+
   // Navigation handlers
   const handleShiftTimeline = (months: number) => {
     setTimelineStart(prev => addMonths(prev, months))
@@ -313,36 +329,41 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header and Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <BarChart3 className="h-8 w-8 text-primary" />
-            Roadmap del Portfolio
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Línea temporal consolidada y fases de todos los proyectos en curso
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-xl border shadow-xs">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary shrink-0" />
+            <h2 className="font-bold text-lg text-foreground">
+              Roadmap del Portfolio ({processedProjects.length})
+            </h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Línea temporal consolidada y fases de todos los proyectos en curso.
           </p>
         </div>
 
-        {/* Navigation buttons */}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => handleShiftTimeline(-1)}>
-            Anterior
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleCenterOnToday}>
-            Hoy
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleShiftTimeline(1)}>
-            Siguiente
-          </Button>
+        {/* Navigation & Zoom controls */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={() => handleShiftTimeline(-1)}>
+              Anterior
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={handleCenterOnToday}>
+              Hoy
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={() => handleShiftTimeline(1)}>
+              Siguiente
+            </Button>
+          </div>
 
           {/* Zoom controls */}
-          <div className="border rounded-md flex items-center overflow-hidden ml-2">
+          <div className="border rounded-md flex items-center overflow-hidden bg-background">
             <button
+              type="button"
               onClick={() => setDayWidth(Math.max(6, dayWidth - 3))}
-              className="px-3 py-1.5 text-xs hover:bg-muted font-mono transition-colors border-r"
+              className="px-2.5 py-1 text-xs hover:bg-muted font-mono transition-colors border-r"
               title="Alejar zoom"
             >
               -
@@ -351,8 +372,9 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
               Zoom
             </span>
             <button
+              type="button"
               onClick={() => setDayWidth(Math.min(40, dayWidth + 3))}
-              className="px-3 py-1.5 text-xs hover:bg-muted font-mono transition-colors border-l"
+              className="px-2.5 py-1 text-xs hover:bg-muted font-mono transition-colors border-l"
               title="Acercar zoom"
             >
               +
@@ -493,7 +515,7 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                           return (
                             <div
                               key={phase.id}
-                              className="absolute rounded border px-2 flex items-center justify-between group cursor-pointer hover:scale-[1.01] hover:brightness-105 overflow-hidden shadow-sm"
+                              className="absolute rounded border px-2 flex items-center justify-between group cursor-pointer hover:scale-[1.01] hover:brightness-105 hover:z-50 shadow-sm"
                               style={{
                                 left: `${left}px`,
                                 width: `${Math.max(25, width)}px`,
@@ -507,7 +529,7 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                             >
                               {/* Colored progress bar inside phase block */}
                               <div
-                                className="absolute left-0 top-0 bottom-0 opacity-20 pointer-events-none transition-all"
+                                className="absolute left-0 top-0 bottom-0 opacity-20 pointer-events-none transition-all rounded-l"
                                 style={{
                                   width: `${phase.progress}%`,
                                   backgroundColor: color.progressBg
@@ -522,7 +544,10 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                               </span>
 
                               {/* Hover Tooltip for Phase */}
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                              <div
+                                className="absolute bottom-full mb-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[100]"
+                                style={getTooltipStyle(left, width)}
+                              >
                                 <div className="bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-lg border text-xs whitespace-nowrap">
                                   <div className="font-semibold">{phase.name}</div>
                                   <div className="text-muted-foreground mt-0.5">
@@ -620,7 +645,7 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                               return (
                                 <div
                                   key={sub.id}
-                                  className="absolute rounded border px-2 flex items-center justify-between group cursor-pointer hover:scale-[1.01] hover:brightness-105 overflow-hidden shadow-xs"
+                                  className="absolute rounded border px-2 flex items-center justify-between group cursor-pointer hover:scale-[1.01] hover:brightness-105 hover:z-50 shadow-xs"
                                   style={{
                                     left: `${left}px`,
                                     width: `${Math.max(25, width)}px`,
@@ -635,7 +660,7 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                                 >
                                   {/* Inner Progress bar */}
                                   <div
-                                    className="absolute left-0 top-0 bottom-0 opacity-15 pointer-events-none transition-all"
+                                    className="absolute left-0 top-0 bottom-0 opacity-15 pointer-events-none transition-all rounded-l"
                                     style={{
                                       width: `${subProgress}%`,
                                       backgroundColor: color.progressBg
@@ -650,7 +675,10 @@ export function PortfolioTimeline({ onOpenProject }: PortfolioTimelineProps) {
                                   </span>
 
                                   {/* Subphase Tooltip */}
-                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                  <div
+                                    className="absolute bottom-full mb-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[100]"
+                                    style={getTooltipStyle(left, width)}
+                                  >
                                     <div className="bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-lg border text-xs whitespace-nowrap">
                                       <div className="font-semibold">{sub.name}</div>
                                       <div className="text-muted-foreground mt-0.5">

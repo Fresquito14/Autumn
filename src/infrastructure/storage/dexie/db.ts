@@ -180,13 +180,42 @@ export const dbHelpers = {
     })
   },
 
+  async updateTasksBatch(updates: Array<{ id: string; changes: Partial<Task> }>) {
+    await db.transaction('rw', db.tasks, async () => {
+      for (const update of updates) {
+        const { projectId: _ignoredProjectId, id: _ignoredId, ...safeChanges } = update.changes as any
+        await db.tasks.update(update.id, {
+          ...safeChanges,
+          updatedAt: new Date(),
+        })
+      }
+    })
+  },
+
   async deleteTask(id: string) {
     await db.transaction('rw', [db.tasks, db.dependencies, db.taskResourceAssignments, db.timeEntries], async () => {
-      await db.dependencies.where('predecessorId').equals(id).delete()
-      await db.dependencies.where('successorId').equals(id).delete()
-      await db.taskResourceAssignments.where('taskId').equals(id).delete()
-      await db.timeEntries.where('taskId').equals(id).delete()
-      await db.tasks.delete(id)
+      const allTasks = await db.tasks.toArray()
+      const idsToDelete = new Set<string>([id])
+
+      // Recursively find all child/grandchild tasks
+      let foundMore = true
+      while (foundMore) {
+        foundMore = false
+        for (const t of allTasks) {
+          if (t.parentId && idsToDelete.has(t.parentId) && !idsToDelete.has(t.id)) {
+            idsToDelete.add(t.id)
+            foundMore = true
+          }
+        }
+      }
+
+      for (const taskId of idsToDelete) {
+        await db.dependencies.where('predecessorId').equals(taskId).delete()
+        await db.dependencies.where('successorId').equals(taskId).delete()
+        await db.taskResourceAssignments.where('taskId').equals(taskId).delete()
+        await db.timeEntries.where('taskId').equals(taskId).delete()
+        await db.tasks.delete(taskId)
+      }
     })
   },
 
