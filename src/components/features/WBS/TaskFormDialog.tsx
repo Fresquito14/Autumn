@@ -324,15 +324,24 @@ export function TaskFormDialog({ task, parentTask, insertAfterTask, onSuccess, t
         actualStartDate = earliestActualStart
       }
     } else {
-      actualStartDate = task?.actualStartDate || startDate
+      // If task is not marked as completed, ensure actualStartDate stays aligned with planned startDate
+      if (!isCompleted) {
+        actualStartDate = startDate
+      } else {
+        actualStartDate = task?.actualStartDate || startDate
+      }
     }
 
     if (isCompleted && isLeafTask) {
       finalActualDuration = actualDuration
       const start = actualStartDate || startDate
       actualEndDate = addBusinessDays(start, finalActualDuration - 1, workingDays)
-    } else if (actualStartDate) {
+    } else if (isCompleted && actualStartDate) {
       actualEndDate = addBusinessDays(actualStartDate, data.duration - 1, workingDays)
+    } else {
+      // Uncompleted tasks track planned dates
+      actualStartDate = undefined
+      actualEndDate = undefined
     }
 
     if (isEditing && task) {

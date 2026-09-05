@@ -86,12 +86,38 @@ export function MyTasksManagement() {
       ])
 
       // Fetch directly from IndexedDB
-      const [dbProjects, dbTasks, , dbResources] = await Promise.all([
+      const [dbProjects, rawDbTasks, , dbResources] = await Promise.all([
         db.projects.toArray(),
         db.tasks.toArray(),
         db.taskResourceAssignments.toArray(),
         db.resources.toArray(),
       ])
+
+      // Sanitize any stale or orphaned actualStartDate for tasks that are not completed
+      // (e.g. old 2025 dates that conflict with 2026 planned schedules)
+      const dbTasks = await Promise.all(
+        rawDbTasks.map(async (task) => {
+          const isCompleted =
+            task.percentComplete === 100 ||
+            (task.actualDuration !== undefined && task.actualDuration !== null)
+          if (!isCompleted && task.actualStartDate) {
+            const actualStart = new Date(task.actualStartDate)
+            const plannedStart = new Date(task.startDate)
+            if (actualStart.getTime() < plannedStart.getTime()) {
+              await db.tasks.update(task.id, {
+                actualStartDate: undefined,
+                actualEndDate: undefined,
+              })
+              return {
+                ...task,
+                actualStartDate: undefined,
+                actualEndDate: undefined,
+              }
+            }
+          }
+          return task
+        })
+      )
 
       setAllDbProjects(dbProjects)
       setAllTasks(dbTasks)

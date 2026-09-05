@@ -204,5 +204,27 @@ describe('MyTasks Domain Calculations', () => {
       expect(result.length).toBe(1)
       expect(result[0].id).toBe('t5')
     })
+
+    it('should correctly preserve and sort future planned tasks scheduled for late 2026', () => {
+      const lateTask = createTask({
+        id: 't-future',
+        name: 'Late 2026 Task',
+        startDate: new Date('2026-09-29'),
+        endDate: new Date('2026-09-29'),
+        assignedTo: ['res-1'],
+        actualStartDate: new Date('2025-12-25'), // Stale uncompleted date
+      })
+      const result = filterAndSortMyTasks({
+        tasks: [lateTask],
+        resourceId: 'res-1',
+        statusFilter: 'upcoming',
+        referenceDate: refDate,
+      })
+
+      expect(result.length).toBe(1)
+      expect(result[0].startDate.getFullYear()).toBe(2026)
+      expect(result[0].startDate.getMonth()).toBe(8) // September is month index 8
+      expect(result[0].startDate.getDate()).toBe(29)
+    })
   })
 })

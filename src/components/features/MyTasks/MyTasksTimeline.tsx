@@ -77,6 +77,22 @@ export function MyTasksTimeline({
     return count
   }, [conflictMap])
 
+  // Calculate timeline bounds encompassing all tasks
+  // For uncompleted tasks, use planned dates so orphaned actual dates cannot stretch the timeline into the past
+  const timelineTasks = useMemo(() => {
+    return tasks.map((t) => {
+      const isCompleted =
+        t.percentComplete === 100 ||
+        (t.actualDuration !== undefined && t.actualDuration !== null)
+      return {
+        startDate: t.startDate,
+        endDate: t.endDate,
+        actualStartDate: isCompleted ? t.actualStartDate : undefined,
+        actualEndDate: isCompleted ? t.actualEndDate : undefined,
+      }
+    })
+  }, [tasks])
+
   if (tasks.length === 0) {
     return (
       <Card className="border-dashed">
@@ -89,8 +105,7 @@ export function MyTasksTimeline({
     )
   }
 
-  // Calculate timeline bounds encompassing all tasks and actual delays
-  const { start: timelineStart, end: timelineEnd } = getTimelineBounds(tasks)
+  const { start: timelineStart, end: timelineEnd } = getTimelineBounds(timelineTasks)
 
   // Base day width according to zoom
   let baseDayWidth = 24
@@ -329,8 +344,18 @@ export function MyTasksTimeline({
                   const projectName = projectMap.get(task.projectId) || 'Proyecto'
 
                   // Compute bar coordinates
-                  const taskStart = task.actualStartDate ? new Date(task.actualStartDate) : new Date(task.startDate)
-                  const taskEnd = task.actualEndDate ? new Date(task.actualEndDate) : new Date(task.endDate)
+                  // For uncompleted tasks, use planned dates so obsolete actual dates cannot shift the bar
+                  const isTaskDone =
+                    task.percentComplete === 100 ||
+                    (task.actualDuration !== undefined && task.actualDuration !== null)
+                  const taskStart =
+                    isTaskDone && task.actualStartDate
+                      ? new Date(task.actualStartDate)
+                      : new Date(task.startDate)
+                  const taskEnd =
+                    isTaskDone && task.actualEndDate
+                      ? new Date(task.actualEndDate)
+                      : new Date(task.endDate)
 
                   const { left, width } = calculateTaskBarPosition(
                     taskStart,
@@ -352,7 +377,7 @@ export function MyTasksTimeline({
                       {/* Interactive Horizontal Task Bar */}
                       <div
                         className={cn(
-                          'absolute group cursor-pointer z-10 hover:z-50 transition-all rounded-md shadow-xs flex relative',
+                          'absolute group cursor-pointer z-10 hover:z-50 transition-all rounded-md shadow-xs flex',
                           hasConflict
                             ? 'border-2 border-amber-500 shadow-amber-500/20 shadow-sm'
                             : isCompleted
@@ -461,8 +486,23 @@ export function MyTasksTimeline({
             </div>
 
             <div className="text-muted-foreground text-[11px]">
-              Fechas: {format(hoveredTask.taskStart, 'dd MMM', { locale: es })} -{' '}
-              {format(hoveredTask.taskEnd, 'dd MMM yyyy', { locale: es })} ({hoveredTask.task.duration}d)
+              {hoveredTask.task.percentComplete === 100 && hoveredTask.task.actualStartDate ? (
+                <>
+                  <div>
+                    Real: {format(hoveredTask.taskStart, 'dd MMM', { locale: es })} -{' '}
+                    {format(hoveredTask.taskEnd, 'dd MMM yyyy', { locale: es })} ({hoveredTask.task.actualDuration || hoveredTask.task.duration}d)
+                  </div>
+                  <div className="text-[10px] opacity-75">
+                    Planificado: {format(new Date(hoveredTask.task.startDate), 'dd MMM', { locale: es })} -{' '}
+                    {format(new Date(hoveredTask.task.endDate), 'dd MMM yyyy', { locale: es })}
+                  </div>
+                </>
+              ) : (
+                <div>
+                  Fechas: {format(hoveredTask.taskStart, 'dd MMM', { locale: es })} -{' '}
+                  {format(hoveredTask.taskEnd, 'dd MMM yyyy', { locale: es })} ({hoveredTask.task.duration}d)
+                </div>
+              )}
             </div>
 
             {hoveredTask.progress > 0 && (
