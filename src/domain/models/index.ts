@@ -26,3 +26,6 @@ export type { ProjectExportData } from './export'
 
 // Organization types
 export type { Organization, OrganizationMember, OrganizationRole } from './organization'
+
+// Feedback types
+export type { FeedbackItem, CreateFeedbackDTO, FeedbackStatus, FeedbackCategory } from './feedback'

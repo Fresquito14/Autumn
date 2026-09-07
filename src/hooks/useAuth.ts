@@ -139,29 +139,8 @@ export const useAuth = create<AuthState>()(
           set({ user: null, session: null, isLoading: false })
           useOrganization.getState().clear()
 
-          // Clear local cache to prevent cross-account data leaks
-          try {
-            const { db } = await import('@/lib/storage/db')
-            const { useProject } = await import('./useProject')
-            const { useTasks } = await import('./useTasks')
-            const { useDependencies } = await import('./useDependencies')
-            const { useMilestones } = await import('./useMilestones')
-
-            await db.transaction('rw', [db.projects, db.tasks, db.dependencies, db.milestones, db.taskResourceAssignments], async () => {
-              await db.projects.clear()
-              await db.tasks.clear()
-              await db.dependencies.clear()
-              await db.milestones.clear()
-              await db.taskResourceAssignments.clear()
-            })
-
-            useProject.setState({ currentProject: null, projects: [] })
-            useTasks.getState().clearTasks()
-            useDependencies.getState().clearDependencies()
-            useMilestones.getState().clearMilestones()
-          } catch (dbErr) {
-            console.warn('Failed to clean local db on logout:', dbErr)
-          }
+          // 🛡️ RGPD Art. 32: Purga completa de caché local (Dexie e IndexedDB) y stores de Zustand
+          await purgeLocalCacheAndStores()
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false })
         }
@@ -187,7 +166,7 @@ export const useAuth = create<AuthState>()(
 
         // Listen for changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          (_event, session) => {
+          (event, session) => {
             set({
               session,
               user: session?.user ?? null,
@@ -197,6 +176,9 @@ export const useAuth = create<AuthState>()(
               useOrganization.getState().loadUserOrganization().catch(() => {})
             } else {
               useOrganization.getState().clear()
+              if (event === 'SIGNED_OUT') {
+                purgeLocalCacheAndStores().catch(() => {})
+              }
             }
           }
         )
@@ -209,3 +191,30 @@ export const useAuth = create<AuthState>()(
     { name: 'AuthStore' }
   )
 )
+
+/**
+ * 🛡️ RGPD / GDPR Art. 32 (Seguridad del tratamiento y confidencialidad)
+ * Purga de manera atómica e integral todas las tablas locales de IndexedDB (Dexie)
+ * y resetea las tiendas Zustand de memoria al cerrar sesión, impidiendo fugas
+ * de datos personales o corporativos en navegadores compartidos.
+ */
+async function purgeLocalCacheAndStores(): Promise<void> {
+  try {
+    const { dbHelpers } = await import('@/lib/storage/db')
+    const { useProject } = await import('./useProject')
+    const { useTasks } = await import('./useTasks')
+    const { useDependencies } = await import('./useDependencies')
+    const { useMilestones } = await import('./useMilestones')
+    const { useResources } = await import('./useResources')
+
+    await dbHelpers.clearAllData()
+
+    useProject.setState({ currentProject: null, projects: [] })
+    useTasks.getState().clearTasks()
+    useDependencies.getState().clearDependencies()
+    useMilestones.getState().clearMilestones()
+    useResources.setState({ resources: [], isLoading: false, error: null })
+  } catch (dbErr) {
+    console.warn('[RGPD] Error durante la purga de datos locales en cierre de sesión:', dbErr)
+  }
+}

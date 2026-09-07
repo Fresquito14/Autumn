@@ -46,6 +46,7 @@ import { MobileBottomNav } from './components/features/Navigation/MobileBottomNa
 import { MobileProjectNotice } from './components/features/Navigation/MobileProjectNotice'
 import { Button } from './components/ui/button'
 import { ThemeToggle } from './components/ui/ThemeToggle'
+import { FeedbackDialog } from './components/features/Feedback/FeedbackDialog'
 import { db, dbHelpers } from './lib/storage/db'
 import { downloadProjectAsJSON, readProjectFile, importProject } from './lib/export/json'
 
@@ -568,6 +569,8 @@ function App() {
               {currentView === 'projects' && (user || isLocalFreeMode) && (
                 <ProjectSetupDialog />
               )}
+
+              <FeedbackDialog />
 
               <ThemeToggle />
 

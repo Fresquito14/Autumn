@@ -9,6 +9,7 @@ import {
   CalendarDays,
   UserCheck,
   PartyPopper,
+  ShieldAlert,
 } from 'lucide-react'
 import { format, differenceInCalendarDays, isAfter, isBefore, startOfDay } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -166,9 +167,9 @@ export function MyVacationsManagement() {
   const getAbsenceBadge = (type?: 'vacation' | 'leave' | 'other') => {
     switch (type) {
       case 'leave':
-        return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-xs">Asunto Propio</Badge>
+        return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-xs">Permiso / Asunto Propio</Badge>
       case 'other':
-        return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 text-xs">Baja / Otro</Badge>
+        return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 text-xs">Baja / Justificante Oficial</Badge>
       default:
         return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-xs">Vacaciones</Badge>
     }
@@ -292,9 +293,9 @@ export function MyVacationsManagement() {
                     onChange={(e) => setAbsenceType(e.target.value as 'vacation' | 'leave' | 'other')}
                     className="h-10 px-3 text-xs rounded-lg border bg-background text-foreground shadow-xs"
                   >
-                    <option value="vacation">🏖️ Vacaciones</option>
-                    <option value="leave">📋 Asunto Propio / Permiso</option>
-                    <option value="other">🩺 Baja Médica / Otra Ausencia</option>
+                    <option value="vacation">🏖️ Vacaciones anuales</option>
+                    <option value="leave">📋 Permiso retribuido / Asuntos propios</option>
+                    <option value="other">📄 Baja laboral / Justificante oficial</option>
                   </select>
                 </div>
 
@@ -322,13 +323,22 @@ export function MyVacationsManagement() {
               </div>
 
               <div className="grid gap-1.5">
-                <Label className="text-xs">Motivo o Notas (Opcional)</Label>
+                <Label className="text-xs">Concepto administrativo o justificación (Opcional)</Label>
                 <Input
-                  placeholder="Ej: Viaje familiar, renovación carnet, etc."
+                  placeholder="Ej: Trámite administrativo, justificante oficial aportado, mudanza..."
                   value={reason}
+                  maxLength={100}
                   onChange={(e) => setReason(e.target.value)}
                   className="h-10 text-xs"
                 />
+              </div>
+
+              {/* 🛡️ Aviso informativo de cumplimiento RGPD (Art. 9) */}
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-[11px] text-sky-900 dark:text-sky-300 leading-relaxed">
+                <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-sky-600 dark:text-sky-400" />
+                <span>
+                  <strong>Aviso de Privacidad (RGPD Art. 9):</strong> Por normativa de protección de datos en el ámbito laboral, no incluya diagnósticos, información médica ni datos de salud personales en la descripción. Indique únicamente el concepto administrativo formal.
+                </span>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
