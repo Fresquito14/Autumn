@@ -118,4 +118,24 @@ describe('Project Scoping & Task Invariant Assurance', () => {
     expect(alphaTasks.map((t) => t.id)).toEqual(['task-A'])
     expect(betaTasks.map((t) => t.id)).toEqual(['task-B'])
   })
+
+  it('should successfully update and unassign project organizationId via dbHelpers', async () => {
+    const orgId = 'org-corporate-999'
+
+    // 1. Assign project to organization
+    await dbHelpers.updateProject(projectId1, { organizationId: orgId })
+    let project = await dbHelpers.getProject(projectId1)
+    expect(project?.organizationId).toBe(orgId)
+
+    // 2. Change to another organization
+    const orgId2 = 'org-corporate-888'
+    await dbHelpers.updateProject(projectId1, { organizationId: orgId2 })
+    project = await dbHelpers.getProject(projectId1)
+    expect(project?.organizationId).toBe(orgId2)
+
+    // 3. Unassign organization (set to null)
+    await dbHelpers.updateProject(projectId1, { organizationId: null })
+    project = await dbHelpers.getProject(projectId1)
+    expect(project?.organizationId).toBeUndefined()
+  })
 })

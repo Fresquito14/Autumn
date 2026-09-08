@@ -160,6 +160,26 @@ export const useProject = create<ProjectState>()(
         try {
           await dbHelpers.updateProject(id, changes)
 
+          // Sync project changes to Supabase cloud if user is authenticated
+          try {
+            const { data: authData } = await supabase.auth.getUser()
+            if (authData?.user) {
+              const cloudPayload: Record<string, any> = { updated_at: new Date().toISOString() }
+              if (changes.name !== undefined) cloudPayload.name = changes.name
+              if (changes.description !== undefined) cloudPayload.description = changes.description || null
+              if (changes.organizationId !== undefined) cloudPayload.organization_id = changes.organizationId || null
+              if (changes.startDate !== undefined) cloudPayload.start_date = new Date(changes.startDate).toISOString().split('T')[0]
+              if (changes.endDate !== undefined) cloudPayload.end_date = changes.endDate ? new Date(changes.endDate).toISOString().split('T')[0] : null
+              if (changes.config?.workingDays) cloudPayload.working_days = changes.config.workingDays
+              if (changes.config?.hoursPerDay) cloudPayload.hours_per_day = changes.config.hoursPerDay
+              if (changes.version !== undefined) cloudPayload.version = changes.version
+
+              await supabase.from('projects').update(cloudPayload).eq('id', id)
+            }
+          } catch (cloudErr) {
+            console.warn('Could not update project in Supabase cloud:', cloudErr)
+          }
+
           const projects = await dbHelpers.getAllProjects()
           const currentProject = get().currentProject
 

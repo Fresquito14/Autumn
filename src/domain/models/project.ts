@@ -25,7 +25,7 @@ export interface Project {
   baselineId?: string
   version?: number
   userId?: string
-  organizationId?: string
+  organizationId?: string | null
   createdAt: Date
   updatedAt: Date
 }

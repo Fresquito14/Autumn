@@ -132,10 +132,17 @@ export const dbHelpers = {
   },
 
   async updateProject(id: string, changes: Partial<Project>) {
-    return await db.projects.update(id, {
+    const existing = await db.projects.get(id)
+    if (!existing) return 0
+    const updated: Project = {
+      ...existing,
       ...changes,
       updatedAt: new Date(),
-    })
+    }
+    if ('organizationId' in changes && (changes.organizationId === null || changes.organizationId === undefined)) {
+      delete updated.organizationId
+    }
+    return await db.projects.put(updated)
   },
 
   async deleteProject(id: string) {

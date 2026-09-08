@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Settings, RefreshCw, Calendar, Clock, Briefcase } from 'lucide-react'
+import { Settings, RefreshCw, Calendar, Clock, Briefcase, Building2, AlertTriangle, ShieldCheck } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useAuth } from '@/hooks/useAuth'
+import { useOrganization } from '@/hooks/useOrganization'
 import { updateProjectAndRecalculateSchedule } from '@/lib/calculations/projectSchedule'
 import type { Project } from '@/types'
 import { cn } from '@/lib/utils'
@@ -40,10 +49,15 @@ export function EditProjectDialog({
   onOpenChange,
   onSaved,
 }: EditProjectDialogProps) {
+  const { user } = useAuth()
+  const { organizations, loadUserOrganizations } = useOrganization()
+  const isOwner = Boolean(user && (!project?.userId || project?.userId === user.id))
+
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [startDateStr, setStartDateStr] = useState('')
   const [workingDays, setWorkingDays] = useState<number[]>([1, 2, 3, 4, 5])
+  const [organizationId, setOrganizationId] = useState<string>(project?.organizationId || '')
   const [isSaving, setIsSaving] = useState(false)
 
   // Populate form fields when project changes
@@ -58,8 +72,12 @@ export function EditProjectDialog({
         }
       }
       setWorkingDays(project.config?.workingDays || [1, 2, 3, 4, 5])
+      setOrganizationId(project.organizationId || '')
     }
-  }, [project, open])
+    if (open && user) {
+      loadUserOrganizations()
+    }
+  }, [project, open, user, loadUserOrganizations])
 
   if (!project) return null
 
@@ -85,11 +103,21 @@ export function EditProjectDialog({
     try {
       setIsSaving(true)
 
-      const updates = {
+      const updates: {
+        name: string
+        description?: string
+        startDate: Date
+        workingDays: number[]
+        organizationId?: string | null
+      } = {
         name: name.trim(),
         description: description.trim() || undefined,
         startDate: startDateStr ? new Date(startDateStr) : new Date(),
         workingDays,
+      }
+
+      if (isOwner) {
+        updates.organizationId = organizationId ? organizationId : null
       }
 
       await updateProjectAndRecalculateSchedule(project.id, updates)
@@ -107,7 +135,7 @@ export function EditProjectDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[620px] md:max-w-[680px] p-6">
+      <DialogContent className="sm:max-w-[620px] md:max-w-[680px] p-6 max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader className="pb-2 border-b">
             <div className="flex items-center gap-2">
@@ -230,6 +258,82 @@ export function EditProjectDialog({
                   Los días desmarcados no contarán para el cálculo de duraciones laborales de las tareas.
                 </p>
               </div>
+            </div>
+
+            {/* Section 3: Organization */}
+            <div className="space-y-3 p-4 rounded-xl bg-muted/20 border border-muted-foreground/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  <span>Organización del Proyecto</span>
+                </div>
+                {isOwner ? (
+                  <Badge variant="outline" className="text-[10px] gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                    <ShieldCheck className="h-3 w-3" />
+                    Propietario del Proyecto
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Solo Lectura
+                  </Badge>
+                )}
+              </div>
+
+              {!user ? (
+                <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Inicia sesión para vincular este proyecto a una organización o transferirlo entre organizaciones.
+                </div>
+              ) : !isOwner ? (
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-800 dark:text-amber-200">
+                  Solo el propietario del proyecto puede cambiar su organización asignada.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="project-organization" className="text-xs font-semibold">
+                    Asignación Organizativa
+                  </Label>
+                  <Select
+                    value={organizationId || 'none'}
+                    onValueChange={(val) => setOrganizationId(val === 'none' ? '' : val)}
+                  >
+                    <SelectTrigger id="project-organization" className="h-9 text-xs">
+                      <SelectValue placeholder="Seleccionar organización" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Personal / Sin Organización</span>
+                          <Badge variant="outline" className="text-[10px] py-0">Privado</Badge>
+                        </div>
+                      </SelectItem>
+                      {organizations.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{org.name}</span>
+                            <Badge variant="secondary" className="text-[10px] capitalize py-0">
+                              {org.role}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {organizationId !== (project.organizationId || '') && (
+                    <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5 text-[11px] text-amber-800 dark:text-amber-200">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                      <div>
+                        <span className="font-semibold">Atención al cambiar de organización:</span>
+                        <p className="mt-0.5 opacity-90">
+                          {organizationId
+                            ? 'Los miembros de la nueva organización obtendrán visibilidad y acceso según sus permisos. Los miembros de la organización previa perderán el acceso.'
+                            : 'El proyecto pasará a ser de tu uso exclusivo personal y dejará de estar disponible para los miembros de la organización actual.'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

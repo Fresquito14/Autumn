@@ -94,6 +94,7 @@ export async function updateProjectAndRecalculateSchedule(
     description?: string
     startDate?: Date
     workingDays?: number[]
+    organizationId?: string | null
   }
 ): Promise<void> {
   const project = await db.projects.get(projectId)
@@ -115,6 +116,9 @@ export async function updateProjectAndRecalculateSchedule(
   const projectUpdates: Partial<typeof project> = {}
   if (updates.name !== undefined) projectUpdates.name = updates.name
   if (updates.description !== undefined) projectUpdates.description = updates.description
+  if (updates.organizationId !== undefined) {
+    projectUpdates.organizationId = updates.organizationId
+  }
   if (updates.workingDays !== undefined) {
     projectUpdates.config = {
       ...project.config,
