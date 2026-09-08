@@ -23,7 +23,6 @@ import { useDevice } from './hooks/useDevice'
 import { useProject } from './hooks/useProject'
 import { useAutoRecalculate } from './hooks/useAutoRecalculate'
 import { useOrganization } from './hooks/useOrganization'
-import { ProjectSetupDialog } from './components/features/ProjectSetup/ProjectSetupDialog'
 import { ProjectList } from './components/features/ProjectSetup/ProjectList'
 import { TransferProjectDialog } from './components/features/ProjectSetup/TransferProjectDialog'
 import { ProjectStartDateDialog } from './components/features/ProjectSetup/ProjectStartDateDialog'
@@ -563,11 +562,6 @@ function App() {
                   </Button>
                   <LoginModal />
                 </div>
-              )}
-
-              {/* New Project Setup Button */}
-              {currentView === 'projects' && (user || isLocalFreeMode) && (
-                <ProjectSetupDialog />
               )}
 
               <FeedbackDialog />

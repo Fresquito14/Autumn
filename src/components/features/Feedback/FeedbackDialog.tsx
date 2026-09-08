@@ -113,16 +113,16 @@ export function FeedbackDialog({ triggerClassName }: FeedbackDialogProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           className={
             triggerClassName ||
-            'h-8 w-8 p-0 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors'
+            'h-8 px-2.5 gap-1.5 text-xs font-semibold border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all shadow-xs shrink-0'
           }
-          title="Dejar una sugerencia o idea de mejora"
+          title="Dejar una sugerencia, idea o reporte de error"
         >
-          <Lightbulb className="h-4 w-4" />
-          <span className="sr-only">Feedback</span>
+          <Lightbulb className="h-4 w-4 text-amber-500 fill-amber-500/30 shrink-0" />
+          <span className="font-semibold">Feedback</span>
         </Button>
       </DialogTrigger>
 

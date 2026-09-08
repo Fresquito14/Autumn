@@ -29,6 +29,7 @@ import { supabaseSyncService } from '@/infrastructure/supabase/db_service'
 import { PremiumPricingModal } from '../Premium/PremiumPricingModal'
 import { TransferProjectDialog } from './TransferProjectDialog'
 import { EditProjectDialog } from './EditProjectDialog'
+import { ProjectSetupDialog } from './ProjectSetupDialog'
 import { calculateBusinessDays } from '@/lib/calculations/dates'
 import { db } from '@/lib/storage/db'
 import { cn } from '@/lib/utils'
@@ -201,7 +202,7 @@ export function ProjectList() {
               : 'Haz clic a continuación para cargar proyectos de ejemplo con tareas, dependencias e hitos para probar la herramienta en local.'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex justify-center pb-6">
+        <CardContent className="flex justify-center items-center gap-3 pb-6 flex-wrap">
           {user ? (
             <Button
               onClick={() => handleSyncFromCloud(false)}
@@ -221,6 +222,7 @@ export function ProjectList() {
               {isSyncing ? 'Cargando...' : 'Cargar Proyectos de Ejemplo'}
             </Button>
           )}
+          <ProjectSetupDialog buttonSize="default" buttonClassName="px-6 py-2" />
         </CardContent>
       </Card>
     )
@@ -326,6 +328,9 @@ export function ProjectList() {
               Cargar Proyectos de Ejemplo
             </Button>
           )}
+
+          {/* New Project Button */}
+          <ProjectSetupDialog />
         </div>
       </div>
 

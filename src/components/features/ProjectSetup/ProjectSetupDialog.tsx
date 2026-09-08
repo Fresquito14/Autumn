@@ -40,7 +40,13 @@ const DAYS_OF_WEEK = [
   { id: 0, label: 'D', name: 'Domingo' },
 ]
 
-export function ProjectSetupDialog() {
+interface ProjectSetupDialogProps {
+  buttonClassName?: string
+  buttonSize?: 'default' | 'sm' | 'lg' | 'icon'
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+}
+
+export function ProjectSetupDialog({ buttonClassName, buttonSize = 'sm', variant = 'default' }: ProjectSetupDialogProps = {}) {
   const [open, setOpen] = useState(false)
   const [isPricingOpen, setIsPricingOpen] = useState(false)
   const [workingDays, setWorkingDays] = useState<number[]>([1, 2, 3, 4, 5])
@@ -158,7 +164,12 @@ export function ProjectSetupDialog() {
 
   return (
     <>
-      <Button onClick={handleOpenAttempt} className="gap-2">
+      <Button
+        onClick={handleOpenAttempt}
+        size={buttonSize}
+        variant={variant}
+        className={cn('gap-2 shrink-0 font-semibold', buttonClassName)}
+      >
         <Plus className="h-4 w-4" />
         Nuevo Proyecto
       </Button>
