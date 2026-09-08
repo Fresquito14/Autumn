@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Calendar } from 'lucide-react'
+import { Calendar, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { addDays } from 'date-fns'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { GanttTimeline } from './GanttTimeline'
 import { GanttTaskBar } from './GanttTaskBar'
@@ -37,6 +38,21 @@ export function GanttChart() {
   const { viewMode, setViewMode, zoomLevel, setZoomLevel } = useViewMode()
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(800)
+  const [isTaskListCollapsed, setIsTaskListCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('autumn_gantt_task_list_collapsed') === 'true'
+    }
+    return false
+  })
+
+  const handleToggleTaskList = (collapsed: boolean) => {
+    setIsTaskListCollapsed(collapsed)
+    try {
+      localStorage.setItem('autumn_gantt_task_list_collapsed', String(collapsed))
+    } catch {
+      // ignore storage error
+    }
+  }
 
   useEffect(() => {
     if (currentProject) {
@@ -260,6 +276,27 @@ export function GanttChart() {
               onLevelChange={setMaxDisplayLevel}
             />
 
+            {/* Toggle Task List Column */}
+            <Button
+              variant={isTaskListCollapsed ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => handleToggleTaskList(!isTaskListCollapsed)}
+              className="h-8 text-xs gap-1.5 font-medium"
+              title={isTaskListCollapsed ? "Mostrar columna con nombres de tareas" : "Colapsar columna de tareas para ampliar el diagrama de Gantt"}
+            >
+              {isTaskListCollapsed ? (
+                <>
+                  <PanelLeftOpen className="h-3.5 w-3.5 text-primary" />
+                  <span>Mostrar Tareas</span>
+                </>
+              ) : (
+                <>
+                  <PanelLeftClose className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Colapsar Tareas</span>
+                </>
+              )}
+            </Button>
+
             {import.meta.env.DEV && <TaskDebugExport />}
           </div>
         </div>
@@ -267,44 +304,75 @@ export function GanttChart() {
       <CardContent className="p-0">
         <div className="flex border-b">
           {/* Left panel - Task names */}
-          <div className="w-64 flex-shrink-0 border-r bg-muted/30">
-            <div className="h-[60px] border-b flex items-center px-4 font-semibold text-xs text-muted-foreground uppercase tracking-wider sticky top-0 bg-muted/50 z-20 box-border">
-              Tarea
-            </div>
-            <div>
-              {visibleTasks.map((task) => {
-                const isParent = tasksWithRollup.some(t => t.parentId === task.id)
-                const indent = getWbsLevel(task.wbsCode) * 14
+          {!isTaskListCollapsed ? (
+            <div className="w-64 flex-shrink-0 border-r bg-muted/30 transition-all duration-200">
+              <div className="h-[60px] border-b flex items-center justify-between px-4 font-semibold text-xs text-muted-foreground uppercase tracking-wider sticky top-0 bg-muted/50 z-20 box-border">
+                <span>Tarea</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => handleToggleTaskList(true)}
+                  title="Colapsar panel de tareas para ampliar Gantt"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              </div>
+              <div>
+                {visibleTasks.map((task) => {
+                  const isParent = tasksWithRollup.some(t => t.parentId === task.id)
+                  const indent = getWbsLevel(task.wbsCode) * 14
 
-                return (
-                  <div
-                    key={task.id}
-                    className={cn(
-                      "border-b px-4 flex items-center box-border h-10 max-h-10 min-h-10 shrink-0 overflow-hidden",
-                      isParent ? "bg-muted/40 font-medium" : ""
-                    )}
-                    style={{ height: `${ROW_HEIGHT}px` }}
-                  >
-                    <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                      <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
-                        {task.wbsCode}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-sm truncate select-none",
-                          isParent ? "font-semibold text-foreground" : "text-foreground/90"
-                        )}
-                        style={{ marginLeft: `${indent}px` }}
-                        title={task.name}
-                      >
-                        {task.name}
-                      </span>
+                  return (
+                    <div
+                      key={task.id}
+                      className={cn(
+                        "border-b px-4 flex items-center box-border h-10 max-h-10 min-h-10 shrink-0 overflow-hidden",
+                        isParent ? "bg-muted/40 font-medium" : ""
+                      )}
+                      style={{ height: `${ROW_HEIGHT}px` }}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                        <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
+                          {task.wbsCode}
+                        </span>
+                        <span
+                          className={cn(
+                            "text-sm truncate select-none",
+                            isParent ? "font-semibold text-foreground" : "text-foreground/90"
+                          )}
+                          style={{ marginLeft: `${indent}px` }}
+                          title={task.name}
+                        >
+                          {task.name}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Collapsed slim rail: takes only 32px so the timeline occupies maximum width */
+            <div className="w-8 flex-shrink-0 border-r bg-muted/20 flex flex-col items-center transition-all duration-200 select-none">
+              <div className="h-[60px] border-b flex items-center justify-center w-full sticky top-0 bg-muted/50 z-20 box-border">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => handleToggleTaskList(false)}
+                  title="Expandir nombres de tareas"
+                >
+                  <PanelLeftOpen className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="py-4">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest [writing-mode:vertical-lr] rotate-180">
+                  Tareas
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Right panel - Timeline and bars */}
           <div className="flex-1 overflow-x-auto scrollbar-hide" ref={containerRef}>

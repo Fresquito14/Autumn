@@ -256,16 +256,16 @@ export function MyTasksManagement() {
   }, [])
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto pb-8 sm:pb-12 px-0 sm:px-1">
       {/* Header Banner & Filters */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+      <div className="space-y-3 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b pb-3 sm:pb-4">
           <div>
             <div className="flex items-center gap-2">
-              <ListTodo className="h-6 w-6 text-primary" />
-              <h2 className="text-xl font-bold tracking-tight">Gestión de Tareas</h2>
+              <ListTodo className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight">Gestión de Tareas</h2>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-0.5 sm:mt-1">
               Imputa horas, completa checklists y supervisa solapes de tareas en el cronograma.
             </p>
           </div>
@@ -313,32 +313,32 @@ export function MyTasksManagement() {
         </div>
 
         {/* Top Summary Metrics */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           <Card
             className={`cursor-pointer transition-colors ${
               statusFilter === 'active' ? 'border-primary ring-1 ring-primary' : 'bg-card/50 hover:bg-card'
             }`}
             onClick={() => setStatusFilter('active')}
           >
-            <CardContent className="p-3.5 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-md bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <Clock className="h-5 w-5" />
+            <CardContent className="p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-3">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-md bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <div>
-                <span className="text-[11px] text-muted-foreground block">Tareas Activas</span>
-                <span className="text-lg font-bold text-foreground">{counts.active}</span>
+              <div className="min-w-0">
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground block truncate">Tareas Activas</span>
+                <span className="text-base sm:text-lg font-bold text-foreground leading-tight">{counts.active}</span>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-card/50">
-            <CardContent className="p-3.5 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center text-primary">
-                <Briefcase className="h-5 w-5" />
+            <CardContent className="p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-3">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-md bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <Briefcase className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <div>
-                <span className="text-[11px] text-muted-foreground block">Horas Imputadas</span>
-                <span className="text-lg font-bold text-foreground">{totalHoursLogged}h</span>
+              <div className="min-w-0">
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground block truncate">Horas Imputadas</span>
+                <span className="text-base sm:text-lg font-bold text-foreground leading-tight">{totalHoursLogged}h</span>
               </div>
             </CardContent>
           </Card>
@@ -349,13 +349,13 @@ export function MyTasksManagement() {
             }`}
             onClick={() => setStatusFilter('completed')}
           >
-            <CardContent className="p-3.5 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-md bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="h-5 w-5" />
+            <CardContent className="p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-3">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-md bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <div>
-                <span className="text-[11px] text-muted-foreground block">Completadas</span>
-                <span className="text-lg font-bold text-foreground">{counts.completed}</span>
+              <div className="min-w-0">
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground block truncate">Completadas</span>
+                <span className="text-base sm:text-lg font-bold text-foreground leading-tight">{counts.completed}</span>
               </div>
             </CardContent>
           </Card>
@@ -366,13 +366,13 @@ export function MyTasksManagement() {
             }`}
             onClick={() => setStatusFilter('all')}
           >
-            <CardContent className="p-3.5 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
-                <Calendar className="h-5 w-5" />
+            <CardContent className="p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-3">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-md bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <div>
-                <span className="text-[11px] text-muted-foreground block">Total Asignadas</span>
-                <span className="text-lg font-bold text-foreground">{counts.total}</span>
+              <div className="min-w-0">
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground block truncate">Total Asignadas</span>
+                <span className="text-base sm:text-lg font-bold text-foreground leading-tight">{counts.total}</span>
               </div>
             </CardContent>
           </Card>
@@ -385,7 +385,7 @@ export function MyTasksManagement() {
             <button
               type="button"
               onClick={() => setStatusFilter('active')}
-              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+              className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
                 statusFilter === 'active'
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -406,7 +406,7 @@ export function MyTasksManagement() {
             <button
               type="button"
               onClick={() => setStatusFilter('upcoming')}
-              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+              className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
                 statusFilter === 'upcoming'
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -427,7 +427,7 @@ export function MyTasksManagement() {
             <button
               type="button"
               onClick={() => setStatusFilter('completed')}
-              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+              className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
                 statusFilter === 'completed'
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -448,7 +448,7 @@ export function MyTasksManagement() {
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
-              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+              className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
                 statusFilter === 'all'
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -597,7 +597,7 @@ export function MyTasksManagement() {
                 </div>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 {displayedTasks.map((task) => {
                   const effectiveResourceId =
                     selectedResourceId && selectedResourceId !== 'all'

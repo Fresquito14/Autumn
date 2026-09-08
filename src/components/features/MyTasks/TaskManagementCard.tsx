@@ -324,19 +324,19 @@ export function TaskManagementCard({
         ? 'border-rose-500/30 bg-rose-500/5'
         : 'bg-card hover:border-border/80'
     )}>
-      <CardContent className="p-4 space-y-3">
+      <CardContent className="p-3 sm:p-4 space-y-2.5 sm:space-y-3">
         {/* Top Header Row */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
-          <div className="space-y-1 flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3">
+          <div className="space-y-1.5 flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-xs">
               {/* Project badge */}
-              <Badge variant="secondary" className="gap-1 font-normal text-[11px] py-0 px-2">
+              <Badge variant="secondary" className="gap-1 font-normal text-[10px] sm:text-[11px] py-0 px-2">
                 <FolderGit2 className="h-3 w-3 text-muted-foreground" />
                 <span className="truncate max-w-[140px]">{projectName}</span>
               </Badge>
 
               {/* WBS Code */}
-              <span className="font-mono font-medium text-muted-foreground">
+              <span className="font-mono text-[11px] sm:text-xs font-medium text-muted-foreground">
                 {task.wbsCode}
               </span>
 
@@ -373,10 +373,10 @@ export function TaskManagementCard({
               )}
             </div>
 
-            {/* Task Name */}
+            {/* Task Name - Larger, bolder and wrap-friendly for mobile */}
             <h3
               className={cn(
-                'text-sm font-semibold tracking-tight text-foreground truncate',
+                'text-base sm:text-lg font-bold tracking-tight text-foreground leading-snug break-words',
                 isCompleted && 'line-through text-muted-foreground'
               )}
               title={task.name}
@@ -385,14 +385,14 @@ export function TaskManagementCard({
             </h3>
 
             {task.description && (
-              <p className="text-xs text-muted-foreground line-clamp-2">
+              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                 {task.description}
               </p>
             )}
           </div>
 
           {/* Action buttons on the right */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap shrink-0 self-start sm:self-auto pt-0.5 sm:pt-0">
             <QuickSubtaskDialog
               parentTask={task}
               resourceId={resourceId}
@@ -427,7 +427,7 @@ export function TaskManagementCard({
         </div>
 
         {/* Details & Metrics Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 pt-0.5 text-xs">
           {/* Schedule info */}
           <div className="flex items-center gap-2 text-muted-foreground bg-muted/30 rounded-md p-2">
             <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
@@ -536,7 +536,7 @@ export function TaskManagementCard({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                    className="h-6 w-6 sm:h-5 sm:w-5 p-0 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0"
                     onClick={() => handleDeleteChecklistItem(item.id)}
                     title="Eliminar punto"
                   >

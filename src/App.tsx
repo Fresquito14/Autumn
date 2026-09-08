@@ -42,7 +42,6 @@ import { WelcomeLanding } from './components/features/Welcome/WelcomeLanding'
 import { PremiumPricingModal } from './components/features/Premium/PremiumPricingModal'
 import { LoginModal } from './components/features/Auth/LoginModal'
 import { MobileBottomNav } from './components/features/Navigation/MobileBottomNav'
-import { MobileProjectNotice } from './components/features/Navigation/MobileProjectNotice'
 import { Button } from './components/ui/button'
 import { ThemeToggle } from './components/ui/ThemeToggle'
 import { FeedbackDialog } from './components/features/Feedback/FeedbackDialog'
@@ -86,7 +85,6 @@ function App() {
   )
 
   const { isMobile } = useDevice()
-  const hasInitializedMobileViewRef = useRef(false)
 
   // Detect ?code= or ?invite= query params from URL
   useEffect(() => {
@@ -98,11 +96,10 @@ function App() {
     }
   }, [])
 
-  // On first mount on mobile devices, navigate directly to 'my-tasks'
+  // On mobile devices, prohibit accessing projects or project views and steer directly to 'my-tasks'
   useEffect(() => {
-    if (isMobile && !hasInitializedMobileViewRef.current) {
-      hasInitializedMobileViewRef.current = true
-      if (currentView === 'projects') {
+    if (isMobile) {
+      if (currentView === 'projects' || currentView === 'project' || currentView === 'portfolio') {
         setCurrentView('my-tasks')
       }
     }
@@ -335,7 +332,7 @@ function App() {
               </div>
 
               {/* In-Project Context Indicator */}
-              {currentProject && currentView === 'project' && (
+              {currentProject && currentView === 'project' && !isMobile && (
                 <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-muted">
                   <span className="text-xs sm:text-sm font-semibold text-foreground max-w-[260px] md:max-w-md lg:max-w-2xl truncate" title={currentProject.name}>
                     {currentProject.name}
@@ -588,6 +585,13 @@ function App() {
       <main className={cn("px-4 py-4", isMobile && "pb-24")}>
         {!user && !isLocalFreeMode ? (
           <WelcomeLanding onStartFree={() => setIsLocalFreeMode(true)} />
+        ) : isMobile ? (
+          /* Mobile Experience: Dedicated to tasks and personal vacations */
+          currentView === 'my-vacations' ? (
+            <MyVacationsManagement />
+          ) : (
+            <MyTasksManagement />
+          )
         ) : currentView === 'holidays' ? (
           <GlobalHolidaysManagement />
         ) : currentView === 'resources' ? (
@@ -609,9 +613,6 @@ function App() {
           </div>
         ) : (
           <div className="space-y-4">
-            {isMobile && (
-              <MobileProjectNotice onGoToTasks={() => setCurrentView('my-tasks')} />
-            )}
             {/* Main project view: 2/3 WBS on left, 1/3 vertical stack for Dependencies & Milestones on right */}
             <div className="flex flex-col lg:flex-row gap-4 items-stretch">
               <div className="w-full lg:w-2/3 flex flex-col">
@@ -631,12 +632,7 @@ function App() {
       {isMobile && (user || isLocalFreeMode) && (
         <MobileBottomNav
           currentView={currentView}
-          onSelectView={(view) => {
-            if (view === 'projects') {
-              setCurrentProject(null)
-            }
-            setCurrentView(view)
-          }}
+          onSelectView={(view) => setCurrentView(view)}
         />
       )}
 

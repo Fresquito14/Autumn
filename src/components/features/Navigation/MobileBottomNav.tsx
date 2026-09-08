@@ -1,11 +1,11 @@
-import { ListTodo, Palmtree, FolderKanban } from 'lucide-react'
+import { ListTodo, Palmtree } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type MobileTab = 'my-tasks' | 'my-vacations' | 'projects'
+export type MobileTab = 'my-tasks' | 'my-vacations'
 
 interface MobileBottomNavProps {
   currentView: string
-  onSelectView: (view: 'my-tasks' | 'my-vacations' | 'projects') => void
+  onSelectView: (view: 'my-tasks' | 'my-vacations') => void
 }
 
 export function MobileBottomNav({ currentView, onSelectView }: MobileBottomNavProps) {
@@ -21,12 +21,6 @@ export function MobileBottomNav({ currentView, onSelectView }: MobileBottomNavPr
       label: 'Vacaciones',
       icon: Palmtree,
       isActive: currentView === 'my-vacations',
-    },
-    {
-      id: 'projects' as const,
-      label: 'Proyectos',
-      icon: FolderKanban,
-      isActive: currentView === 'projects' || currentView === 'project',
     },
   ]
 
