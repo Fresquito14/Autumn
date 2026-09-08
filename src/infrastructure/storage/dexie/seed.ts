@@ -1,6 +1,5 @@
 import portfolioData from '@/portfolio-completo.json'
 import { db, dbHelpers } from './db'
-import { supabase } from '@/infrastructure/supabase/client'
 
 export async function seedInitialPortfolioIfEmpty(): Promise<boolean> {
   try {
@@ -145,114 +144,6 @@ export async function forceSeedPortfolioDataset(): Promise<boolean> {
     })
 
     console.log('Portfolio dataset seeded successfully into IndexedDB.')
-
-    try {
-      const { data: authData } = await supabase.auth.getUser()
-      const userId = authData?.user?.id || '00000000-0000-0000-0000-000000000000'
-
-      for (const item of portfolioData as any[]) {
-        if (item.project) {
-          const p = item.project
-          await supabase.from('projects').upsert({
-            id: p.id,
-            user_id: userId,
-            name: p.name,
-            description: p.description || null,
-            start_date: new Date(p.startDate).toISOString(),
-            end_date: p.endDate ? new Date(p.endDate).toISOString() : null,
-            working_days: p.config?.workingDays || [1, 2, 3, 4, 5],
-            hours_per_day: p.config?.hoursPerDay || 8,
-            use_global_holidays: true,
-            skip_holidays_in_scheduling: true,
-            default_duration: 5,
-            version: 1
-          })
-        }
-
-        if (item.resources && item.resources.length > 0) {
-          const formattedRes = item.resources.map((r: any) => ({
-            id: r.id,
-            user_id: userId,
-            name: r.name,
-            email: r.email || null,
-            tags: r.tags || [],
-            max_hours_per_week: Number(r.maxHoursPerWeek || 40),
-            cost_per_hour: r.costPerHour ? Number(r.costPerHour) : null,
-            custom_working_days: r.calendar?.workingDays || [1, 2, 3, 4, 5]
-          }))
-          await supabase.from('resources').upsert(formattedRes)
-        }
-
-        if (item.tasks && item.tasks.length > 0) {
-          const formattedTasks = item.tasks.map((t: any) => ({
-            id: t.id,
-            project_id: t.projectId,
-            user_id: userId,
-            name: t.name,
-            description: t.description || null,
-            wbs_code: t.wbsCode,
-            parent_id: t.parentId || null,
-            level: t.level !== undefined ? Number(t.level) : 0,
-            duration: Number(t.duration || 1),
-            start_date: new Date(t.startDate).toISOString(),
-            end_date: new Date(t.endDate).toISOString(),
-            constraint_type: t.constraintType || 'ASAP',
-            constraint_date: t.constraintDate ? new Date(t.constraintDate).toISOString() : null,
-            assigned_to: t.assignedTo || [],
-            percent_complete: t.percentComplete ?? t.progress ?? 0,
-            version: 1
-          }))
-          await supabase.from('tasks').upsert(formattedTasks)
-        }
-
-        if (item.dependencies && item.dependencies.length > 0) {
-          const formattedDeps = item.dependencies.map((d: any) => ({
-            id: d.id,
-            project_id: d.projectId,
-            user_id: userId,
-            predecessor_id: d.predecessorId,
-            successor_id: d.successorId,
-            type: d.type || 'FS',
-            lag: Number(d.lag || 0),
-            version: 1
-          }))
-          await supabase.from('dependencies').upsert(formattedDeps)
-        }
-
-        if (item.milestones && item.milestones.length > 0) {
-          const formattedMiles = item.milestones.map((m: any) => ({
-            id: m.id,
-            project_id: m.projectId,
-            user_id: userId,
-            name: m.name,
-            date: new Date(m.date).toISOString(),
-            linked_task_id: m.linkedTaskId || null,
-            offset_days: m.offsetDays || null,
-            description: m.description || null,
-            version: 1
-          }))
-          await supabase.from('milestones').upsert(formattedMiles)
-        }
-
-        const assignmentsList = item.assignments || item.taskResourceAssignments || []
-        if (assignmentsList.length > 0) {
-          const formattedAsgs = assignmentsList.map((a: any) => ({
-            id: a.id || crypto.randomUUID(),
-            task_id: a.taskId || a.task_id,
-            resource_id: a.resourceId || a.resource_id,
-            planned_hours: Number(a.plannedHours || a.planned_hours || 8),
-            actual_hours: a.actualHours ? Number(a.actualHours) : null,
-            weekly_distribution: a.weeklyDistribution || [],
-            is_manual_distribution: Boolean(a.isManualDistribution)
-          }))
-          await supabase.from('task_resource_assignments').upsert(formattedAsgs)
-        }
-      }
-      console.log('Portfolio dataset successfully synced to Supabase cloud.')
-    } catch (cloudErr) {
-      console.warn('Cloud sync of portfolio dataset skipped:', cloudErr)
-    }
-
     return true
   } catch (err) {
     console.error('Error seeding portfolio dataset:', err)
