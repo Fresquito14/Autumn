@@ -3,7 +3,6 @@ import { ArrowRight, Trash2, Link2, ChevronDown, ChevronUp } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { DependencyDialog } from './DependencyDialog'
-import { ScheduleRecalculateButton } from './ScheduleRecalculateButton'
 import { useDependencies } from '@/hooks/useDependencies'
 import { useTasks } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProject'
@@ -92,7 +91,6 @@ export function DependencyList({ isCollapsible = true, defaultCollapsed = false 
             </div>
           </div>
           <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-            <ScheduleRecalculateButton />
             {!isReadOnly && (
               <DependencyDialog
                 dependency={editingDependency}
