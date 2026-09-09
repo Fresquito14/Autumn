@@ -11,6 +11,7 @@ vi.mock('@/infrastructure/supabase/client', () => {
         getUser: vi.fn(),
       },
       from: vi.fn(),
+      rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
     },
   }
 })
@@ -117,9 +118,47 @@ describe('feedbackService', () => {
 
     const success = await feedbackService.updateStatus('fb-uuid-1', 'aceptado', 'Planificar para Q4')
     expect(success).toBe(true)
-    expect(mockUpdate).toHaveBeenCalledWith({
-      status: 'aceptado',
-      admin_notes: 'Planificar para Q4',
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'aceptado',
+        admin_notes: 'Planificar para Q4',
+      })
+    )
+  })
+
+  it('fetches user feedbacks correctly with getMyFeedbacks', async () => {
+    const mockUser = { id: 'user-456', email: 'me@autumn.app' }
+    vi.mocked(supabase.auth.getUser).mockResolvedValueOnce({
+      data: { user: mockUser as any },
+      error: null,
     })
+
+    const mockRows = [
+      {
+        id: 'fb-1',
+        user_id: 'user-456',
+        user_email: 'me@autumn.app',
+        comment: 'Mi aportación 1',
+        category: 'improvement',
+        status: 'completado',
+        project_id: null,
+        project_name: null,
+        device_info: null,
+        admin_notes: 'Respuesta del admin',
+        created_at: '2026-09-08T00:00:00Z',
+        updated_at: '2026-09-08T00:00:00Z',
+      },
+    ]
+
+    const mockOrder = vi.fn().mockResolvedValueOnce({ data: mockRows, error: null })
+    const mockOr = vi.fn().mockReturnValue({ order: mockOrder })
+    const mockSelect = vi.fn().mockReturnValue({ or: mockOr })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    const list = await feedbackService.getMyFeedbacks()
+    expect(list.length).toBe(1)
+    expect(list[0].id).toBe('fb-1')
+    expect(list[0].adminNotes).toBe('Respuesta del admin')
+    expect(list[0].status).toBe('completado')
   })
 })
